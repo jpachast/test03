@@ -9,30 +9,44 @@ Este entorno tiene acceso a los siguientes puertos públicos:
 | 12000 | https://work-1-ycbycghbyxbnnhxb.prod-runtime.all-hands.dev |
 | 12001 | https://work-2-ycbycghbyxbnnhxb.prod-runtime.all-hands.dev |
 
-## Reglas IMPORTANTES para Despliegue
+## ⚠️ REGLAS CRÍTICAS para Despliegue
 
-1. **SIEMPRE** que levantes un servidor web, usa el puerto **12001**
-2. **NUNCA** muestres `localhost:12001` al usuario
-3. **SIEMPRE** muestra la URL pública correspondiente
+### OBLIGATORIO: Matar servidor anterior
 
-### Ejemplo Correcto:
+**SIEMPRE** antes de levantar un servidor nuevo, DEBES matar el anterior:
+
+```bash
+# PASO 1: MATAR SERVIDOR ANTERIOR (OBLIGATORIO - SIEMPRE EJECUTAR)
+pkill -f "http.server 12001" 2>/dev/null || true
+sleep 1
+
+# PASO 2: IR AL DIRECTORIO DEL PROYECTO ACTUAL
+cd /workspace/project/test03/04_proyecto/openhands-chat/projects/NOMBRE_PROYECTO
+
+# PASO 3: LEVANTAR SERVIDOR NUEVO
+python3 -m http.server 12001 > server.log 2>&1 &
+sleep 2
+```
+
+### Mostrar URL
+
+**NUNCA** muestres `localhost:12001` - el usuario no puede acceder a localhost.
+**SIEMPRE** muestra la URL pública:
+
+```
+🌐 Tu app está en: https://work-2-ycbycghbyxbnnhxb.prod-runtime.all-hands.dev
+```
+
+### Ejemplo Correcto ✅:
 ```
 ✅ Tu app está en: https://work-2-ycbycghbyxbnnhxb.prod-runtime.all-hands.dev
 ```
 
-### Ejemplo INCORRECTO (no hacer):
+### Ejemplo INCORRECTO ❌:
 ```
 ❌ Tu app está en: http://localhost:12001
 ```
 
-## Comando para Levantar Servidor
+## ¿Por qué matar el servidor anterior?
 
-Cuando necesites levantar un servidor HTTP simple:
-```bash
-cd /ruta/al/proyecto && python3 -m http.server 12001 > server.log 2>&1 &
-```
-
-Después de ejecutar el comando, **espera 2 segundos** y muestra:
-```
-🌐 Tu app está en: https://work-2-ycbycghbyxbnnhxb.prod-runtime.all-hands.dev
-```
+Si no matas el servidor anterior, el puerto 12001 seguirá sirviendo el proyecto viejo y el usuario verá contenido incorrecto.

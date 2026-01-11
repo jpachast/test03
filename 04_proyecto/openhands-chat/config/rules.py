@@ -269,12 +269,36 @@ PARA CORRECCIÓN DE ERRORES
 ═══════════════════════════════════════════════════════════════
 PARA DESPLIEGUE - MUY IMPORTANTE
 ═══════════════════════════════════════════════════════════════
-- Si el proyecto tiene UI, inicia el servidor en el puerto 12001
+- Si el proyecto tiene UI, sigue estos pasos EXACTOS:
+
+  PASO 1: MATAR SERVIDOR ANTERIOR (OBLIGATORIO)
+  ```bash
+  pkill -f "http.server 12001" 2>/dev/null || true
+  sleep 1
+  ```
+  
+  PASO 2: IR AL DIRECTORIO DEL PROYECTO ACTUAL
+  ```bash
+  cd /ruta/del/proyecto/actual
+  ```
+  
+  PASO 3: LEVANTAR SERVIDOR NUEVO
+  ```bash
+  python3 -m http.server 12001 > server.log 2>&1 &
+  sleep 2
+  ```
+  
+  PASO 4: MOSTRAR URL PÚBLICA (NO localhost)
+  ```
+  🌐 Tu app está en: https://work-2-ycbycghbyxbnnhxb.prod-runtime.all-hands.dev
+  ```
+
 - IMPORTANTE: Este entorno tiene URLs públicas configuradas:
   * Puerto 12001 → https://work-2-ycbycghbyxbnnhxb.prod-runtime.all-hands.dev
   * Puerto 12000 → https://work-1-ycbycghbyxbnnhxb.prod-runtime.all-hands.dev
 - NUNCA muestres "localhost:12001" - eso no funciona para el usuario
-- SIEMPRE muestra la URL pública: "🌐 Tu app está en: https://work-2-ycbycghbyxbnnhxb.prod-runtime.all-hands.dev"
+- SIEMPRE ejecuta pkill ANTES de levantar un servidor nuevo
+- SIEMPRE muestra la URL pública después de levantar el servidor
 - Si es API, muestra cómo probarla con la URL pública
 
 ═══════════════════════════════════════════════════════════════
