@@ -972,3 +972,378 @@ response = conversation.ask_agent("What's 2+2?")
 ---
 
 *Documento actualizado con todas las funcionalidades de OpenHands según docs.openhands.dev*
+
+---
+
+## 🚨 LO QUE FALTABA (Completando al 100%)
+
+### 📄 Sistema de Prompts Completo
+
+**11 archivos de prompts que trabajan juntos:**
+
+```
+prompts/
+├── system_prompt.j2              ← PRINCIPAL (siempre se usa)
+│   ├── {% include 'self_documentation.j2' %}
+│   ├── {% include security_policy_filename %}
+│   ├── {% include 'security_risk_assessment.j2' %}  (condicional)
+│   └── {% include "model_specific/..." %}  (condicional)
+│
+├── system_prompt_interactive.j2  ← Modo interactivo
+├── system_prompt_long_horizon.j2 ← Tareas largas
+├── system_prompt_planning.j2     ← Agente de planificación
+├── system_prompt_tech_philosophy.j2
+│
+├── security_policy.j2            ← Se INCLUYE en principal
+├── security_risk_assessment.j2   ← Se INCLUYE (condicional)
+├── self_documentation.j2         ← Se INCLUYE para auto-docs
+│
+├── in_context_learning_example.j2
+├── in_context_learning_example_suffix.j2
+│
+└── model_specific/               ← Ajustes por modelo
+    ├── gpt.j2
+    ├── claude.j2
+    └── gpt/gpt-5-codex.j2
+```
+
+---
+
+### 🔧 LLM Configuration Completa
+
+```python
+from openhands.sdk import LLM
+from pydantic import SecretStr
+
+llm = LLM(
+    model="anthropic/claude-sonnet-4-5-20250929",
+    api_key=SecretStr("sk-..."),
+    base_url=None,  # Opcional para custom endpoints
+    temperature=0.1,
+    timeout=120,
+    num_retries=5,
+    usage_id="agent",  # Para tracking de costos
+    input_cost_per_token=0.00001,  # Custom pricing
+    output_cost_per_token=0.00003,
+    disable_vision=False,  # True para ahorrar costos
+)
+```
+
+**Configuración por Environment Variables:**
+```bash
+export LLM_MODEL="anthropic/claude-sonnet-4-5-20250929"
+export LLM_API_KEY="sk-..."
+export LLM_USAGE_ID="primary"
+export LLM_TIMEOUT="120"
+export LLM_NUM_RETRIES="5"
+```
+
+---
+
+### 📊 100+ Proveedores LLM Soportados
+
+Via LiteLLM:
+- OpenAI, Anthropic, Google, Azure, AWS Bedrock
+- Groq, OpenRouter, Moonshot
+- Ollama, SGLang, vLLM, LM Studio (locales)
+
+**Ejemplo AWS Bedrock:**
+```python
+llm = LLM(model="bedrock/anthropic.claude-3-sonnet-20240229-v1:0")
+# Necesita: pip install boto3
+# export AWS_BEARER_TOKEN_BEDROCK="..."
+```
+
+---
+
+### 🖼️ Soporte de Imágenes (Vision)
+
+```python
+from openhands.sdk import ImageContent, Message, TextContent
+
+# Verificar soporte
+assert llm.vision_is_active(), "Model does not support vision"
+
+# URL HTTP
+message = Message(
+    role="user",
+    content=[
+        TextContent(text="What do you see?"),
+        ImageContent(image_urls=["https://example.com/image.png"]),
+    ],
+)
+
+# Base64
+import base64
+with open("image.png", "rb") as f:
+    img_b64 = base64.b64encode(f.read()).decode("utf-8")
+    
+ImageContent(image_urls=[f"data:image/png;base64,{img_b64}"])
+```
+
+---
+
+### 🔀 Parallel Tool Calling
+
+El SDK soporta llamadas paralelas de herramientas:
+
+```python
+# El LLM puede retornar múltiples tool calls en una respuesta
+# Se agrupan por llm_response_id
+
+ActionEvent(llm_response_id="abc123", tool_call=tool1)
+ActionEvent(llm_response_id="abc123", tool_call=tool2)
+# → Se combinan en: Message(tool_calls=[tool1, tool2])
+```
+
+---
+
+### 📈 Observability & Tracing (OpenTelemetry)
+
+```bash
+# Con Laminar
+export LMNR_PROJECT_API_KEY="your-laminar-api-key"
+
+# Con Honeycomb
+export OTEL_EXPORTER_OTLP_TRACES_ENDPOINT="https://api.honeycomb.io:443/v1/traces"
+export OTEL_EXPORTER_OTLP_TRACES_HEADERS="x-honeycomb-team=YOUR_API_KEY"
+export OTEL_EXPORTER_OTLP_TRACES_PROTOCOL="http/protobuf"
+
+# Con Jaeger local
+docker run -d --name jaeger -p 4317:4317 -p 16686:16686 jaegertracing/all-in-one:latest
+export OTEL_EXPORTER_OTLP_TRACES_ENDPOINT="http://localhost:4317"
+```
+
+**Qué se tracéa:**
+```
+conversation (session_id: uuid)
+└── conversation.run
+    ├── agent.step
+    │   ├── llm.completion
+    │   └── tool.execute ("bash", "file_editor", etc.)
+    └── agent.step
+        └── llm.completion
+```
+
+---
+
+### 🛠️ Custom Tools - Cómo Crearlos
+
+```python
+from openhands.sdk import Action, Observation, ToolDefinition, ToolExecutor
+from pydantic import Field
+
+# 1. Definir Action (input)
+class MyAction(Action):
+    param: str = Field(description="Parámetro de entrada")
+
+# 2. Definir Observation (output)
+class MyObservation(Observation):
+    result: str
+    
+    @property
+    def to_llm_content(self):
+        return [TextContent(text=self.result)]
+
+# 3. Definir Executor (lógica)
+class MyExecutor(ToolExecutor[MyAction, MyObservation]):
+    def __call__(self, action: MyAction, conversation=None) -> MyObservation:
+        return MyObservation(result=f"Procesado: {action.param}")
+
+# 4. Crear ToolDefinition
+class MyTool(ToolDefinition[MyAction, MyObservation]):
+    @classmethod
+    def create(cls, conv_state) -> list[ToolDefinition]:
+        return [cls(
+            description="Mi herramienta custom",
+            action_type=MyAction,
+            observation_type=MyObservation,
+            executor=MyExecutor(),
+        )]
+
+# 5. Registrar
+from openhands.sdk.tool import register_tool
+register_tool("MyTool", MyTool)
+
+# 6. Usar
+agent = Agent(llm=llm, tools=[Tool(name="MyTool")])
+```
+
+---
+
+### 🔄 Hooks System
+
+```python
+from openhands.sdk import HookConfig
+
+hook_config = HookConfig(
+    pre_action_hooks=[my_pre_hook],
+    post_action_hooks=[my_post_hook],
+)
+
+conversation = Conversation(
+    agent=agent,
+    hook_config=hook_config,
+)
+```
+
+---
+
+### 🏗️ Workspace Types
+
+| Tipo | Uso | Instalación |
+|------|-----|-------------|
+| LocalWorkspace | Desarrollo local | Incluido en SDK |
+| DockerWorkspace | Sandboxed en container | openhands-workspace |
+| RemoteWorkspace | Servidor remoto | openhands-workspace |
+| RemoteAPIWorkspace | API hospedada | openhands-workspace |
+
+```python
+# Local (default)
+conversation = Conversation(agent=agent, workspace="./")
+
+# Docker
+from openhands.workspace import DockerWorkspace
+workspace = DockerWorkspace(image="python:3.12")
+conversation = Conversation(agent=agent, workspace=workspace)
+```
+
+---
+
+### 📋 Default Tools Preset
+
+```python
+from openhands.tools.preset.default import get_default_tools, get_default_agent
+
+# Obtener tools por defecto
+tools = get_default_tools(enable_browser=True)
+
+# O el agente completo configurado
+agent = get_default_agent(llm=llm, cli_mode=True)
+```
+
+**Tools incluidos por defecto:**
+- TerminalTool
+- FileEditorTool
+- TaskTrackerTool
+- think
+- finish
+
+---
+
+### ⏸️ Pause/Resume
+
+```python
+# Pausar (desde otro thread)
+conversation.pause()
+
+# Continuar
+conversation.run()
+
+# Estados posibles
+# IDLE → RUNNING → PAUSED → RUNNING → FINISHED
+```
+
+---
+
+### 📝 Title Generation
+
+```python
+# Generar título basado en primer mensaje
+title = conversation.generate_title(max_length=50)
+```
+
+---
+
+### 🔧 Condense On Demand
+
+```python
+# Forzar condensación manualmente
+conversation.condense()
+```
+
+---
+
+### 🎛️ Agent Configuration Completa
+
+```python
+agent = Agent(
+    llm=llm,
+    tools=[Tool(name="TerminalTool"), Tool(name="FileEditorTool")],
+    agent_context=AgentContext(
+        skills=[...],
+        system_message_suffix="...",
+        user_message_suffix="...",
+        load_public_skills=True,
+    ),
+    condenser=LLMSummarizingCondenser(llm=llm, max_size=10),
+    mcp_config={"mcpServers": {...}},
+    system_prompt_filename="system_prompt.j2",  # Cambiar prompt
+    system_prompt_kwargs={"cli_mode": True},  # Variables al template
+    security_policy_filename="security_policy.j2",
+    filter_tools_regex=".*",  # Filtrar tools por regex
+)
+```
+
+---
+
+### 📊 Responses API (GPT-5)
+
+Para modelos como GPT-5-Codex que usan Responses API:
+
+```python
+# Automáticamente detectado para modelos gpt-5*
+llm = LLM(model="openai/gpt-5-codex")
+
+# Usa responses() en vez de completion()
+# Soporta encrypted thinking y reasoning summaries
+```
+
+---
+
+## ✅ CHECKLIST FINAL COMPLETO
+
+| # | Característica | ✅ |
+|---|---------------|---|
+| 1 | 5 Productos (SDK, CLI, GUI, Cloud, Enterprise) | ✅ |
+| 2 | Arquitectura 4 Paquetes | ✅ |
+| 3 | 9 Componentes del SDK | ✅ |
+| 4 | Sistema de Tools + MCP | ✅ |
+| 5 | Sistema de Seguridad | ✅ |
+| 6 | Sistema de Skills | ✅ |
+| 7 | Context Condenser | ✅ |
+| 8 | 8 Estados de Conversación | ✅ |
+| 9 | 10 Mecanismos de Control | ✅ |
+| 10 | Integraciones Cloud | ✅ |
+| 11 | MCP (Model Context Protocol) | ✅ |
+| 12 | Sub-Agent Delegation | ✅ |
+| 13 | Iterative Refinement | ✅ |
+| 14 | Secret Registry | ✅ |
+| 15 | Persistencia | ✅ |
+| 16 | Stuck Detector | ✅ |
+| 17 | Callbacks y Events | ✅ |
+| 18 | Metrics Tracking | ✅ |
+| 19 | Visualizer | ✅ |
+| 20 | ask_agent() | ✅ |
+| 21 | **11 Archivos de Prompts** | ✅ |
+| 22 | **LLM Config Completa** | ✅ |
+| 23 | **100+ Proveedores** | ✅ |
+| 24 | **Vision/Imágenes** | ✅ |
+| 25 | **Parallel Tool Calling** | ✅ |
+| 26 | **Observability/Tracing** | ✅ |
+| 27 | **Custom Tools Creation** | ✅ |
+| 28 | **Hooks System** | ✅ |
+| 29 | **4 Workspace Types** | ✅ |
+| 30 | **Default Tools Preset** | ✅ |
+| 31 | **Pause/Resume** | ✅ |
+| 32 | **Title Generation** | ✅ |
+| 33 | **Condense On Demand** | ✅ |
+| 34 | **Agent Config Completa** | ✅ |
+| 35 | **Responses API (GPT-5)** | ✅ |
+| 36 | Troubleshooting | ✅ |
+| 37 | Best Practices | ✅ |
+
+---
+
+*Documento 100% completo basado en docs.openhands.dev y código fuente oficial.*
+*Total: 37 características documentadas.*
