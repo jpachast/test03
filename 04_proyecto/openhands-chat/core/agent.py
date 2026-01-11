@@ -7,15 +7,13 @@ from pydantic import SecretStr
 from openhands.sdk import LLM, Agent, AgentContext, Tool
 from openhands.sdk.context import Skill
 
-# === TODAS LAS TOOLS DISPONIBLES EN openhands-tools ===
+# === TOOLS PRINCIPALES ===
 from openhands.tools.terminal import TerminalTool
 from openhands.tools.file_editor import FileEditorTool
 from openhands.tools.task_tracker import TaskTrackerTool
-from openhands.tools.browser_use import BrowserToolSet  # Conjunto de tools de navegador
 from openhands.tools.glob import GlobTool
 from openhands.tools.grep import GrepTool
 from openhands.tools.apply_patch import ApplyPatchTool
-from openhands.tools.delegate import DelegateTool
 
 from config.rules import REGLAS_AGENTE, SYSTEM_PROMPT_COMPLETO, IN_CONTEXT_EXAMPLE
 
@@ -40,9 +38,9 @@ def create_agent(api_key: str, model: str = "gemini/gemini-2.5-pro", base_url: s
         base_url=base_url,
     )
     
-    # === TODAS LAS TOOLS DISPONIBLES ===
+    # === TOOLS ESENCIALES ===
     tools = [
-        # Esenciales
+        # Core - Crear y ejecutar código
         Tool(name=TerminalTool.name),      # Ejecutar comandos bash
         Tool(name=FileEditorTool.name),    # Crear/editar archivos
         Tool(name=TaskTrackerTool.name),   # Seguimiento de tareas
@@ -53,12 +51,7 @@ def create_agent(api_key: str, model: str = "gemini/gemini-2.5-pro", base_url: s
         
         # Avanzadas
         Tool(name=ApplyPatchTool.name),    # Aplicar parches de código
-        Tool(name=DelegateTool.name),      # Delegar a sub-agentes
     ]
-    
-    # Agregar tools de navegador (es un conjunto de tools)
-    for browser_tool in BrowserToolSet:
-        tools.append(Tool(name=browser_tool.name))
     
     # === CONTEXT CON TODOS LOS PROMPTS INTEGRADOS ===
     agent_context = AgentContext(
