@@ -1,6 +1,6 @@
 INFO:     Will watch for changes in these directories: ['/workspace/project/test03/04_proyecto/openhands-chat']
 INFO:     Uvicorn running on http://0.0.0.0:12000 (Press CTRL+C to quit)
-INFO:     Started reloader process [7010] using StatReload
+INFO:     Started reloader process [7097] using StatReload
 ============================================================
   🤖 OPENHANDS CHAT
 ============================================================
@@ -13,24 +13,42 @@ INFO:     Started reloader process [7010] using StatReload
   • Chat: https://work-1-ycbycghbyxbnnhxb.prod-runtime.all-hands.dev
   • Proyectos: https://work-2-ycbycghbyxbnnhxb.prod-runtime.all-hands.dev/PROYECTO/
 
-  Servidor de proyectos PID: 7014
+  Servidor de proyectos PID: 7101
   Presiona Ctrl+C para detener
 
-INFO:     Started server process [7016]
+INFO:     Started server process [7103]
 INFO:     Waiting for application startup.
 INFO:     Application startup complete.
 /home/openhands/.local/lib/python3.12/site-packages/starlette/templating.py:162: DeprecationWarning: The `name` is not the first parameter anymore. The first parameter should be the `Request` instance.
 Replace `TemplateResponse(name, {"request": request})` by `TemplateResponse(request, name)`.
   warnings.warn(
-INFO:     10.2.66.141:41778 - "GET / HTTP/1.1" 200 OK
-INFO:     127.0.0.1:55570 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.2.66.141:41778 - "GET / HTTP/1.1" 200 OK
-INFO:     10.2.66.141:41778 - "GET / HTTP/1.1" 200 OK
-INFO:     10.2.70.94:35788 - "GET /settings?tab=integraciones HTTP/1.1" 200 OK
-INFO:     10.2.70.94:35788 - "GET /api/github/status HTTP/1.1" 200 OK
-INFO:     10.2.78.161:55276 - "GET / HTTP/1.1" 200 OK
-INFO:     10.2.78.161:55276 - "GET / HTTP/1.1" 200 OK
-INFO:     10.2.78.161:55276 - "GET / HTTP/1.1" 200 OK
-INFO:     10.2.70.94:40604 - "GET / HTTP/1.1" 200 OK
-INFO:     10.2.70.94:40604 - "GET / HTTP/1.1" 200 OK
-INFO:     10.2.70.94:40604 - "GET / HTTP/1.1" 200 OK
+INFO:     10.2.78.161:58452 - "GET / HTTP/1.1" 200 OK
+INFO:     10.2.78.161:58452 - "GET / HTTP/1.1" 200 OK
+INFO:     10.2.78.161:58452 - "GET / HTTP/1.1" 200 OK
+INFO:     10.2.70.94:55640 - "GET /settings?tab=integraciones HTTP/1.1" 200 OK
+INFO:     10.2.70.94:55640 - "GET /static/style.css HTTP/1.1" 304 Not Modified
+INFO:     10.2.70.94:55640 - "GET /api/github/status HTTP/1.1" 200 OK
+INFO:     10.2.78.161:58452 - "GET / HTTP/1.1" 200 OK
+INFO:     10.2.24.167:56484 - "GET / HTTP/1.1" 200 OK
+INFO:     10.2.24.167:56484 - "GET / HTTP/1.1" 200 OK
+INFO:     10.2.24.167:56484 - "GET / HTTP/1.1" 200 OK
+INFO:     10.2.78.161:59118 - "GET / HTTP/1.1" 200 OK
+INFO:     10.2.78.161:59118 - "GET / HTTP/1.1" 200 OK
+INFO:     10.2.78.161:59118 - "GET / HTTP/1.1" 200 OK
+INFO:     10.2.78.161:59118 - "GET / HTTP/1.1" 200 OK
+INFO:     10.2.78.161:59118 - "GET / HTTP/1.1" 200 OK
+INFO:     10.2.78.161:59118 - "GET / HTTP/1.1" 200 OK
+INFO:     10.2.78.161:59118 - "GET / HTTP/1.1" 200 OK
+INFO:     10.2.78.161:59118 - "GET / HTTP/1.1" 200 OK
+INFO:     10.2.78.161:59118 - "GET / HTTP/1.1" 200 OK
+INFO:     10.2.66.141:57098 - "GET / HTTP/1.1" 200 OK
+INFO:     10.2.66.141:57098 - "GET / HTTP/1.1" 200 OK
+INFO:     10.2.66.141:57098 - "GET / HTTP/1.1" 200 OK
+INFO:     10.2.70.94:46998 - "GET /settings?tab=integraciones HTTP/1.1" 200 OK
+INFO:     10.2.70.94:46998 - "GET /api/github/status HTTP/1.1" 200 OK
+INFO:     10.2.70.94:46998 - "GET / HTTP/1.1" 200 OK
+INFO:     10.2.70.94:46998 - "GET / HTTP/1.1" 200 OK
+INFO:     10.2.70.94:46998 - "GET / HTTP/1.1" 200 OK
+INFO:     10.2.66.141:40464 - "GET / HTTP/1.1" 200 OK
+INFO:     10.2.66.141:40464 - "GET / HTTP/1.1" 200 OK
+INFO:     10.2.66.141:40464 - "GET / HTTP/1.1" 200 OK
