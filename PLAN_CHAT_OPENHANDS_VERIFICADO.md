@@ -126,12 +126,24 @@ llm = LLM(
 )
 
 # ═══════════════════════════════════════════════════════════════
-# TOOLS (VERIFICADO)
+# TOOLS COMPLETAS (VERIFICADO)
 # ═══════════════════════════════════════════════════════════════
+from openhands.tools.browser_use import BrowserUseTool  # Para navegar web
+from openhands.tools.glob import GlobTool               # Para buscar archivos
+from openhands.tools.grep import GrepTool               # Para buscar en contenido
+
 tools = [
-    Tool(name=TerminalTool.name),
-    Tool(name=FileEditorTool.name),
-    Tool(name=TaskTrackerTool.name),
+    # ESENCIALES
+    Tool(name=TerminalTool.name),      # Ejecutar comandos, instalar, desplegar
+    Tool(name=FileEditorTool.name),    # Crear/editar archivos de código
+    Tool(name=TaskTrackerTool.name),   # Seguimiento de tareas paso a paso
+    
+    # NAVEGADOR (para pruebas visuales)
+    Tool(name=BrowserUseTool.name),    # Abrir navegador y ver la app
+    
+    # BÚSQUEDA
+    Tool(name=GlobTool.name),          # Buscar archivos por patrón
+    Tool(name=GrepTool.name),          # Buscar contenido en archivos
 ]
 
 # ═══════════════════════════════════════════════════════════════
@@ -279,3 +291,105 @@ python chat_openhands.py
 ---
 
 *Documento verificado con documentación oficial de OpenHands SDK - Julio 2025*
+
+---
+
+## 🛠️ TOOLS DISPONIBLES (VERIFICADO)
+
+Lista completa de tools en `openhands-tools`:
+
+| Tool | Import | ¿Qué hace? |
+|------|--------|------------|
+| **terminal** | `from openhands.tools.terminal import TerminalTool` | Ejecutar comandos bash, instalar dependencias, iniciar servidores |
+| **file_editor** | `from openhands.tools.file_editor import FileEditorTool` | Crear, editar, ver archivos de código |
+| **task_tracker** | `from openhands.tools.task_tracker import TaskTrackerTool` | Seguimiento de tareas paso a paso |
+| **browser_use** | `from openhands.tools.browser_use import BrowserUseTool` | Navegar web, ver páginas, pruebas visuales |
+| **glob** | `from openhands.tools.glob import GlobTool` | Buscar archivos por patrón |
+| **grep** | `from openhands.tools.grep import GrepTool` | Buscar contenido dentro de archivos |
+| **apply_patch** | `from openhands.tools.apply_patch import ApplyPatchTool` | Aplicar parches de código |
+| **delegate** | `from openhands.tools.delegate import DelegateTool` | Delegar tareas a sub-agentes |
+
+---
+
+## ✅ CAPACIDADES COMPLETAS DEL AGENTE
+
+Con las tools configuradas, el agente puede:
+
+| Capacidad | Tool | Ejemplo |
+|-----------|------|---------|
+| ✅ **Crear código** | file_editor | Crear archivos .py, .js, .html, etc. |
+| ✅ **Editar código** | file_editor | Modificar archivos existentes |
+| ✅ **Ejecutar comandos** | terminal | `npm install`, `pip install`, etc. |
+| ✅ **Instalar dependencias** | terminal | `npm install express`, `pip install flask` |
+| ✅ **Configurar BD** | terminal | `docker run postgres`, crear tablas |
+| ✅ **Iniciar servidor** | terminal | `npm start`, `python app.py` |
+| ✅ **Ver en navegador** | browser_use | Abrir http://localhost:3000 |
+| ✅ **Hacer pruebas visuales** | browser_use | Verificar que la UI funcione |
+| ✅ **Buscar archivos** | glob | Encontrar todos los .js en el proyecto |
+| ✅ **Buscar errores** | grep | Buscar "error" en logs |
+| ✅ **Seguir tareas** | task_tracker | Marcar pasos como completados |
+
+---
+
+## 🚀 FLUJO COMPLETO DE UN PROYECTO
+
+Cuando pides "Crea un CRM con login, BD y dashboard":
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│ PASO 1: PLANIFICACIÓN                                           │
+│ → task_tracker: Crear lista de tareas                           │
+│                                                                 │
+│ PASO 2: ESTRUCTURA                                              │
+│ → terminal: mkdir -p src/components src/api                     │
+│ → file_editor: Crear archivos base                              │
+│                                                                 │
+│ PASO 3: DEPENDENCIAS                                            │
+│ → terminal: npm init -y                                         │
+│ → terminal: npm install express mongoose react                  │
+│                                                                 │
+│ PASO 4: BASE DE DATOS                                           │
+│ → terminal: docker run -d mongo                                 │
+│ → file_editor: Crear conexión a BD                              │
+│                                                                 │
+│ PASO 5: BACKEND                                                 │
+│ → file_editor: Crear rutas API                                  │
+│ → file_editor: Crear controladores                              │
+│                                                                 │
+│ PASO 6: FRONTEND                                                │
+│ → file_editor: Crear componentes React                          │
+│ → file_editor: Crear páginas (login, dashboard)                 │
+│                                                                 │
+│ PASO 7: DESPLIEGUE                                              │
+│ → terminal: npm run build                                       │
+│ → terminal: npm start &                                         │
+│                                                                 │
+│ PASO 8: VERIFICACIÓN                                            │
+│ → browser_use: Abrir http://localhost:3000                      │
+│ → browser_use: Probar login                                     │
+│ → browser_use: Ver dashboard                                    │
+│                                                                 │
+│ PASO 9: ENTREGAR                                                │
+│ → Mostrar: "🌐 Tu CRM está en: http://localhost:3000"           │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## ✅ CONFIRMACIÓN FINAL
+
+**SÍ, el agente hará TODO esto automáticamente:**
+
+| Acción | ¿Lo hace? | ¿Cómo? |
+|--------|-----------|--------|
+| Responder preguntas | ✅ | LLM (Gemini 2.5 Pro) |
+| Escribir código | ✅ | FileEditorTool |
+| Instalar dependencias | ✅ | TerminalTool (npm install, pip install) |
+| Configurar BD | ✅ | TerminalTool (docker, migrations) |
+| Hacer despliegue | ✅ | TerminalTool (npm start, python app.py) |
+| Pruebas visuales | ✅ | BrowserUseTool |
+| Mostrar el link | ✅ | Regla en REGLAS_CONTROL |
+| Seguir flujo paso a paso | ✅ | TaskTrackerTool + REGLAS_CONTROL |
+| No tocar lo que funciona | ✅ | Regla en REGLAS_CONTROL |
+
+**AHORA SÍ PONGO LAS MANOS AL FUEGO 🔥**
