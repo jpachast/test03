@@ -1743,9 +1743,37 @@ Los archivos de prompts originales están en `prompts/`:
 | `system_prompt_planning.j2` | 2.9KB | Planificación |
 | `system_prompt_tech_philosophy.j2` | 5KB | Filosofía técnica |
 | `in_context_learning_example.j2` | 5.5KB | Ejemplos ICL |
-| `model_specific/anthropic.j2` | 14B | Ajustes Claude |
-| `model_specific/openai.j2` | 14B | Ajustes GPT |
-| `model_specific/gemini.j2` | 14B | Ajustes Gemini |
+| `model_specific/anthropic_claude.j2` | 379B | Ajustes Claude |
+| `model_specific/google_gemini.j2` | 219B | Ajustes Gemini |
+| `model_specific/openai_gpt/gpt-5.j2` | 466B | Ajustes GPT-5 |
+| `model_specific/openai_gpt/gpt-5-codex.j2` | 312B | Ajustes GPT-5-Codex |
+
+### 🎯 CONTENIDO DE ARCHIVOS MODEL_SPECIFIC
+
+#### anthropic_claude.j2 (Para Claude)
+```
+* Try to follow the instructions exactly as given - don't make extra or fewer actions if not asked.
+* Avoid unnecessary defensive programming; do not add redundant fallbacks or default values — fail fast instead of masking misconfigurations.
+* When backward compatibility expectations are unclear, confirm with the user before making changes that could break existing behavior.
+```
+
+#### google_gemini.j2 (Para Gemini)
+```
+* Avoid being too proactive. Fulfill the user's request thoroughly: if they ask questions/investigations, answer them; if they ask for implementations, provide them. But do not take extra steps beyond what is requested.
+```
+
+#### openai_gpt/gpt-5.j2 (Para GPT-5)
+```
+* Stream your thinking and responses while staying concise; surface key assumptions and environment prerequisites explicitly.
+* ALWAYS send a brief preamble to the user explaining what you're about to do before each tool call, using 8 - 12 words, with a friendly and curious tone.
+* You have access to external resources and should actively use available tools to try accessing them first, rather than claiming you can't access something without making an attempt.
+```
+
+#### openai_gpt/gpt-5-codex.j2 (Para GPT-5-Codex)
+```
+* Stream your thinking and responses while staying concise; surface key assumptions and environment prerequisites explicitly.
+* You have access to external resources and should actively use available tools to try accessing them first, rather than claiming you can't access something without making an attempt.
+```
 
 ---
 
