@@ -712,3 +712,263 @@ CORRECTO (lo que hace OpenHands):
 
 **El agente está OBLIGADO a ver resultados reales.** No puede decir "funcionó" sin haberlo ejecutado y visto el output.
 
+
+---
+
+## 🔧 FUNCIONALIDADES ADICIONALES (Lo que faltaba)
+
+### 1️⃣ MCP (Model Context Protocol)
+
+Permite conectar OpenHands con servidores externos de herramientas.
+
+```python
+mcp_config = {
+    "mcpServers": {
+        "fetch": {"command": "uvx", "args": ["mcp-server-fetch"]},
+        "filesystem": {
+            "command": "npx",
+            "args": ["-y", "@modelcontextprotocol/server-filesystem", "/path"]
+        }
+    }
+}
+
+agent = Agent(llm=llm, tools=tools, mcp_config=mcp_config)
+```
+
+**Soporte por plataforma:**
+| Plataforma | Config |
+|------------|--------|
+| CLI | ~/.openhands/mcp.json |
+| SDK | Programático |
+| Local GUI | Settings UI |
+| Cloud | Cloud UI settings |
+
+---
+
+### 2️⃣ Sub-Agent Delegation
+
+Un agente puede crear sub-agentes y delegarles tareas en paralelo.
+
+```python
+# El agente usa:
+{"command": "spawn", "ids": ["research", "implementation"]}
+
+# Luego delega:
+{
+    "command": "delegate",
+    "tasks": {
+        "research": "Find best practices for async code",
+        "implementation": "Refactor the MyClass class"
+    }
+}
+```
+
+**Características:**
+- Ejecución en paralelo con threads
+- Cada sub-agente tiene su propio contexto
+- Resultados consolidados al terminar
+
+---
+
+### 3️⃣ Iterative Refinement
+
+Patrón donde múltiples agentes trabajan en loop de feedback:
+
+```
+1. Agente de refactoring → hace la tarea
+2. Agente de crítica → evalúa calidad (0-100)
+3. Si score < 90% → agente de refactoring intenta de nuevo con feedback
+4. Repeat hasta PASS
+```
+
+---
+
+### 4️⃣ Secret Registry
+
+Manejo seguro de secretos en comandos:
+
+```python
+conversation.update_secrets({
+    "SECRET_TOKEN": "my-secret-value",
+    "API_KEY": MySecretSource()  # callable
+})
+
+# Cuando el agente ejecuta:
+# terminal("echo $SECRET_TOKEN")
+# → El sistema inyecta el valor como env var
+# → En el output se ve: <secret-hidden>
+```
+
+**Características:**
+- Detección automática de referencias a secretos
+- Inyección como variables de entorno
+- Masking en outputs para prevenir exposición
+
+---
+
+### 5️⃣ Persistencia de Conversaciones
+
+Guardar y restaurar estado entre sesiones:
+
+```python
+conversation = Conversation(
+    agent=agent,
+    workspace=cwd,
+    persistence_dir="./.conversations",
+    conversation_id=uuid.uuid4(),
+)
+```
+
+**Estructura:**
+```
+.conversations/
+├── <conversation_id>/
+│   ├── base_state.json    # Estado base
+│   └── events/            # Eventos individuales
+│       ├── event-00000-abc.json
+│       └── event-00001-def.json
+```
+
+**Qué se persiste:**
+- Message History
+- Agent Configuration
+- Execution State
+- Tool Outputs
+- Statistics
+- Activated Skills
+- Secrets
+
+---
+
+### 6️⃣ Stuck Detector
+
+Detecta cuando el agente está atascado:
+
+| Patrón | Descripción |
+|--------|-------------|
+| action_observation | Ciclos repetitivos de acción-observación |
+| action_error | Misma acción, mismo error |
+| monologue | Agente hablando solo sin input |
+| alternating_pattern | Patrones alternantes repetitivos |
+| context_window | Errores de memoria |
+
+**Configuración:**
+```python
+conversation = Conversation(
+    agent=agent,
+    stuck_detection=True,
+    stuck_detection_thresholds={
+        'action_observation': 3,
+        'action_error': 4,
+        'monologue': 3,
+        'alternating_pattern': 3
+    }
+)
+```
+
+---
+
+### 7️⃣ Callbacks y Events
+
+Sistema de callbacks para recibir eventos:
+
+```python
+def conversation_callback(event: Event):
+    if isinstance(event, LLMConvertibleEvent):
+        llm_messages.append(event.to_llm_message())
+
+conversation = Conversation(
+    agent=agent,
+    callbacks=[conversation_callback],
+    token_callbacks=[on_token],  # Para streaming
+)
+```
+
+---
+
+### 8️⃣ Metrics Tracking
+
+Seguimiento de costos y tokens:
+
+```python
+stats = conversation.conversation_stats.get_combined_metrics()
+print(f"Cost: ${stats.accumulated_cost:.6f}")
+print(f"Prompt Tokens: {stats.accumulated_token_usage.prompt_tokens}")
+print(f"Completion Tokens: {stats.accumulated_token_usage.completion_tokens}")
+
+# Por usage_id
+for usage_id, metrics in stats.usage_to_metrics.items():
+    print(f"{usage_id}: ${metrics.accumulated_cost:.6f}")
+```
+
+---
+
+### 9️⃣ Visualizer
+
+Visualización de eventos en consola:
+
+```python
+from openhands.sdk import DefaultConversationVisualizer, DelegationVisualizer
+
+# Visualización por defecto con Rich
+conversation = Conversation(
+    agent=agent,
+    visualizer=DefaultConversationVisualizer(
+        highlight_regex={"error": "red", "success": "green"},
+        skip_user_messages=False
+    )
+)
+
+# Para delegation
+conversation = Conversation(
+    agent=agent,
+    visualizer=DelegationVisualizer(name="MainAgent")
+)
+```
+
+---
+
+### 🔟 ask_agent() - Preguntas Stateless
+
+Preguntar algo al agente sin afectar la conversación:
+
+```python
+# Thread-safe, no modifica estado
+response = conversation.ask_agent("What's 2+2?")
+# La pregunta NO queda en el historial
+# Útil mientras conversation.run() está ejecutando
+```
+
+---
+
+## ✅ CHECKLIST: ¿Está completo?
+
+| Característica | Documentado |
+|---------------|-------------|
+| 5 Productos (SDK, CLI, GUI, Cloud, Enterprise) | ✅ |
+| Arquitectura 4 Paquetes | ✅ |
+| 9 Componentes del SDK | ✅ |
+| Sistema de Tools + MCP | ✅ |
+| Sistema de Seguridad (Risk, Analyzers, Policies) | ✅ |
+| Sistema de Skills (Repo, Knowledge, Task) | ✅ |
+| Context Condenser | ✅ |
+| 8 Estados de Conversación | ✅ |
+| 10 Mecanismos de Control del Agente | ✅ |
+| Integraciones Cloud (GitHub, GitLab, Slack, Jira) | ✅ |
+| MCP (Model Context Protocol) | ✅ |
+| Sub-Agent Delegation | ✅ |
+| Iterative Refinement | ✅ |
+| Secret Registry | ✅ |
+| Persistencia de Conversaciones | ✅ |
+| Stuck Detector | ✅ |
+| Callbacks y Events | ✅ |
+| Metrics Tracking | ✅ |
+| Visualizer | ✅ |
+| ask_agent() Stateless | ✅ |
+| Troubleshooting | ✅ |
+| Best Practices Prompts | ✅ |
+| API Reference | ✅ |
+
+---
+
+*Documento actualizado con todas las funcionalidades de OpenHands según docs.openhands.dev*
