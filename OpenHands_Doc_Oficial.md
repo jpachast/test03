@@ -1347,3 +1347,406 @@ llm = LLM(model="openai/gpt-5-codex")
 
 *Documento 100% completo basado en docs.openhands.dev y código fuente oficial.*
 *Total: 37 características documentadas.*
+
+---
+
+## 📜 SISTEMA DE PROMPTS COMPLETO DE OPENHANDS
+
+### 🗂️ Archivos de Prompts Descargados
+
+Los archivos originales están disponibles en la carpeta `prompts/` de este repositorio:
+
+```
+prompts/
+├── system_prompt.j2                    ← PRINCIPAL (9.2KB)
+├── security_policy.j2                  ← Política de seguridad (993B)
+├── self_documentation.j2               ← Auto-documentación (1KB)
+├── security_risk_assessment.j2         ← Evaluación de riesgo (1.2KB)
+├── system_prompt_interactive.j2        ← Modo interactivo (1.4KB)
+├── system_prompt_long_horizon.j2       ← Tareas largas (3KB)
+├── system_prompt_planning.j2           ← Planificación (2.9KB)
+├── system_prompt_tech_philosophy.j2    ← Filosofía técnica (5KB)
+├── in_context_learning_example.j2      ← Ejemplos ICL (5.5KB)
+├── in_context_learning_example_suffix.j2
+└── model_specific/
+    ├── anthropic.j2
+    ├── gemini.j2
+    └── openai.j2
+```
+
+---
+
+### 🔄 EL PROMPT FINAL QUE VE EL LLM
+
+El prompt final es la **combinación** de múltiples fuentes:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│            EL PROMPT FINAL ES LA COMBINACIÓN DE:                │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  1. system_prompt.j2 (base)                                     │
+│     └── Contiene: ROLE, MEMORY, EFFICIENCY, FILE_SYSTEM_        │
+│         GUIDELINES, CODE_QUALITY, VERSION_CONTROL,              │
+│         PULL_REQUESTS, PROBLEM_SOLVING_WORKFLOW,                │
+│         EXTERNAL_SERVICES, ENVIRONMENT_SETUP,                   │
+│         TROUBLESHOOTING, PROCESS_MANAGEMENT                     │
+│                                                                 │
+│  2. security_policy.j2 (incluido)                               │
+│     └── {% include security_policy_filename %}                  │
+│     └── Define: OK sin consentimiento, Solo con consentimiento, │
+│         Nunca hacer                                             │
+│                                                                 │
+│  3. self_documentation.j2 (incluido)                            │
+│     └── {% include 'self_documentation.j2' %}                   │
+│     └── Instrucciones para consultar docs.openhands.dev         │
+│                                                                 │
+│  4. security_risk_assessment.j2 (si aplica)                     │
+│     └── {% if llm_security_analyzer %}                          │
+│     └── Define niveles: LOW, MEDIUM, HIGH                       │
+│                                                                 │
+│  5. model_specific/xxx.j2 (si aplica al modelo)                 │
+│     └── {% include "model_specific/" ~ model_family ~ ".j2" %}  │
+│     └── Ajustes específicos para GPT, Claude, Gemini, etc.      │
+│                                                                 │
+│  6. Skills activados (de AGENTS.md, etc.)                       │
+│     └── Se cargan dinámicamente según el repositorio            │
+│     └── Conocimiento específico del proyecto                    │
+│                                                                 │
+│  7. system_message_suffix del AgentContext                      │
+│     └── agent_context.system_message_suffix                     │
+│     └── Personalización adicional por el desarrollador          │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+### 📋 CONTENIDO DE CADA ARCHIVO
+
+#### 1️⃣ system_prompt.j2 (BASE)
+
+Este es el prompt principal que define el comportamiento del agente:
+
+```jinja2
+You are OpenHands agent, a helpful AI assistant that can interact 
+with a computer to solve tasks.
+
+<ROLE>
+* Your primary role is to assist users by executing commands, 
+  modifying code, and solving technical problems effectively.
+* You should be thorough, methodical, and prioritize quality over speed.
+* If the user asks a question, like "why is X happening", 
+  don't try to fix the problem. Just give an answer to the question.
+</ROLE>
+
+<MEMORY>
+* Use AGENTS.md under the repository root as your persistent memory
+* Add important insights, patterns, and learnings to this file
+</MEMORY>
+
+<EFFICIENCY>
+* Each action you take is somewhat expensive
+* Combine multiple actions into a single action when possible
+</EFFICIENCY>
+
+<FILE_SYSTEM_GUIDELINES>
+* Do NOT assume paths are relative to current directory
+* NEVER create multiple versions of same file
+* Always modify original file directly
+</FILE_SYSTEM_GUIDELINES>
+
+<CODE_QUALITY>
+* Write clean, efficient code with minimal comments
+* Make minimal changes needed to solve the problem
+</CODE_QUALITY>
+
+<VERSION_CONTROL>
+* Do NOT make dangerous changes (push to main, delete repos)
+* Use git commit -a whenever possible
+</VERSION_CONTROL>
+
+<PULL_REQUESTS>
+* Do not push unless explicitly asked
+* Create only ONE PR per session/issue
+</PULL_REQUESTS>
+
+<PROBLEM_SOLVING_WORKFLOW>
+1. EXPLORATION
+2. ANALYSIS
+3. TESTING
+4. IMPLEMENTATION
+5. VERIFICATION
+</PROBLEM_SOLVING_WORKFLOW>
+
+<SELF_DOCUMENTATION>
+{% include 'self_documentation.j2' %}
+</SELF_DOCUMENTATION>
+
+<SECURITY>
+{% include security_policy_filename %}
+</SECURITY>
+
+{% if llm_security_analyzer %}
+<SECURITY_RISK_ASSESSMENT>
+{% include 'security_risk_assessment.j2' %}
+</SECURITY_RISK_ASSESSMENT>
+{% endif %}
+
+<EXTERNAL_SERVICES>...</EXTERNAL_SERVICES>
+<ENVIRONMENT_SETUP>...</ENVIRONMENT_SETUP>
+<TROUBLESHOOTING>...</TROUBLESHOOTING>
+<PROCESS_MANAGEMENT>...</PROCESS_MANAGEMENT>
+
+{# Incluir ajustes específicos del modelo #}
+{% if model_family %}
+<IMPORTANT>
+{% include "model_specific/" ~ model_family ~ ".j2" %}
+</IMPORTANT>
+{% endif %}
+```
+
+---
+
+#### 2️⃣ security_policy.j2
+
+```jinja2
+# 🔐 Security Policy
+
+## OK to do without Explicit User Consent
+- Download and run code from a repository specified by a user
+- Open pull requests on the original repositories
+- Install and run popular packages from pypi, npm
+- Use APIs to work with GitHub or other platforms
+
+## Do only with Explicit User Consent
+- Upload code to anywhere other than the original location
+- Upload API keys or tokens anywhere
+
+## Never Do
+- Never perform any illegal activities
+- Never run software to mine cryptocurrency
+
+## General Security Guidelines
+- Only use GITHUB_TOKEN and other credentials in ways 
+  the user has explicitly requested and would expect
+```
+
+---
+
+#### 3️⃣ self_documentation.j2
+
+```jinja2
+When the user directly asks about any of the following:
+- OpenHands capabilities (e.g., "can OpenHands do...", "does OpenHands have...")
+- what you're able to do in second person (e.g., "are you able...", "can you...")
+- how to use a specific OpenHands feature or product
+- how to use the OpenHands SDK, CLI, GUI, or other OpenHands products
+
+Get accurate information from the official OpenHands documentation 
+at <https://docs.openhands.dev/>. The documentation includes:
+
+**OpenHands SDK** (`/sdk/*`): Python library for building AI agents
+**OpenHands CLI** (`/openhands/usage/run-openhands/cli-mode`)
+**OpenHands GUI** (`/openhands/usage/run-openhands/local-setup`)
+**OpenHands Cloud** (`/openhands/usage/run-openhands/cloud`)
+**OpenHands Enterprise**: Self-hosted deployment
+
+Always provide links to the relevant documentation pages.
+```
+
+---
+
+#### 4️⃣ security_risk_assessment.j2
+
+```jinja2
+# Security Risk Policy
+When using tools that support the security_risk parameter, 
+assess the safety risk of your actions:
+
+{% if cli_mode | default(true) %}
+- **LOW**: Safe, read-only actions.
+  - Viewing/summarizing content, reading project files
+- **MEDIUM**: Project-scoped edits or execution.
+  - Modify user project files, run project scripts/tests
+- **HIGH**: System-level or untrusted operations.
+  - Changing system settings, global installs, sudo commands
+{% else %}
+- **LOW**: Read-only actions inside sandbox.
+  - Inspecting container files, calculations, viewing docs.
+- **MEDIUM**: Container-scoped edits and installs.
+  - Modify workspace files, install packages inside container
+- **HIGH**: Data exfiltration or privilege breaks.
+  - Sending secrets/local data out, privileged container ops
+{% endif %}
+
+**Global Rules**
+- Always escalate to **HIGH** if sensitive data leaves the environment.
+```
+
+---
+
+### 🔧 CÓMO SE ENSAMBLA EL PROMPT FINAL
+
+```python
+# En Agent.__init__() o antes de llamar al LLM:
+
+from jinja2 import Environment, FileSystemLoader
+
+# 1. Cargar el template base
+env = Environment(loader=FileSystemLoader('prompts/'))
+template = env.get_template('system_prompt.j2')
+
+# 2. Preparar variables del contexto
+context = {
+    'security_policy_filename': 'security_policy.j2',
+    'llm_security_analyzer': True,  # Si está habilitado
+    'model_family': 'anthropic',    # gpt, anthropic, gemini
+    'model_variant': None,          # Para sub-variantes
+    'cli_mode': True,               # Afecta security_risk_assessment
+}
+
+# 3. Renderizar el template (resuelve todos los {% include %})
+system_prompt = template.render(**context)
+
+# 4. Agregar Skills activados
+for skill in activated_skills:
+    system_prompt += f"\n<SKILL name='{skill.name}'>\n{skill.content}\n</SKILL>"
+
+# 5. Agregar system_message_suffix del AgentContext
+if agent_context.system_message_suffix:
+    system_prompt += f"\n{agent_context.system_message_suffix}"
+
+# 6. El prompt final se envía al LLM
+messages = [
+    {"role": "system", "content": system_prompt},
+    {"role": "user", "content": user_message},
+]
+```
+
+---
+
+### 📊 DIAGRAMA DEL FLUJO DE ENSAMBLAJE
+
+```
+                    ┌─────────────────────┐
+                    │   system_prompt.j2  │
+                    │       (BASE)        │
+                    └──────────┬──────────┘
+                               │
+          ┌────────────────────┼────────────────────┐
+          │                    │                    │
+          ▼                    ▼                    ▼
+┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐
+│security_policy.j2│ │self_documentation│ │security_risk_   │
+│    (SIEMPRE)     │ │   .j2 (SIEMPRE) │ │assessment.j2    │
+└────────┬────────┘  └────────┬────────┘ │ (SI ANALYZER)   │
+         │                    │          └────────┬────────┘
+         └────────────────────┼───────────────────┘
+                              │
+                              ▼
+                    ┌─────────────────────┐
+                    │  model_specific/    │
+                    │  {model_family}.j2  │
+                    │   (SI APLICA)       │
+                    └──────────┬──────────┘
+                               │
+                               ▼
+                    ┌─────────────────────┐
+                    │   SKILLS ACTIVADOS  │
+                    │  (AGENTS.md, etc.)  │
+                    └──────────┬──────────┘
+                               │
+                               ▼
+                    ┌─────────────────────┐
+                    │ system_message_     │
+                    │ suffix (AgentContext│
+                    └──────────┬──────────┘
+                               │
+                               ▼
+                    ╔═════════════════════╗
+                    ║  PROMPT FINAL PARA  ║
+                    ║       EL LLM        ║
+                    ╚═════════════════════╝
+```
+
+---
+
+### 🎯 EJEMPLO DE PROMPT FINAL ENSAMBLADO
+
+```
+You are OpenHands agent, a helpful AI assistant...
+
+<ROLE>
+* Your primary role is to assist users by executing commands...
+</ROLE>
+
+<MEMORY>
+* Use AGENTS.md under the repository root...
+</MEMORY>
+
+<EFFICIENCY>...</EFFICIENCY>
+<FILE_SYSTEM_GUIDELINES>...</FILE_SYSTEM_GUIDELINES>
+<CODE_QUALITY>...</CODE_QUALITY>
+<VERSION_CONTROL>...</VERSION_CONTROL>
+<PULL_REQUESTS>...</PULL_REQUESTS>
+<PROBLEM_SOLVING_WORKFLOW>...</PROBLEM_SOLVING_WORKFLOW>
+
+<SELF_DOCUMENTATION>
+When the user directly asks about OpenHands capabilities...
+Get accurate information from docs.openhands.dev...
+</SELF_DOCUMENTATION>
+
+<SECURITY>
+# 🔐 Security Policy
+## OK to do without Explicit User Consent
+- Download and run code from a repository...
+## Do only with Explicit User Consent
+- Upload code to anywhere other than the original location...
+## Never Do
+- Never perform any illegal activities...
+</SECURITY>
+
+<SECURITY_RISK_ASSESSMENT>
+# Security Risk Policy
+- LOW: Read-only actions inside sandbox
+- MEDIUM: Container-scoped edits and installs
+- HIGH: Data exfiltration or privilege breaks
+</SECURITY_RISK_ASSESSMENT>
+
+<EXTERNAL_SERVICES>...</EXTERNAL_SERVICES>
+<ENVIRONMENT_SETUP>...</ENVIRONMENT_SETUP>
+<TROUBLESHOOTING>...</TROUBLESHOOTING>
+<PROCESS_MANAGEMENT>...</PROCESS_MANAGEMENT>
+
+<SKILL name='repo.md'>
+[Contenido del archivo .openhands/skills/repo.md del repositorio]
+</SKILL>
+
+[system_message_suffix adicional si está configurado]
+```
+
+---
+
+### 📁 ARCHIVOS DISPONIBLES EN ESTE REPOSITORIO
+
+Los archivos de prompts originales están en `prompts/`:
+
+| Archivo | Tamaño | Descripción |
+|---------|--------|-------------|
+| `system_prompt.j2` | 9.2KB | Prompt principal (base) |
+| `security_policy.j2` | 993B | Política de seguridad |
+| `self_documentation.j2` | 1KB | Auto-documentación |
+| `security_risk_assessment.j2` | 1.2KB | Evaluación de riesgo |
+| `system_prompt_interactive.j2` | 1.4KB | Modo interactivo |
+| `system_prompt_long_horizon.j2` | 3KB | Tareas largas |
+| `system_prompt_planning.j2` | 2.9KB | Planificación |
+| `system_prompt_tech_philosophy.j2` | 5KB | Filosofía técnica |
+| `in_context_learning_example.j2` | 5.5KB | Ejemplos ICL |
+| `model_specific/anthropic.j2` | 14B | Ajustes Claude |
+| `model_specific/openai.j2` | 14B | Ajustes GPT |
+| `model_specific/gemini.j2` | 14B | Ajustes Gemini |
+
+---
+
+*Fuente: https://github.com/OpenHands/software-agent-sdk/tree/main/openhands-sdk/openhands/sdk/agent/prompts*
