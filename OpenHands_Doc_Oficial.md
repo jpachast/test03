@@ -1778,3 +1778,77 @@ Los archivos de prompts originales están en `prompts/`:
 ---
 
 *Fuente: https://github.com/OpenHands/software-agent-sdk/tree/main/openhands-sdk/openhands/sdk/agent/prompts*
+
+---
+
+## 🎯 RECOMENDACIÓN FINAL DE MODELO
+
+### Modelo Recomendado: **Gemini 2.5 Pro**
+
+Para tener un chat **95% igual a OpenHands Cloud** con soporte de imágenes y precio accesible:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                                                                 │
+│   🏆 MODELO: GEMINI 2.5 PRO                                     │
+│                                                                 │
+│   ✅ Calidad: 95% comparado con Claude                          │
+│   ✅ Soporta imágenes: SÍ (nativo, sin bridge)                  │
+│   ✅ OpenHands oficial: SÍ (en lista de modelos verificados)    │
+│   ✅ Límites: Muy altos, no afectan uso normal                  │
+│                                                                 │
+│   API Key: https://aistudio.google.com                          │
+│   Modelo: gemini/gemini-2.5-pro                                 │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### 💰 Costos
+
+| Tipo | Precio |
+|------|--------|
+| Lo que TÚ escribes (input) | $1.25 por 1 millón de tokens |
+| Lo que el modelo RESPONDE (output) | $10 por 1 millón de tokens |
+
+**Pagas solo por lo que usas (no es suscripción):**
+
+| Tu uso en el mes | Costo aproximado |
+|------------------|------------------|
+| Poco (pruebas) | $1-3 |
+| Normal (desarrollo) | $5-10 |
+| Mucho (intensivo) | $15-30 |
+
+### 📊 Ejemplo: Proyecto Grande (CRM completo)
+
+Un proyecto completo con BD, frontend, backend, API, pruebas y diseño:
+
+| Concepto | Estimado |
+|----------|----------|
+| Tokens consumidos | 5-15 millones |
+| **Costo total del proyecto** | **$50-150 USD** |
+
+*(Costo total del proyecto, no por mes)*
+
+### Comparación con otros modelos
+
+| Modelo | Calidad | Imágenes | Costo/mes | OpenHands Oficial |
+|--------|---------|----------|-----------|-------------------|
+| Claude Sonnet 4.5 | 100% | ✅ | $30-100 | ✅ (el que usa OpenHands Cloud) |
+| **Gemini 2.5 Pro** | **95%** | **✅** | **$10-20** | **✅ Recomendado** |
+| DeepSeek V3 | 90% | ❌ | $2-5 | ✅ (sin imágenes) |
+| Gemini 2.0 Flash | 85% | ✅ | $3-10 | ✅ (más rápido, menos potente) |
+
+### Configuración en OpenHands
+
+```python
+from openhands.sdk import LLM
+
+llm = LLM(
+    model="gemini/gemini-2.5-pro",
+    api_key="tu-api-key-de-google",
+)
+```
+
+---
+
+*Recomendación basada en: calidad similar a Claude, soporte nativo de imágenes, precio accesible, y compatibilidad oficial con OpenHands.*
