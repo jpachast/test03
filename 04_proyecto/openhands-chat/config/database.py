@@ -75,6 +75,18 @@ class Database:
             )
         ''')
         
+        # Tabla de mensajes del chat
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS messages (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                conversation_id INTEGER,
+                role TEXT NOT NULL,
+                content TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (conversation_id) REFERENCES conversations (id)
+            )
+        ''')
+        
         conn.commit()
         conn.close()
     
@@ -216,3 +228,86 @@ class Database:
         ''', (project_id,))
         conn.commit()
         conn.close()
+
+    def get_project_by_name(self, name: str) -> dict:
+        """Obtener proyecto por nombre"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute('SELECT id, name, path FROM projects WHERE name = ?', (name,))
+        row = cursor.fetchone()
+        conn.close()
+        if row:
+            return {'id': row[0], 'name': row[1], 'path': row[2]}
+        return None
+
+    # === CONVERSACIONES ===
+
+    def create_conversation(self, project_id: int, title: str = None) -> int:
+        """Crear nueva conversación"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute('''
+            INSERT INTO conversations (project_id, title)
+            VALUES (?, ?)
+        ''', (project_id, title or "Nueva conversación"))
+        conv_id = cursor.lastrowid
+        conn.commit()
+        conn.close()
+        return conv_id
+
+    def get_conversation(self, project_id: int) -> dict:
+        """Obtener conversación activa del proyecto (o crear una)"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT id, title, created_at FROM conversations
+            WHERE project_id = ?
+            ORDER BY created_at DESC LIMIT 1
+        ''', (project_id,))
+        row = cursor.fetchone()
+        conn.close()
+        
+        if row:
+            return {'id': row[0], 'title': row[1], 'created_at': row[2]}
+        # Crear si no existe
+        conv_id = self.create_conversation(project_id)
+        return {'id': conv_id, 'title': 'Nueva conversación', 'created_at': None}
+
+    # === MENSAJES ===
+
+    def add_message(self, conversation_id: int, role: str, content: str) -> int:
+        """Agregar mensaje a la conversación"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute('''
+            INSERT INTO messages (conversation_id, role, content)
+            VALUES (?, ?, ?)
+        ''', (conversation_id, role, content))
+        msg_id = cursor.lastrowid
+        conn.commit()
+        conn.close()
+        return msg_id
+
+    def get_messages(self, conversation_id: int) -> list:
+        """Obtener mensajes de una conversación"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT id, role, content, created_at FROM messages
+            WHERE conversation_id = ?
+            ORDER BY created_at ASC
+        ''', (conversation_id,))
+        rows = cursor.fetchall()
+        conn.close()
+        return [
+            {'id': row[0], 'role': row[1], 'content': row[2], 'created_at': row[3]}
+            for row in rows
+        ]
+
+    def get_messages_by_project(self, project_name: str) -> list:
+        """Obtener mensajes de un proyecto por nombre"""
+        project = self.get_project_by_name(project_name)
+        if not project:
+            return []
+        conv = self.get_conversation(project['id'])
+        return self.get_messages(conv['id'])

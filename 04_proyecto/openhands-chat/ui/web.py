@@ -197,6 +197,18 @@ async def send_message(message: str = Form(...), project: str = Form(None)):
             current_workspace = str(settings.projects_dir)
     
     try:
+        # Obtener o crear conversación en BD
+        conversation_id = None
+        if project:
+            proj = db.get_project_by_name(project)
+            if proj:
+                conv = db.get_conversation(proj['id'])
+                conversation_id = conv['id']
+        
+        # Guardar mensaje del usuario en BD
+        if conversation_id:
+            db.add_message(conversation_id, 'user', message)
+        
         # SIEMPRE crear nueva conversación para cada mensaje 
         # (para asegurar que los callbacks se apliquen)
         model = db.get_setting("llm_model", settings.default_model)
@@ -220,6 +232,10 @@ async def send_message(message: str = Form(...), project: str = Form(None)):
         if not agent_response:
             agent_response = "✅ Tarea completada. Revisa los archivos creados en tu proyecto."
         
+        # Guardar respuesta del agente en BD
+        if conversation_id:
+            db.add_message(conversation_id, 'assistant', agent_response)
+        
         return JSONResponse({
             "status": "ok",
             "message": agent_response,
@@ -241,6 +257,13 @@ async def reset_chat():
     global current_conversation
     current_conversation = None
     return JSONResponse({"status": "ok"})
+
+
+@app.get("/api/chat/messages/{project_name}")
+async def get_messages(project_name: str):
+    """Obtener mensajes de un proyecto"""
+    messages = db.get_messages_by_project(project_name)
+    return JSONResponse({"messages": messages})
 
 
 # === HEALTH CHECK ===

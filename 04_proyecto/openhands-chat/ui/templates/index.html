@@ -101,6 +101,34 @@
         const chatMessages = document.getElementById('chatMessages');
         const messageInput = document.getElementById('messageInput');
         
+        // Nombre del proyecto actual
+        const currentProject = '{{ current_workspace.split("/")[-1] if current_workspace else "" }}';
+        
+        // Cargar mensajes guardados al iniciar
+        async function loadMessages() {
+            if (!currentProject) return;
+            
+            try {
+                const response = await fetch(`/api/chat/messages/${currentProject}`);
+                const data = await response.json();
+                
+                if (data.messages && data.messages.length > 0) {
+                    // Limpiar solo el mensaje de bienvenida inicial
+                    chatMessages.innerHTML = '';
+                    
+                    // Agregar todos los mensajes guardados
+                    data.messages.forEach(msg => {
+                        addMessage(msg.content, msg.role);
+                    });
+                }
+            } catch (error) {
+                console.error('Error cargando mensajes:', error);
+            }
+        }
+        
+        // Cargar mensajes cuando la página carga
+        document.addEventListener('DOMContentLoaded', loadMessages);
+        
         // Convertir markdown básico a HTML
         function formatMessage(text) {
             if (!text) return '';
@@ -175,7 +203,7 @@
             try {
                 const formData = new FormData();
                 formData.append('message', message);
-                formData.append('project', '{{ current_workspace or "" }}');
+                formData.append('project', currentProject);
                 
                 const response = await fetch('/api/chat/send', {
                     method: 'POST',
