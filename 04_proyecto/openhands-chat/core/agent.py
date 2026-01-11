@@ -17,7 +17,7 @@ from openhands.tools.grep import GrepTool
 from openhands.tools.apply_patch import ApplyPatchTool
 from openhands.tools.delegate import DelegateTool
 
-from config.rules import REGLAS_AGENTE, SYSTEM_PROMPT_COMPLETO
+from config.rules import REGLAS_AGENTE, SYSTEM_PROMPT_COMPLETO, IN_CONTEXT_EXAMPLE
 
 
 def create_agent(api_key: str, model: str = "gemini/gemini-2.5-pro", base_url: str = None) -> Agent:
@@ -60,20 +60,27 @@ def create_agent(api_key: str, model: str = "gemini/gemini-2.5-pro", base_url: s
     for browser_tool in BrowserToolSet:
         tools.append(Tool(name=browser_tool.name))
     
-    # === CONTEXT CON SYSTEM PROMPT COMPLETO ===
+    # === CONTEXT CON TODOS LOS PROMPTS INTEGRADOS ===
     agent_context = AgentContext(
         skills=[
-            # Reglas de comportamiento personalizadas
-            Skill(
-                name="reglas_comportamiento",
-                content=REGLAS_AGENTE,
-                source=None,
-                trigger=None,  # Siempre activo
-            ),
-            # System prompt completo basado en prompts de referencia
+            # System prompt completo (basado en system_prompt.j2)
             Skill(
                 name="system_prompt_completo",
                 content=SYSTEM_PROMPT_COMPLETO,
+                source=None,
+                trigger=None,  # Siempre activo
+            ),
+            # Ejemplo de aprendizaje en contexto (basado en in_context_learning_example.j2)
+            Skill(
+                name="in_context_example",
+                content=IN_CONTEXT_EXAMPLE,
+                source=None,
+                trigger=None,  # Siempre activo
+            ),
+            # Reglas de comportamiento personalizadas + idioma español
+            Skill(
+                name="reglas_comportamiento",
+                content=REGLAS_AGENTE,
                 source=None,
                 trigger=None,  # Siempre activo
             ),
