@@ -140,10 +140,49 @@ async def project_info(name: str):
     return JSONResponse(info)
 
 
+# Variable global para capturar respuestas
+last_agent_response = ""
+
+def capture_response(event):
+    """Callback para capturar la respuesta del agente"""
+    global last_agent_response
+    
+    event_type = str(type(event).__name__)
+    
+    # Capturar de ActionEvent con FinishAction
+    if event_type == 'ActionEvent':
+        if hasattr(event, 'action') and event.action:
+            action = event.action
+            # Verificar si es FinishAction
+            action_type = str(type(action).__name__)
+            if 'Finish' in action_type:
+                if hasattr(action, 'message') and action.message:
+                    last_agent_response = action.message
+                    print(f"[CALLBACK] Captured FINISH message: {action.message[:200]}...")
+    
+    # También capturar de MessageEvent
+    elif event_type == 'MessageEvent':
+        if hasattr(event, 'llm_message') and event.llm_message:
+            msg = event.llm_message
+            if hasattr(msg, 'role') and msg.role == 'assistant':
+                if hasattr(msg, 'content') and msg.content:
+                    text_parts = []
+                    for part in msg.content:
+                        if hasattr(part, 'text') and part.text:
+                            text_parts.append(part.text)
+                    if text_parts:
+                        response = '\n'.join(text_parts)
+                        print(f"[CALLBACK] Captured agent response: {response[:200]}...")
+                        last_agent_response = response
+
+
 @app.post("/api/chat/send")
 async def send_message(message: str = Form(...), project: str = Form(None)):
     """Enviar mensaje al agente"""
-    global current_conversation, current_workspace
+    global current_conversation, current_workspace, last_agent_response
+    
+    # Resetear respuesta
+    last_agent_response = ""
     
     # Verificar API key
     api_key = db.get_api_key()
@@ -158,11 +197,15 @@ async def send_message(message: str = Form(...), project: str = Form(None)):
             current_workspace = str(settings.projects_dir)
     
     try:
-        # Crear agente si no existe conversación
-        if current_conversation is None:
-            model = db.get_setting("llm_model", settings.default_model)
-            agent = create_agent(api_key, model)
-            current_conversation = Conversation(agent=agent, workspace=current_workspace)
+        # SIEMPRE crear nueva conversación para cada mensaje 
+        # (para asegurar que los callbacks se apliquen)
+        model = db.get_setting("llm_model", settings.default_model)
+        agent = create_agent(api_key, model)
+        current_conversation = Conversation(
+            agent=agent, 
+            workspace=current_workspace,
+            callbacks=[capture_response]
+        )
         
         # Enviar mensaje
         current_conversation.send_message(message)
@@ -170,15 +213,22 @@ async def send_message(message: str = Form(...), project: str = Form(None)):
         # Ejecutar (esto puede tomar tiempo)
         await asyncio.to_thread(current_conversation.run)
         
-        # Obtener respuesta
-        # TODO: Implementar streaming de respuesta
+        # Obtener la respuesta capturada
+        agent_response = last_agent_response
+        
+        # Si no hay respuesta capturada, usar mensaje genérico
+        if not agent_response:
+            agent_response = "✅ Tarea completada. Revisa los archivos creados en tu proyecto."
         
         return JSONResponse({
             "status": "ok",
-            "message": "Mensaje procesado"
+            "message": agent_response,
+            "user_message": message
         })
     
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         return JSONResponse({
             "status": "error",
             "message": str(e)

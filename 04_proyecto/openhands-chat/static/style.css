@@ -246,6 +246,59 @@ nav a:hover, nav a.active {
     animation: pulse 1.5s infinite;
 }
 
+/* Estilos para contenido de respuestas */
+.message.assistant a {
+    color: #60a5fa;
+    text-decoration: underline;
+}
+
+.message.assistant a:hover {
+    color: #93c5fd;
+}
+
+.message.assistant code {
+    background: rgba(0, 0, 0, 0.3);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: 'Monaco', 'Menlo', monospace;
+    font-size: 0.9em;
+}
+
+.message.assistant pre {
+    background: rgba(0, 0, 0, 0.4);
+    padding: 12px;
+    border-radius: 6px;
+    overflow-x: auto;
+    margin: 10px 0;
+}
+
+.message.assistant pre code {
+    background: none;
+    padding: 0;
+}
+
+.message.assistant ul, .message.assistant ol {
+    margin: 10px 0;
+    padding-left: 20px;
+}
+
+.message.assistant li {
+    margin: 5px 0;
+}
+
+.message.assistant h2, .message.assistant h3, .message.assistant h4 {
+    margin: 15px 0 10px 0;
+    color: var(--text-primary);
+}
+
+.message.assistant strong {
+    color: #f0f0f0;
+}
+
+.message.assistant p {
+    margin: 8px 0;
+}
+
 @keyframes pulse {
     0%, 100% { opacity: 1; }
     50% { opacity: 0.5; }
