@@ -99,29 +99,27 @@ class Database:
         conn.close()
     
     def _migrate_tables(self, cursor):
-        """Migrar tablas existentes"""
-        # Agregar columnas nuevas a projects si no existen
-        try:
+        """Migrar tablas existentes - NUNCA borrar datos"""
+        # Obtener columnas existentes de cada tabla
+        def get_columns(table):
+            cursor.execute(f"PRAGMA table_info({table})")
+            return [row[1] for row in cursor.fetchall()]
+        
+        # Migrar projects
+        project_cols = get_columns('projects')
+        if 'repo_owner' not in project_cols:
             cursor.execute('ALTER TABLE projects ADD COLUMN repo_owner TEXT')
-        except:
-            pass
-        try:
+        if 'repo_name' not in project_cols:
             cursor.execute('ALTER TABLE projects ADD COLUMN repo_name TEXT')
-        except:
-            pass
-        try:
+        if 'branch' not in project_cols:
             cursor.execute('ALTER TABLE projects ADD COLUMN branch TEXT DEFAULT "main"')
-        except:
-            pass
-        # Agregar columnas nuevas a conversations
-        try:
+        
+        # Migrar conversations
+        conv_cols = get_columns('conversations')
+        if 'status' not in conv_cols:
             cursor.execute('ALTER TABLE conversations ADD COLUMN status TEXT DEFAULT "active"')
-        except:
-            pass
-        try:
+        if 'updated_at' not in conv_cols:
             cursor.execute('ALTER TABLE conversations ADD COLUMN updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP')
-        except:
-            pass
     
     def _encrypt(self, value: str) -> str:
         """Encriptar valor"""

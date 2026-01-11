@@ -36,3 +36,51 @@ INFO:     10.2.20.139:57568 - "GET / HTTP/1.1" 200 OK
 INFO:     10.2.78.161:35440 - "GET / HTTP/1.1" 200 OK
 INFO:     10.2.78.161:35440 - "GET / HTTP/1.1" 200 OK
 INFO:     10.2.78.161:35440 - "GET / HTTP/1.1" 200 OK
+INFO:     10.2.70.94:38710 - "GET / HTTP/1.1" 200 OK
+INFO:     10.2.70.94:38710 - "GET / HTTP/1.1" 200 OK
+INFO:     10.2.70.94:38710 - "GET / HTTP/1.1" 200 OK
+INFO:     10.2.66.141:57618 - "GET / HTTP/1.1" 200 OK
+INFO:     10.2.66.141:57618 - "GET / HTTP/1.1" 200 OK
+INFO:     10.2.66.141:57618 - "GET / HTTP/1.1" 200 OK
+INFO:     10.2.20.139:57260 - "GET / HTTP/1.1" 200 OK
+INFO:     10.2.20.139:57260 - "GET / HTTP/1.1" 200 OK
+INFO:     10.2.20.139:57260 - "GET / HTTP/1.1" 200 OK
+INFO:     10.2.20.139:57260 - "GET / HTTP/1.1" 200 OK
+INFO:     10.2.20.139:57260 - "GET / HTTP/1.1" 200 OK
+INFO:     10.2.20.139:57260 - "GET / HTTP/1.1" 200 OK
+INFO:     10.2.70.94:37182 - "GET / HTTP/1.1" 200 OK
+INFO:     10.2.70.94:37182 - "GET /static/style.css HTTP/1.1" 200 OK
+INFO:     10.2.70.94:37182 - "GET /api/github/repos HTTP/1.1" 401 Unauthorized
+INFO:     10.2.70.94:37182 - "GET /favicon.ico HTTP/1.1" 404 Not Found
+INFO:     10.2.70.94:37182 - "GET /api/conversations HTTP/1.1" 200 OK
+INFO:     10.2.70.94:37182 - "GET /settings HTTP/1.1" 200 OK
+INFO:     10.2.70.94:37182 - "GET /api/github/status HTTP/1.1" 200 OK
+INFO:     10.2.24.167:34008 - "GET / HTTP/1.1" 200 OK
+INFO:     10.2.24.167:34008 - "GET / HTTP/1.1" 200 OK
+INFO:     10.2.70.94:50868 - "GET / HTTP/1.1" 200 OK
+INFO:     10.2.70.94:50868 - "GET / HTTP/1.1" 200 OK
+INFO:     10.2.70.94:50868 - "GET / HTTP/1.1" 200 OK
+INFO:     10.2.70.94:50868 - "GET / HTTP/1.1" 200 OK
+INFO:     10.2.70.94:50868 - "GET / HTTP/1.1" 200 OK
+INFO:     10.2.70.94:50868 - "GET / HTTP/1.1" 200 OK
+INFO:     10.2.70.94:50868 - "GET / HTTP/1.1" 200 OK
+INFO:     10.2.66.141:58470 - "GET / HTTP/1.1" 200 OK
+INFO:     10.2.66.141:58470 - "GET / HTTP/1.1" 200 OK
+INFO:     10.2.66.141:58470 - "GET / HTTP/1.1" 200 OK
+INFO:     10.2.66.141:58470 - "GET / HTTP/1.1" 200 OK
+INFO:     10.2.66.141:58470 - "GET / HTTP/1.1" 200 OK
+INFO:     10.2.66.141:58470 - "GET / HTTP/1.1" 200 OK
+INFO:     10.2.66.141:58470 - "GET / HTTP/1.1" 200 OK
+WARNING:  StatReload detected changes in 'config/database.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [7561]
+INFO:     Started server process [7673]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+/home/openhands/.local/lib/python3.12/site-packages/starlette/templating.py:162: DeprecationWarning: The `name` is not the first parameter anymore. The first parameter should be the `Request` instance.
+Replace `TemplateResponse(name, {"request": request})` by `TemplateResponse(request, name)`.
+  warnings.warn(
+INFO:     10.2.66.141:44562 - "GET / HTTP/1.1" 200 OK
+INFO:     10.2.66.141:44562 - "GET / HTTP/1.1" 200 OK
