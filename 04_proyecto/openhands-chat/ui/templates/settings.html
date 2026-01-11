@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Configuración - OpenHands Chat</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header>
+            <h1>🤖 OpenHands Chat</h1>
+            <nav>
+                <a href="/">Chat</a>
+                <a href="/settings" class="active">⚙️ Configuración</a>
+            </nav>
+        </header>
+
+        <!-- Mensaje de éxito -->
+        {% if request.query_params.get('saved') %}
+        <div class="alert alert-success">
+            ✅ Configuración guardada correctamente
+        </div>
+        {% endif %}
+
+        <div class="settings-container">
+            <h2>⚙️ Configuración</h2>
+            
+            <!-- API Key -->
+            <section class="settings-section">
+                <h3>🔑 API Key</h3>
+                <p class="description">
+                    Tu API key de Gemini. Se guarda encriptada en la base de datos local.
+                </p>
+                
+                <form action="/api/settings/api-key" method="post" class="settings-form">
+                    <div class="form-group">
+                        <label for="api_key">API Key:</label>
+                        <input 
+                            type="password" 
+                            name="api_key" 
+                            id="api_key"
+                            placeholder="{% if has_api_key %}••••••••••••••••{% else %}Pega tu API key aquí{% endif %}"
+                            required
+                        >
+                        <button type="button" onclick="togglePassword()" class="btn-secondary">
+                            👁️ Ver
+                        </button>
+                    </div>
+                    
+                    <div class="form-status">
+                        {% if has_api_key %}
+                        <span class="status-ok">✅ API Key configurada</span>
+                        {% else %}
+                        <span class="status-warning">⚠️ API Key no configurada</span>
+                        {% endif %}
+                    </div>
+                    
+                    <button type="submit" class="btn-primary">💾 Guardar API Key</button>
+                </form>
+                
+                <div class="help-text">
+                    <p>¿No tienes una API key? 
+                        <a href="https://aistudio.google.com/apikey" target="_blank">
+                            Obtén una aquí →
+                        </a>
+                    </p>
+                </div>
+            </section>
+            
+            <!-- Modelo -->
+            <section class="settings-section">
+                <h3>🧠 Modelo</h3>
+                <p class="description">
+                    Modelo de lenguaje a utilizar.
+                </p>
+                
+                <form action="/api/settings/model" method="post" class="settings-form">
+                    <div class="form-group">
+                        <label for="model">Modelo:</label>
+                        <select name="model" id="model">
+                            <option value="gemini/gemini-2.5-pro" 
+                                {% if settings.get('llm_model', default_model) == 'gemini/gemini-2.5-pro' %}selected{% endif %}>
+                                Gemini 2.5 Pro (Recomendado)
+                            </option>
+                            <option value="gemini/gemini-2.5-flash"
+                                {% if settings.get('llm_model') == 'gemini/gemini-2.5-flash' %}selected{% endif %}>
+                                Gemini 2.5 Flash (Más rápido)
+                            </option>
+                            <option value="gemini/gemini-2.0-flash"
+                                {% if settings.get('llm_model') == 'gemini/gemini-2.0-flash' %}selected{% endif %}>
+                                Gemini 2.0 Flash (Más barato)
+                            </option>
+                        </select>
+                    </div>
+                    
+                    <button type="submit" class="btn-primary">💾 Guardar Modelo</button>
+                </form>
+            </section>
+            
+            <!-- Info -->
+            <section class="settings-section">
+                <h3>📊 Información</h3>
+                <div class="info-grid">
+                    <div class="info-item">
+                        <span class="info-label">Versión:</span>
+                        <span class="info-value">1.0.0</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">SDK:</span>
+                        <span class="info-value">OpenHands SDK</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Base de datos:</span>
+                        <span class="info-value">SQLite (local)</span>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- Costos -->
+            <section class="settings-section">
+                <h3>💰 Costos Estimados</h3>
+                <table class="costs-table">
+                    <thead>
+                        <tr>
+                            <th>Modelo</th>
+                            <th>Input (1M tokens)</th>
+                            <th>Output (1M tokens)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Gemini 2.5 Pro</td>
+                            <td>$1.25</td>
+                            <td>$10.00</td>
+                        </tr>
+                        <tr>
+                            <td>Gemini 2.5 Flash</td>
+                            <td>$0.30</td>
+                            <td>$2.50</td>
+                        </tr>
+                        <tr>
+                            <td>Gemini 2.0 Flash</td>
+                            <td>$0.10</td>
+                            <td>$0.40</td>
+                        </tr>
+                    </tbody>
+                </table>
+                <p class="help-text">
+                    Un proyecto grande (CRM completo) consume aproximadamente 5-15M tokens = $50-150 USD
+                </p>
+            </section>
+        </div>
+    </div>
+
+    <script>
+        function togglePassword() {
+            const input = document.getElementById('api_key');
+            input.type = input.type === 'password' ? 'text' : 'password';
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,201 @@
+"""
+Servidor web FastAPI
+"""
+
+import os
+import asyncio
+from pathlib import Path
+from typing import Optional
+
+from fastapi import FastAPI, Request, Form, HTTPException
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
+
+from openhands.sdk import Conversation
+
+from config.database import Database
+from config.settings import Settings
+from core.agent import create_agent
+from core.workspace import setup_workspace, list_projects, get_project_info
+
+
+# Inicializar
+app = FastAPI(title="OpenHands Chat", version="1.0.0")
+settings = Settings()
+db = Database()
+
+# Templates y static files
+templates_dir = Path(__file__).parent / "templates"
+static_dir = Path(__file__).parent.parent / "static"
+
+templates = Jinja2Templates(directory=str(templates_dir))
+app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
+
+# Estado global
+current_conversation = None
+current_workspace = None
+
+
+# === PÁGINAS ===
+
+@app.get("/", response_class=HTMLResponse)
+async def home(request: Request):
+    """Página principal"""
+    has_api_key = db.has_api_key()
+    projects = list_projects(settings.projects_dir)
+    
+    return templates.TemplateResponse("index.html", {
+        "request": request,
+        "has_api_key": has_api_key,
+        "projects": projects,
+        "current_workspace": current_workspace,
+    })
+
+
+@app.get("/settings", response_class=HTMLResponse)
+async def settings_page(request: Request):
+    """Página de configuración"""
+    current_settings = db.get_all_settings()
+    has_api_key = db.has_api_key()
+    
+    return templates.TemplateResponse("settings.html", {
+        "request": request,
+        "settings": current_settings,
+        "has_api_key": has_api_key,
+        "default_model": settings.default_model,
+    })
+
+
+# === API ENDPOINTS ===
+
+@app.post("/api/settings/api-key")
+async def save_api_key(api_key: str = Form(...)):
+    """Guardar API key"""
+    if not api_key or len(api_key) < 10:
+        raise HTTPException(status_code=400, detail="API key inválida")
+    
+    db.set_api_key(api_key)
+    return RedirectResponse(url="/settings?saved=1", status_code=303)
+
+
+@app.post("/api/settings/model")
+async def save_model(model: str = Form(...)):
+    """Guardar modelo"""
+    db.set_setting("llm_model", model)
+    return RedirectResponse(url="/settings?saved=1", status_code=303)
+
+
+@app.post("/api/project/new")
+async def create_project(name: str = Form(...)):
+    """Crear nuevo proyecto"""
+    global current_workspace
+    
+    try:
+        workspace = setup_workspace(name, "nuevo", settings.projects_dir)
+        current_workspace = workspace
+        db.add_project(name, workspace)
+        return RedirectResponse(url=f"/?project={name}", status_code=303)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/api/project/clone")
+async def clone_project(git_url: str = Form(...)):
+    """Clonar proyecto de Git"""
+    global current_workspace
+    
+    try:
+        workspace = setup_workspace(git_url, "git", settings.projects_dir)
+        name = Path(workspace).name
+        current_workspace = workspace
+        db.add_project(name, workspace, git_url)
+        return RedirectResponse(url=f"/?project={name}", status_code=303)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/api/project/select")
+async def select_project(name: str = Form(...)):
+    """Seleccionar proyecto existente"""
+    global current_workspace
+    
+    try:
+        workspace = setup_workspace(name, "existente", settings.projects_dir)
+        current_workspace = workspace
+        return RedirectResponse(url=f"/?project={name}", status_code=303)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.get("/api/project/info/{name}")
+async def project_info(name: str):
+    """Obtener info de un proyecto"""
+    project_path = settings.projects_dir / name
+    info = get_project_info(str(project_path))
+    
+    if info is None:
+        raise HTTPException(status_code=404, detail="Proyecto no encontrado")
+    
+    return JSONResponse(info)
+
+
+@app.post("/api/chat/send")
+async def send_message(message: str = Form(...), project: str = Form(None)):
+    """Enviar mensaje al agente"""
+    global current_conversation, current_workspace
+    
+    # Verificar API key
+    api_key = db.get_api_key()
+    if not api_key:
+        raise HTTPException(status_code=400, detail="API key no configurada")
+    
+    # Configurar workspace si no hay
+    if current_workspace is None:
+        if project:
+            current_workspace = str(settings.projects_dir / project)
+        else:
+            current_workspace = str(settings.projects_dir)
+    
+    try:
+        # Crear agente si no existe conversación
+        if current_conversation is None:
+            model = db.get_setting("llm_model", settings.default_model)
+            agent = create_agent(api_key, model)
+            current_conversation = Conversation(agent=agent, workspace=current_workspace)
+        
+        # Enviar mensaje
+        current_conversation.send_message(message)
+        
+        # Ejecutar (esto puede tomar tiempo)
+        await asyncio.to_thread(current_conversation.run)
+        
+        # Obtener respuesta
+        # TODO: Implementar streaming de respuesta
+        
+        return JSONResponse({
+            "status": "ok",
+            "message": "Mensaje procesado"
+        })
+    
+    except Exception as e:
+        return JSONResponse({
+            "status": "error",
+            "message": str(e)
+        }, status_code=500)
+
+
+@app.post("/api/chat/reset")
+async def reset_chat():
+    """Resetear conversación"""
+    global current_conversation
+    current_conversation = None
+    return JSONResponse({"status": "ok"})
+
+
+# === HEALTH CHECK ===
+
+@app.get("/health")
+async def health():
+    """Health check"""
+    return {"status": "ok", "has_api_key": db.has_api_key()}

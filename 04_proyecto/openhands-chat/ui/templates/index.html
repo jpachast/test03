@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenHands Chat</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header>
+            <h1>🤖 OpenHands Chat</h1>
+            <nav>
+                <a href="/" class="active">Chat</a>
+                <a href="/settings">⚙️ Configuración</a>
+            </nav>
+        </header>
+
+        <!-- Alert si no hay API key -->
+        {% if not has_api_key %}
+        <div class="alert alert-warning">
+            ⚠️ No tienes configurada tu API key. 
+            <a href="/settings">Configúrala aquí</a> para usar el chat.
+        </div>
+        {% endif %}
+
+        <div class="main-content">
+            <!-- Sidebar - Proyectos -->
+            <aside class="sidebar">
+                <h3>📁 Proyectos</h3>
+                
+                <!-- Nuevo proyecto -->
+                <form action="/api/project/new" method="post" class="project-form">
+                    <input type="text" name="name" placeholder="Nombre del proyecto" required>
+                    <button type="submit">+ Crear</button>
+                </form>
+                
+                <!-- Clonar repo -->
+                <form action="/api/project/clone" method="post" class="project-form">
+                    <input type="text" name="git_url" placeholder="URL del repo Git" required>
+                    <button type="submit">📥 Clonar</button>
+                </form>
+                
+                <!-- Lista de proyectos -->
+                <div class="project-list">
+                    {% for project in projects %}
+                    <form action="/api/project/select" method="post" class="project-item">
+                        <input type="hidden" name="name" value="{{ project.name }}">
+                        <button type="submit" class="project-btn {% if current_workspace and project.name in current_workspace %}active{% endif %}">
+                            {% if project.is_git %}📦{% else %}📁{% endif %}
+                            {{ project.name }}
+                        </button>
+                    </form>
+                    {% else %}
+                    <p class="no-projects">No hay proyectos aún</p>
+                    {% endfor %}
+                </div>
+            </aside>
+
+            <!-- Chat Area -->
+            <main class="chat-area">
+                <div class="chat-header">
+                    {% if current_workspace %}
+                    <span>📂 {{ current_workspace }}</span>
+                    {% else %}
+                    <span>Selecciona o crea un proyecto</span>
+                    {% endif %}
+                </div>
+                
+                <div class="chat-messages" id="chatMessages">
+                    <div class="message system">
+                        👋 ¡Hola! Soy tu asistente de desarrollo. 
+                        {% if has_api_key %}
+                        ¿En qué puedo ayudarte hoy?
+                        {% else %}
+                        Configura tu API key para empezar.
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <form class="chat-input" id="chatForm" onsubmit="sendMessage(event)">
+                    <input type="hidden" name="project" value="{{ current_workspace or '' }}">
+                    <input 
+                        type="text" 
+                        name="message" 
+                        id="messageInput"
+                        placeholder="Escribe tu mensaje..." 
+                        {% if not has_api_key %}disabled{% endif %}
+                        autocomplete="off"
+                    >
+                    <button type="submit" {% if not has_api_key %}disabled{% endif %}>
+                        Enviar ➤
+                    </button>
+                </form>
+            </main>
+        </div>
+    </div>
+
+    <script>
+        const chatMessages = document.getElementById('chatMessages');
+        const messageInput = document.getElementById('messageInput');
+        
+        function addMessage(content, type = 'user') {
+            const div = document.createElement('div');
+            div.className = `message ${type}`;
+            div.innerHTML = content;
+            chatMessages.appendChild(div);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+        
+        async function sendMessage(event) {
+            event.preventDefault();
+            
+            const message = messageInput.value.trim();
+            if (!message) return;
+            
+            // Mostrar mensaje del usuario
+            addMessage(message, 'user');
+            messageInput.value = '';
+            
+            // Mostrar indicador de carga
+            addMessage('⏳ Procesando...', 'system loading');
+            
+            try {
+                const formData = new FormData();
+                formData.append('message', message);
+                formData.append('project', '{{ current_workspace or "" }}');
+                
+                const response = await fetch('/api/chat/send', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                // Quitar indicador de carga
+                const loading = chatMessages.querySelector('.loading');
+                if (loading) loading.remove();
+                
+                if (data.status === 'ok') {
+                    addMessage('✅ ' + data.message, 'assistant');
+                } else {
+                    addMessage('❌ Error: ' + data.message, 'error');
+                }
+            } catch (error) {
+                const loading = chatMessages.querySelector('.loading');
+                if (loading) loading.remove();
+                addMessage('❌ Error de conexión: ' + error.message, 'error');
+            }
+        }
+        
+        // Focus en el input al cargar
+        if (messageInput && !messageInput.disabled) {
+            messageInput.focus();
+        }
+    </script>
+</body>
+</html>
