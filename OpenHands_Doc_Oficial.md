@@ -450,3 +450,265 @@ conv.close()
 ---
 
 *Información 100% de docs.openhands.dev y código fuente verificado.*
+
+---
+
+## 🎯 CÓMO OPENHANDS CONTROLA A LA IA (Mecanismos Reales)
+
+Esta sección documenta los **mecanismos exactos** que usa OpenHands para que el agente no se desvíe, no invente, y siga el flujo correcto.
+
+### 1️⃣ System Prompt Estructurado y Rígido
+
+El archivo `system_prompt.j2` define comportamiento con secciones específicas:
+
+```
+<ROLE>
+* Your primary role is to assist users by executing commands, 
+  modifying code, and solving technical problems effectively.
+* You should be thorough, methodical, and prioritize quality over speed.
+* If the user asks a question like "why is X happening", 
+  don't try to fix the problem. Just give an answer to the question.
+</ROLE>
+```
+
+**Efecto:** Le dice exactamente QUÉ hacer y QUÉ NO hacer.
+
+---
+
+### 2️⃣ Workflow de Resolución de Problemas Obligatorio
+
+```
+<PROBLEM_SOLVING_WORKFLOW>
+1. EXPLORATION: Thoroughly explore relevant files and understand 
+   the context before proposing solutions
+2. ANALYSIS: Consider multiple approaches and select the most promising one
+3. TESTING: Create tests to verify issues before implementing fixes
+4. IMPLEMENTATION: Make focused, minimal changes to address the problem
+5. VERIFICATION: Test your implementation thoroughly
+</PROBLEM_SOLVING_WORKFLOW>
+```
+
+**Efecto:** El agente DEBE seguir estos 5 pasos en orden. No puede saltarse a "implementar" sin primero "explorar".
+
+---
+
+### 3️⃣ Restricciones Explícitas del Sistema de Archivos
+
+```
+<FILE_SYSTEM_GUIDELINES>
+* When a user provides a file path, do NOT assume it's relative 
+  to the current working directory. First explore the file system 
+  to locate the file before working on it.
+* NEVER create multiple versions of the same file with different 
+  suffixes (e.g., file_test.py, file_fix.py)
+* Always modify the original file directly when making changes
+</FILE_SYSTEM_GUIDELINES>
+```
+
+**Efecto:** Previene que el agente cree archivos basura o asuma rutas.
+
+---
+
+### 4️⃣ Sistema de Memoria Persistente (Skills)
+
+```
+<MEMORY>
+* Use AGENTS.md under the repository root as your persistent memory 
+  for repository-specific knowledge and context.
+* Add important insights, patterns, and learnings to this file 
+  to improve future task performance.
+</MEMORY>
+```
+
+**Efecto:** El agente LEE contexto antes de actuar, no inventa.
+
+---
+
+### 5️⃣ Política de Seguridad con 3 Niveles
+
+```
+# 🔐 Security Policy
+
+## OK to do without Explicit User Consent
+- Download and run code from a repository specified by a user
+- Install and run popular packages from pypi, npm
+
+## Do only with Explicit User Consent  
+- Upload code to anywhere other than the original location
+- Upload API keys or tokens
+
+## Never Do
+- Never perform any illegal activities
+- Never run software to mine cryptocurrency
+```
+
+**Efecto:** Límites claros de lo que puede y no puede hacer.
+
+---
+
+### 6️⃣ Evaluación de Riesgo por Acción
+
+```
+# Security Risk Policy
+When using tools that support security_risk parameter:
+
+- LOW: Read-only actions (viewing files, calculations)
+- MEDIUM: Container-scoped edits (modify workspace, install packages)
+- HIGH: Data exfiltration, privilege breaks, sending secrets out
+
+**Global Rules**
+- Always escalate to HIGH if sensitive data leaves the environment.
+```
+
+**Efecto:** Cada acción DEBE ser clasificada con un nivel de riesgo.
+
+---
+
+### 7️⃣ Control de Git y PRs
+
+```
+<VERSION_CONTROL>
+* Exercise caution with git operations. Do NOT make potentially 
+  dangerous changes (pushing to main, deleting repos) unless 
+  explicitly asked.
+</VERSION_CONTROL>
+
+<PULL_REQUESTS>
+* Do not push to remote branch and/or start PR unless explicitly asked
+* Create only ONE PR per session/issue
+</PULL_REQUESTS>
+```
+
+**Efecto:** No hace cambios permanentes sin confirmación explícita.
+
+---
+
+### 8️⃣ Troubleshooting Estructurado
+
+```
+<TROUBLESHOOTING>
+* If you've made repeated attempts but tests still fail:
+  1. Step back and reflect on 5-7 different possible sources
+  2. Assess the likelihood of each possible cause
+  3. Methodically address the most likely causes
+  4. Explain your reasoning process to the user
+* When you run into any major issue while executing a plan, 
+  don't try to directly work around it. Instead, propose a new 
+  plan and confirm with the user before proceeding.
+</TROUBLESHOOTING>
+```
+
+**Efecto:** Si se atasca, DEBE parar y pedir ayuda, no inventar soluciones.
+
+---
+
+### 9️⃣ Tools Limitadas (No puede hacer lo que quiera)
+
+El agente SOLO puede usar las herramientas definidas:
+
+| Tool | Qué hace | Restricción |
+|------|----------|-------------|
+| terminal | Ejecutar bash | Solo comandos, ve output real |
+| file_editor | Ver/editar archivos | Solo en workspace |
+| browser | Navegar web | Ve página real, no imagina |
+| task_tracker | Gestionar tareas | Sigue la lista |
+| think | Razonar | Sin efecto en sistema |
+| finish | Terminar | Señala fin |
+
+**Efecto:** Si no hay tool para algo → NO PUEDE HACERLO.
+
+---
+
+### 🔟 Loop Action → Observation → Decision
+
+```python
+# El ciclo real en Agent.step():
+1. LLM decide acción (ej: terminal("ls -la"))
+2. Executor EJECUTA la acción
+3. Observation = resultado REAL (no imaginado)
+4. LLM VE el resultado y decide siguiente acción
+5. Repeat hasta FINISHED
+```
+
+**Efecto:** El agente VE resultados reales, no puede "soñar" que funcionó.
+
+---
+
+## 📊 Resumen: Por Qué NO Se Desvía
+
+| Mecanismo | Cómo Previene Desviación |
+|-----------|-------------------------|
+| **System Prompt rígido** | Define rol exacto, no puede interpretarlo diferente |
+| **Workflow obligatorio** | EXPLORATION → ANALYSIS → TESTING → IMPLEMENTATION |
+| **File System Guidelines** | No crea archivos basura, explora antes de asumir |
+| **Memory/Skills** | Lee contexto del repo, no inventa |
+| **Security Policy** | Límites claros: OK / Con permiso / Nunca |
+| **Risk Assessment** | Cada acción clasificada LOW/MEDIUM/HIGH |
+| **Version Control rules** | No push sin permiso explícito |
+| **Troubleshooting rules** | Si falla, para y pregunta |
+| **Tools limitadas** | Solo puede usar herramientas definidas |
+| **Loop real** | VE resultados reales, no imagina |
+
+---
+
+## 🔄 Flujo Real Cuando Tú Escribes un Mensaje
+
+```
+TÚ: "crea un login con react"
+         ↓
+┌─────────────────────────────────────────────────────────┐
+│ 1. SYSTEM PROMPT se carga con todas las reglas         │
+│    - ROLE, MEMORY, FILE_SYSTEM_GUIDELINES, etc.        │
+│    - Security Policy                                    │
+│    - Risk Assessment rules                              │
+└─────────────────────────────────────────────────────────┘
+         ↓
+┌─────────────────────────────────────────────────────────┐
+│ 2. TOOLS disponibles se inyectan                       │
+│    - terminal, file_editor, browser, task_tracker...   │
+│    - El LLM SOLO puede llamar estas funciones          │
+└─────────────────────────────────────────────────────────┘
+         ↓
+┌─────────────────────────────────────────────────────────┐
+│ 3. LLM recibe: [System Prompt] + [Tools] + [Tu mensaje]│
+└─────────────────────────────────────────────────────────┘
+         ↓
+┌─────────────────────────────────────────────────────────┐
+│ 4. LLM sigue PROBLEM_SOLVING_WORKFLOW:                 │
+│    a. EXPLORATION: terminal("ls -la"), file_editor(view)│
+│    b. ANALYSIS: think("el usuario quiere X, Y, Z")     │
+│    c. TESTING/IMPLEMENTATION: crea archivos            │
+│    d. VERIFICATION: ejecuta, ve resultado real         │
+└─────────────────────────────────────────────────────────┘
+         ↓
+┌─────────────────────────────────────────────────────────┐
+│ 5. Si algo falla → TROUBLESHOOTING rules:              │
+│    - Para, reflexiona, propone nuevo plan              │
+│    - NO inventa soluciones                             │
+└─────────────────────────────────────────────────────────┘
+         ↓
+┌─────────────────────────────────────────────────────────┐
+│ 6. Cuando termina → finish()                           │
+└─────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 🎯 La Clave: Ejecución Real, No Imaginación
+
+```
+INCORRECTO (lo que haría una IA sin control):
+  IA: "He creado el archivo login.jsx con el siguiente código..."
+  → Puede estar inventando, no sabes si realmente lo hizo
+
+CORRECTO (lo que hace OpenHands):
+  1. IA llama: file_editor(command="create", path="login.jsx", content="...")
+  2. SISTEMA ejecuta el comando
+  3. Observation: "File created successfully at login.jsx"
+  4. IA VE la confirmación real
+  5. IA puede verificar: file_editor(command="view", path="login.jsx")
+  6. IA VE el contenido real del archivo
+```
+
+**El agente está OBLIGADO a ver resultados reales.** No puede decir "funcionó" sin haberlo ejecutado y visto el output.
+
