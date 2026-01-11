@@ -1,52 +1,47 @@
 # Configuración del Entorno de Trabajo
 
-## URLs Públicas Disponibles
+## Sistema de URLs por Proyecto
 
-Este entorno tiene acceso a los siguientes puertos públicos:
+El servidor de proyectos **YA ESTÁ CORRIENDO** en el puerto 12001.
+Sirve TODOS los proyectos automáticamente como subdirectorios.
 
-| Puerto Local | URL Pública |
-|--------------|-------------|
-| 12000 | https://work-1-ycbycghbyxbnnhxb.prod-runtime.all-hands.dev |
-| 12001 | https://work-2-ycbycghbyxbnnhxb.prod-runtime.all-hands.dev |
-
-## ⚠️ REGLAS CRÍTICAS para Despliegue
-
-### OBLIGATORIO: Matar servidor anterior
-
-**SIEMPRE** antes de levantar un servidor nuevo, DEBES matar el anterior:
-
-```bash
-# PASO 1: MATAR SERVIDOR ANTERIOR (OBLIGATORIO - SIEMPRE EJECUTAR)
-pkill -f "http.server 12001" 2>/dev/null || true
-sleep 1
-
-# PASO 2: IR AL DIRECTORIO DEL PROYECTO ACTUAL
-cd /workspace/project/test03/04_proyecto/openhands-chat/projects/NOMBRE_PROYECTO
-
-# PASO 3: LEVANTAR SERVIDOR NUEVO
-python3 -m http.server 12001 > server.log 2>&1 &
-sleep 2
+### URL Base
+```
+https://work-2-ycbycghbyxbnnhxb.prod-runtime.all-hands.dev/
 ```
 
-### Mostrar URL
+### URLs de Proyectos
+Cada proyecto tiene su propia URL basada en el nombre de la carpeta:
 
-**NUNCA** muestres `localhost:12001` - el usuario no puede acceder a localhost.
-**SIEMPRE** muestra la URL pública:
+| Proyecto | URL |
+|----------|-----|
+| calculadora | https://work-2-ycbycghbyxbnnhxb.prod-runtime.all-hands.dev/calculadora/ |
+| mi-app | https://work-2-ycbycghbyxbnnhxb.prod-runtime.all-hands.dev/mi-app/ |
+| juego | https://work-2-ycbycghbyxbnnhxb.prod-runtime.all-hands.dev/juego/ |
 
+## ⚠️ REGLAS para Despliegue
+
+### NO necesitas levantar servidor
+El servidor ya está corriendo. Solo crea los archivos y muestra la URL.
+
+### Formato de URL
 ```
-🌐 Tu app está en: https://work-2-ycbycghbyxbnnhxb.prod-runtime.all-hands.dev
+🌐 Tu app está en: https://work-2-ycbycghbyxbnnhxb.prod-runtime.all-hands.dev/NOMBRE_PROYECTO/
 ```
 
 ### Ejemplo Correcto ✅:
 ```
-✅ Tu app está en: https://work-2-ycbycghbyxbnnhxb.prod-runtime.all-hands.dev
+✅ Tu app está en: https://work-2-ycbycghbyxbnnhxb.prod-runtime.all-hands.dev/calculadora/
 ```
 
 ### Ejemplo INCORRECTO ❌:
 ```
 ❌ Tu app está en: http://localhost:12001
+❌ Tu app está en: https://work-2-ycbycghbyxbnnhxb.prod-runtime.all-hands.dev  (falta el nombre del proyecto)
 ```
 
-## ¿Por qué matar el servidor anterior?
-
-Si no matas el servidor anterior, el puerto 12001 seguirá sirviendo el proyecto viejo y el usuario verá contenido incorrecto.
+## Ventajas de este sistema
+- ✅ Todos los proyectos están disponibles simultáneamente
+- ✅ No hay conflictos de puertos
+- ✅ No necesitas matar/reiniciar servidores
+- ✅ Cada proyecto tiene su URL permanente

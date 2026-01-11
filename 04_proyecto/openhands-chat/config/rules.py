@@ -269,37 +269,30 @@ PARA CORRECCIÓN DE ERRORES
 ═══════════════════════════════════════════════════════════════
 PARA DESPLIEGUE - MUY IMPORTANTE
 ═══════════════════════════════════════════════════════════════
-- Si el proyecto tiene UI, sigue estos pasos EXACTOS:
+El servidor de proyectos YA ESTÁ CORRIENDO en el puerto 12001.
+Sirve TODOS los proyectos desde /workspace/project/test03/04_proyecto/openhands-chat/projects/
 
-  PASO 1: MATAR SERVIDOR ANTERIOR (OBLIGATORIO)
-  ```bash
-  pkill -f "http.server 12001" 2>/dev/null || true
-  sleep 1
-  ```
-  
-  PASO 2: IR AL DIRECTORIO DEL PROYECTO ACTUAL
-  ```bash
-  cd /ruta/del/proyecto/actual
-  ```
-  
-  PASO 3: LEVANTAR SERVIDOR NUEVO
-  ```bash
-  python3 -m http.server 12001 > server.log 2>&1 &
-  sleep 2
-  ```
-  
-  PASO 4: MOSTRAR URL PÚBLICA (NO localhost)
-  ```
-  🌐 Tu app está en: https://work-2-ycbycghbyxbnnhxb.prod-runtime.all-hands.dev
-  ```
+CADA PROYECTO tiene su propia URL basada en el nombre de la carpeta:
+- https://work-2-ycbycghbyxbnnhxb.prod-runtime.all-hands.dev/NOMBRE_PROYECTO/
 
-- IMPORTANTE: Este entorno tiene URLs públicas configuradas:
-  * Puerto 12001 → https://work-2-ycbycghbyxbnnhxb.prod-runtime.all-hands.dev
-  * Puerto 12000 → https://work-1-ycbycghbyxbnnhxb.prod-runtime.all-hands.dev
-- NUNCA muestres "localhost:12001" - eso no funciona para el usuario
-- SIEMPRE ejecuta pkill ANTES de levantar un servidor nuevo
-- SIEMPRE muestra la URL pública después de levantar el servidor
-- Si es API, muestra cómo probarla con la URL pública
+PASOS PARA DESPLEGAR:
+1. Crea los archivos del proyecto en su carpeta (ya está hecho al crear el proyecto)
+2. NO necesitas levantar ningún servidor - ya está corriendo
+3. Muestra la URL del proyecto al usuario:
+   ```
+   🌐 Tu app está en: https://work-2-ycbycghbyxbnnhxb.prod-runtime.all-hands.dev/NOMBRE_PROYECTO/
+   ```
+
+EJEMPLOS:
+- Proyecto "calculadora" → https://work-2-ycbycghbyxbnnhxb.prod-runtime.all-hands.dev/calculadora/
+- Proyecto "mi-app" → https://work-2-ycbycghbyxbnnhxb.prod-runtime.all-hands.dev/mi-app/
+- Proyecto "juego" → https://work-2-ycbycghbyxbnnhxb.prod-runtime.all-hands.dev/juego/
+
+IMPORTANTE:
+- NUNCA muestres "localhost" - el usuario no puede acceder
+- SIEMPRE incluye el nombre del proyecto en la URL
+- SIEMPRE termina la URL con "/" 
+- Todos los proyectos pueden estar activos simultáneamente
 
 ═══════════════════════════════════════════════════════════════
 PARA GIT

@@ -1,45 +1,22 @@
 INFO:     Will watch for changes in these directories: ['/workspace/project/test03/04_proyecto/openhands-chat']
 INFO:     Uvicorn running on http://0.0.0.0:12000 (Press CTRL+C to quit)
-INFO:     Started reloader process [6132] using StatReload
+INFO:     Started reloader process [6468] using StatReload
 ============================================================
   🤖 OPENHANDS CHAT
 ============================================================
-  🌐 Servidor: http://0.0.0.0:12000
-  📁 Proyectos: /workspace/project/test03/04_proyecto/openhands-chat/projects
+  🌐 Chat UI: http://0.0.0.0:12000
+  🌐 Proyectos: http://0.0.0.0:12001
+  📁 Directorio: /workspace/project/test03/04_proyecto/openhands-chat/projects
 ============================================================
 
-  Abre tu navegador en la URL de arriba
+  URLs Públicas:
+  • Chat: https://work-1-ycbycghbyxbnnhxb.prod-runtime.all-hands.dev
+  • Proyectos: https://work-2-ycbycghbyxbnnhxb.prod-runtime.all-hands.dev/PROYECTO/
+
+  Servidor de proyectos PID: 6472
   Presiona Ctrl+C para detener
 
-INFO:     Started server process [6135]
+INFO:     Started server process [6474]
 INFO:     Waiting for application startup.
 INFO:     Application startup complete.
-/home/openhands/.local/lib/python3.12/site-packages/starlette/templating.py:162: DeprecationWarning: The `name` is not the first parameter anymore. The first parameter should be the `Request` instance.
-Replace `TemplateResponse(name, {"request": request})` by `TemplateResponse(request, name)`.
-  warnings.warn(
-INFO:     10.2.24.167:45146 - "GET / HTTP/1.1" 200 OK
-INFO:     10.2.24.167:45146 - "GET / HTTP/1.1" 200 OK
-INFO:     10.2.24.167:45146 - "GET / HTTP/1.1" 200 OK
-INFO:     127.0.0.1:58298 - "GET /health HTTP/1.1" 200 OK
-INFO:     10.2.24.167:45146 - "GET / HTTP/1.1" 200 OK
-INFO:     10.2.24.167:45146 - "GET / HTTP/1.1" 200 OK
-INFO:     10.2.24.167:45146 - "GET / HTTP/1.1" 200 OK
-INFO:     10.2.24.167:45146 - "GET / HTTP/1.1" 200 OK
-INFO:     10.2.24.167:45146 - "GET / HTTP/1.1" 200 OK
-INFO:     10.2.24.167:45146 - "GET / HTTP/1.1" 200 OK
-INFO:     10.2.24.167:45146 - "GET / HTTP/1.1" 200 OK
-INFO:     10.2.24.167:45146 - "GET / HTTP/1.1" 200 OK
-INFO:     10.2.24.167:45146 - "GET / HTTP/1.1" 200 OK
-INFO:     10.2.24.167:45146 - "GET / HTTP/1.1" 200 OK
-INFO:     10.2.24.167:45146 - "GET / HTTP/1.1" 200 OK
-INFO:     10.2.24.167:45146 - "GET / HTTP/1.1" 200 OK
-INFO:     10.2.24.167:45146 - "GET / HTTP/1.1" 200 OK
-INFO:     10.2.24.167:45146 - "GET / HTTP/1.1" 200 OK
-INFO:     10.2.24.167:45146 - "GET / HTTP/1.1" 200 OK
-INFO:     10.2.24.167:45146 - "GET / HTTP/1.1" 200 OK
-INFO:     10.2.24.167:45146 - "GET / HTTP/1.1" 200 OK
-INFO:     10.2.24.167:45146 - "GET / HTTP/1.1" 200 OK
-INFO:     10.2.24.167:45146 - "GET / HTTP/1.1" 200 OK
-INFO:     10.2.24.167:45146 - "GET / HTTP/1.1" 200 OK
-INFO:     10.2.24.167:45146 - "GET / HTTP/1.1" 200 OK
-INFO:     10.2.24.167:45146 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60240 - "GET /health HTTP/1.1" 200 OK
