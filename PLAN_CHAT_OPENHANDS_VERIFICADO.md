@@ -50,32 +50,63 @@ from openhands.tools.terminal import TerminalTool
 # REGLAS DE CONTROL DE FLUJO
 # ═══════════════════════════════════════════════════════════════
 REGLAS_CONTROL = """
-REGLAS OBLIGATORIAS DE CONTROL DE FLUJO:
+REGLAS OBLIGATORIAS:
 
-1. PASO A PASO:
-   - Completa UN paso antes de pasar al siguiente
-   - No avances hasta que el paso actual funcione
-   - Si hay error, corrígelo ANTES de continuar
+═══════════════════════════════════════════════════════════════
+1. FLUJO PASO A PASO
+═══════════════════════════════════════════════════════════════
+- Completa UN paso antes de pasar al siguiente
+- No avances hasta que el paso actual funcione
+- Si hay error, corrígelo ANTES de continuar
+- Usa task_tracker para registrar cada paso
 
-2. NO TOCAR LO QUE FUNCIONA:
-   - Si algo ya funciona, NO LO MODIFIQUES
-   - Solo modifica el código con errores
-   - Antes de editar, pregunta: "¿Este archivo tiene el error?"
+═══════════════════════════════════════════════════════════════
+2. NO TOCAR LO QUE FUNCIONA
+═══════════════════════════════════════════════════════════════
+- Si algo ya funciona, NO LO MODIFIQUES
+- Solo modifica el código con errores
+- Antes de editar, pregunta: "¿Este archivo tiene el error?"
+- Si no estás seguro, PREGUNTA al usuario
 
-3. ENFOQUE EN EL ERROR:
-   - Lee el mensaje de error completo
-   - Identifica el archivo y línea exacta del error
-   - Corrige SOLO esa parte, nada más
+═══════════════════════════════════════════════════════════════
+3. ENFOQUE EN EL ERROR
+═══════════════════════════════════════════════════════════════
+- Lee el mensaje de error completo
+- Identifica el archivo y línea exacta del error
+- Corrige SOLO esa parte, nada más
+- NO toques otros archivos
 
-4. VERIFICACIÓN:
-   - Después de cada cambio, prueba que funcione
-   - Si funciona, pasa al siguiente paso
-   - Si no funciona, corrige y vuelve a probar
+═══════════════════════════════════════════════════════════════
+4. INSTALACIÓN AUTOMÁTICA
+═══════════════════════════════════════════════════════════════
+- Si falta una dependencia, INSTÁLALA automáticamente
+- Usa el gestor de paquetes correcto (npm, pip, etc.)
+- Verifica que la instalación fue exitosa
+- Continúa con el siguiente paso
 
-5. NUNCA:
-   - Nunca modifiques archivos que no tienen errores
-   - Nunca cambies la estructura sin permiso
-   - Nunca asumas, siempre verifica
+═══════════════════════════════════════════════════════════════
+5. DESPLIEGUE Y LINK
+═══════════════════════════════════════════════════════════════
+- Al terminar, DESPLIEGA la aplicación
+- Inicia el servidor en segundo plano
+- MUESTRA EL LINK al usuario para que pueda ver el resultado
+- Ejemplo: "🌐 Tu aplicación está en: http://localhost:3000"
+
+═══════════════════════════════════════════════════════════════
+6. VERIFICACIÓN FINAL
+═══════════════════════════════════════════════════════════════
+- Después de cada cambio, prueba que funcione
+- Si funciona, pasa al siguiente paso
+- Si no funciona, corrige y vuelve a probar
+- Al final, verifica que TODO funcione junto
+
+═══════════════════════════════════════════════════════════════
+7. NUNCA
+═══════════════════════════════════════════════════════════════
+- Nunca modifiques archivos que no tienen errores
+- Nunca cambies la estructura sin permiso
+- Nunca asumas, siempre verifica
+- Nunca dejes el servidor sin iniciar al terminar
 """
 
 # ═══════════════════════════════════════════════════════════════

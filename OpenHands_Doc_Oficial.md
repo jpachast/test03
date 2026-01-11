@@ -1852,3 +1852,43 @@ llm = LLM(
 ---
 
 *Recomendación basada en: calidad similar a Claude, soporte nativo de imágenes, precio accesible, y compatibilidad oficial con OpenHands.*
+
+---
+
+## 📋 PLAN DE IMPLEMENTACIÓN
+
+Para crear un chat 100% idéntico a OpenHands, ver el documento:
+
+**[PLAN_CHAT_OPENHANDS_VERIFICADO.md](./PLAN_CHAT_OPENHANDS_VERIFICADO.md)**
+
+### Resumen del Plan:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                                                                 │
+│   1. pip install openhands-sdk openhands-tools                  │
+│                                                                 │
+│   2. export LLM_API_KEY="tu-key-de-gemini"                      │
+│      export LLM_MODEL="gemini/gemini-2.5-pro"                   │
+│                                                                 │
+│   3. python chat_openhands.py                                   │
+│                                                                 │
+│   ✅ Chat 100% idéntico a OpenHands                             │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### El agente automáticamente:
+
+| Acción | Descripción |
+|--------|-------------|
+| ✅ Sigue flujo paso a paso | No salta pasos, completa uno antes de continuar |
+| ✅ No toca lo que funciona | Solo modifica código con errores |
+| ✅ Instala dependencias | Si falta algo, lo instala automáticamente |
+| ✅ Despliega | Inicia el servidor y muestra el link |
+| ✅ Muestra el link | "🌐 Tu app está en: http://localhost:3000" |
+
+### Verificado con documentación oficial:
+
+- https://docs.openhands.dev/sdk/getting-started
+- https://docs.openhands.dev/sdk/guides/skill
