@@ -1,0 +1,8 @@
+# Archivo de Ejemplo
+
+Este archivo fue creado exitosamente para demostrar que:
+- ✅ Tengo acceso al repositorio jpachast/test03
+- ✅ Puedo crear archivos sin problemas
+- ✅ El token de GitHub funciona correctamente
+
+Fecha de creación: Prueba de funcionamiento
