@@ -52,25 +52,30 @@ class Database:
             )
         ''')
         
-        # Tabla de proyectos
+        # Tabla de proyectos/repositorios
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS projects (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT NOT NULL,
                 path TEXT NOT NULL,
                 git_url TEXT,
+                repo_owner TEXT,
+                repo_name TEXT,
+                branch TEXT DEFAULT 'main',
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 last_accessed TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         ''')
         
-        # Tabla de conversaciones
+        # Tabla de conversaciones (mejorada)
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS conversations (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 project_id INTEGER,
                 title TEXT,
+                status TEXT DEFAULT 'active',
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (project_id) REFERENCES projects (id)
             )
         ''')
@@ -87,8 +92,36 @@ class Database:
             )
         ''')
         
+        # Migrar tablas existentes si es necesario
+        self._migrate_tables(cursor)
+        
         conn.commit()
         conn.close()
+    
+    def _migrate_tables(self, cursor):
+        """Migrar tablas existentes"""
+        # Agregar columnas nuevas a projects si no existen
+        try:
+            cursor.execute('ALTER TABLE projects ADD COLUMN repo_owner TEXT')
+        except:
+            pass
+        try:
+            cursor.execute('ALTER TABLE projects ADD COLUMN repo_name TEXT')
+        except:
+            pass
+        try:
+            cursor.execute('ALTER TABLE projects ADD COLUMN branch TEXT DEFAULT "main"')
+        except:
+            pass
+        # Agregar columnas nuevas a conversations
+        try:
+            cursor.execute('ALTER TABLE conversations ADD COLUMN status TEXT DEFAULT "active"')
+        except:
+            pass
+        try:
+            cursor.execute('ALTER TABLE conversations ADD COLUMN updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP')
+        except:
+            pass
     
     def _encrypt(self, value: str) -> str:
         """Encriptar valor"""
@@ -311,3 +344,145 @@ class Database:
             return []
         conv = self.get_conversation(project['id'])
         return self.get_messages(conv['id'])
+
+    # === GITHUB ===
+    
+    def set_github_token(self, token: str):
+        """Guardar GitHub token encriptado"""
+        self.set_setting('github_token', token, encrypt=True)
+    
+    def get_github_token(self) -> str:
+        """Obtener GitHub token"""
+        return self.get_setting('github_token', '')
+    
+    def has_github_token(self) -> bool:
+        """Verificar si hay GitHub token configurado"""
+        token = self.get_github_token()
+        return token is not None and len(token) > 0
+    
+    def set_github_username(self, username: str):
+        """Guardar GitHub username"""
+        self.set_setting('github_username', username)
+    
+    def get_github_username(self) -> str:
+        """Obtener GitHub username"""
+        return self.get_setting('github_username', '')
+
+    # === PROYECTOS CON REPO ===
+    
+    def add_project_with_repo(self, name: str, path: str, repo_owner: str, 
+                               repo_name: str, branch: str = 'main', 
+                               git_url: str = None) -> int:
+        """Agregar proyecto con información de repositorio"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            INSERT INTO projects (name, path, git_url, repo_owner, repo_name, branch)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ''', (name, path, git_url, repo_owner, repo_name, branch))
+        
+        project_id = cursor.lastrowid
+        conn.commit()
+        conn.close()
+        
+        return project_id
+    
+    def get_project_by_repo(self, repo_owner: str, repo_name: str, branch: str) -> dict:
+        """Obtener proyecto por repo y branch"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT id, name, path, git_url, repo_owner, repo_name, branch
+            FROM projects 
+            WHERE repo_owner = ? AND repo_name = ? AND branch = ?
+        ''', (repo_owner, repo_name, branch))
+        row = cursor.fetchone()
+        conn.close()
+        if row:
+            return {
+                'id': row[0], 'name': row[1], 'path': row[2],
+                'git_url': row[3], 'repo_owner': row[4],
+                'repo_name': row[5], 'branch': row[6]
+            }
+        return None
+
+    # === CONVERSACIONES MEJORADAS ===
+    
+    def get_all_conversations(self, limit: int = 50) -> list:
+        """Obtener todas las conversaciones recientes con info del proyecto"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT c.id, c.title, c.status, c.created_at, c.updated_at,
+                   p.id as project_id, p.name as project_name, 
+                   p.repo_owner, p.repo_name, p.branch
+            FROM conversations c
+            LEFT JOIN projects p ON c.project_id = p.id
+            ORDER BY c.updated_at DESC
+            LIMIT ?
+        ''', (limit,))
+        rows = cursor.fetchall()
+        conn.close()
+        
+        return [
+            {
+                'id': row[0],
+                'title': row[1],
+                'status': row[2],
+                'created_at': row[3],
+                'updated_at': row[4],
+                'project_id': row[5],
+                'project_name': row[6],
+                'repo_owner': row[7],
+                'repo_name': row[8],
+                'branch': row[9]
+            }
+            for row in rows
+        ]
+    
+    def update_conversation(self, conversation_id: int, title: str = None, status: str = None):
+        """Actualizar conversación"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        updates = ['updated_at = CURRENT_TIMESTAMP']
+        params = []
+        
+        if title:
+            updates.append('title = ?')
+            params.append(title)
+        if status:
+            updates.append('status = ?')
+            params.append(status)
+        
+        params.append(conversation_id)
+        
+        cursor.execute(f'''
+            UPDATE conversations SET {', '.join(updates)}
+            WHERE id = ?
+        ''', params)
+        
+        conn.commit()
+        conn.close()
+    
+    def get_conversations_by_project(self, project_id: int) -> list:
+        """Obtener conversaciones de un proyecto"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT id, title, status, created_at, updated_at
+            FROM conversations
+            WHERE project_id = ?
+            ORDER BY updated_at DESC
+        ''', (project_id,))
+        rows = cursor.fetchall()
+        conn.close()
+        
+        return [
+            {
+                'id': row[0], 'title': row[1], 'status': row[2],
+                'created_at': row[3], 'updated_at': row[4]
+            }
+            for row in rows
+        ]

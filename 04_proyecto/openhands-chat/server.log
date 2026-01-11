@@ -1,6 +1,6 @@
 INFO:     Will watch for changes in these directories: ['/workspace/project/test03/04_proyecto/openhands-chat']
 INFO:     Uvicorn running on http://0.0.0.0:12000 (Press CTRL+C to quit)
-INFO:     Started reloader process [6468] using StatReload
+INFO:     Started reloader process [6833] using StatReload
 ============================================================
   🤖 OPENHANDS CHAT
 ============================================================
@@ -13,10 +13,89 @@ INFO:     Started reloader process [6468] using StatReload
   • Chat: https://work-1-ycbycghbyxbnnhxb.prod-runtime.all-hands.dev
   • Proyectos: https://work-2-ycbycghbyxbnnhxb.prod-runtime.all-hands.dev/PROYECTO/
 
-  Servidor de proyectos PID: 6472
+  Servidor de proyectos PID: 6837
   Presiona Ctrl+C para detener
 
-INFO:     Started server process [6474]
+INFO:     Started server process [6839]
 INFO:     Waiting for application startup.
 INFO:     Application startup complete.
-INFO:     127.0.0.1:60240 - "GET /health HTTP/1.1" 200 OK
+/home/openhands/.local/lib/python3.12/site-packages/starlette/templating.py:162: DeprecationWarning: The `name` is not the first parameter anymore. The first parameter should be the `Request` instance.
+Replace `TemplateResponse(name, {"request": request})` by `TemplateResponse(request, name)`.
+  warnings.warn(
+INFO:     10.2.24.167:59496 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:35830 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.2.24.167:59496 - "GET / HTTP/1.1" 200 OK
+INFO:     10.2.24.167:59496 - "GET / HTTP/1.1" 200 OK
+INFO:     10.2.70.94:35718 - "GET / HTTP/1.1" 200 OK
+INFO:     10.2.70.94:35718 - "GET /static/style.css HTTP/1.1" 304 Not Modified
+INFO:     10.2.70.94:35718 - "GET /api/github/repos HTTP/1.1" 401 Unauthorized
+INFO:     10.2.70.94:35718 - "GET /api/conversations HTTP/1.1" 500 Internal Server Error
+ERROR:    Exception in ASGI application
+Traceback (most recent call last):
+  File "/home/openhands/.local/lib/python3.12/site-packages/uvicorn/protocols/http/h11_impl.py", line 410, in run_asgi
+    result = await app(  # type: ignore[func-returns-value]
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/openhands/.local/lib/python3.12/site-packages/uvicorn/middleware/proxy_headers.py", line 60, in __call__
+    return await self.app(scope, receive, send)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/openhands/.local/lib/python3.12/site-packages/fastapi/applications.py", line 1135, in __call__
+    await super().__call__(scope, receive, send)
+  File "/home/openhands/.local/lib/python3.12/site-packages/starlette/applications.py", line 107, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "/home/openhands/.local/lib/python3.12/site-packages/starlette/middleware/errors.py", line 186, in __call__
+    raise exc
+  File "/home/openhands/.local/lib/python3.12/site-packages/starlette/middleware/errors.py", line 164, in __call__
+    await self.app(scope, receive, _send)
+  File "/home/openhands/.local/lib/python3.12/site-packages/starlette/middleware/exceptions.py", line 63, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "/home/openhands/.local/lib/python3.12/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "/home/openhands/.local/lib/python3.12/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "/home/openhands/.local/lib/python3.12/site-packages/fastapi/middleware/asyncexitstack.py", line 18, in __call__
+    await self.app(scope, receive, send)
+  File "/home/openhands/.local/lib/python3.12/site-packages/starlette/routing.py", line 716, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "/home/openhands/.local/lib/python3.12/site-packages/starlette/routing.py", line 736, in app
+    await route.handle(scope, receive, send)
+  File "/home/openhands/.local/lib/python3.12/site-packages/starlette/routing.py", line 290, in handle
+    await self.app(scope, receive, send)
+  File "/home/openhands/.local/lib/python3.12/site-packages/fastapi/routing.py", line 115, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "/home/openhands/.local/lib/python3.12/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "/home/openhands/.local/lib/python3.12/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "/home/openhands/.local/lib/python3.12/site-packages/fastapi/routing.py", line 101, in app
+    response = await f(request)
+               ^^^^^^^^^^^^^^^^
+  File "/home/openhands/.local/lib/python3.12/site-packages/fastapi/routing.py", line 355, in app
+    raw_response = await run_endpoint_function(
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/openhands/.local/lib/python3.12/site-packages/fastapi/routing.py", line 243, in run_endpoint_function
+    return await dependant.call(**values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/project/test03/04_proyecto/openhands-chat/ui/web.py", line 434, in get_conversations
+    conversations = db.get_all_conversations(limit)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/project/test03/04_proyecto/openhands-chat/config/database.py", line 416, in get_all_conversations
+    cursor.execute('''
+sqlite3.OperationalError: no such column: c.updated_at
+INFO:     10.2.24.167:59496 - "GET / HTTP/1.1" 200 OK
+INFO:     10.2.24.167:59496 - "GET / HTTP/1.1" 200 OK
+INFO:     10.2.24.167:59496 - "GET / HTTP/1.1" 200 OK
+INFO:     10.2.24.167:59496 - "GET / HTTP/1.1" 200 OK
+INFO:     10.2.24.167:59496 - "GET / HTTP/1.1" 200 OK
+INFO:     10.2.24.167:59496 - "GET / HTTP/1.1" 200 OK
+INFO:     10.2.70.94:53052 - "GET /settings HTTP/1.1" 200 OK
+INFO:     10.2.70.94:53052 - "GET /api/github/status HTTP/1.1" 200 OK
+INFO:     10.2.24.167:59496 - "GET / HTTP/1.1" 200 OK
+INFO:     10.2.24.167:59496 - "GET / HTTP/1.1" 200 OK
+INFO:     10.2.24.167:59496 - "GET / HTTP/1.1" 200 OK
+INFO:     10.2.24.167:59496 - "GET / HTTP/1.1" 200 OK
+INFO:     10.2.24.167:59496 - "GET / HTTP/1.1" 200 OK
+INFO:     10.2.24.167:59496 - "GET / HTTP/1.1" 200 OK
+INFO:     10.2.24.167:59496 - "GET / HTTP/1.1" 200 OK
+INFO:     10.2.24.167:59496 - "GET / HTTP/1.1" 200 OK
+INFO:     10.2.24.167:59496 - "GET / HTTP/1.1" 200 OK
+INFO:     10.2.24.167:59496 - "GET / HTTP/1.1" 200 OK

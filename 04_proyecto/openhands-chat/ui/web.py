@@ -11,6 +11,7 @@ from fastapi import FastAPI, Request, Form, HTTPException
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from pydantic import BaseModel
 
 from openhands.sdk import Conversation
 
@@ -18,12 +19,14 @@ from config.database import Database
 from config.settings import Settings
 from core.agent import create_agent
 from core.workspace import setup_workspace, list_projects, get_project_info
+from core.github_service import GitHubService
 
 
 # Inicializar
-app = FastAPI(title="OpenHands Chat", version="1.0.0")
+app = FastAPI(title="OpenHands Chat", version="2.0.0")
 settings = Settings()
 db = Database()
+github_service = GitHubService()
 
 # Templates y static files
 templates_dir = Path(__file__).parent / "templates"
@@ -35,6 +38,21 @@ app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 # Estado global
 current_conversation = None
 current_workspace = None
+
+
+# === MODELOS PYDANTIC ===
+
+class GitHubTokenRequest(BaseModel):
+    token: str
+
+class LaunchRepoRequest(BaseModel):
+    owner: str
+    repo: str
+    branch: str = "main"
+
+class NewConversationRequest(BaseModel):
+    project_id: int = None
+    title: str = "Nueva conversación"
 
 
 # === PÁGINAS ===
@@ -266,9 +284,205 @@ async def get_messages(project_name: str):
     return JSONResponse({"messages": messages})
 
 
+# === GITHUB ENDPOINTS ===
+
+@app.get("/api/github/status")
+async def github_status():
+    """Estado de la configuración de GitHub"""
+    has_token = db.has_github_token()
+    username = db.get_github_username() if has_token else None
+    return {
+        "configured": has_token,
+        "username": username
+    }
+
+
+@app.post("/api/github/token")
+async def save_github_token(request: GitHubTokenRequest):
+    """Guardar y validar token de GitHub"""
+    github_service.set_token(request.token)
+    result = github_service.validate_token()
+    
+    if result.get("valid"):
+        db.set_github_token(request.token)
+        db.set_github_username(result.get("username", ""))
+        return {
+            "success": True,
+            "username": result.get("username"),
+            "name": result.get("name"),
+            "avatar_url": result.get("avatar_url")
+        }
+    else:
+        return JSONResponse({
+            "success": False,
+            "error": result.get("error", "Token inválido")
+        }, status_code=400)
+
+
+@app.delete("/api/github/token")
+async def delete_github_token():
+    """Eliminar token de GitHub"""
+    db.delete_setting("github_token")
+    db.delete_setting("github_username")
+    github_service.set_token(None)
+    return {"success": True}
+
+
+@app.get("/api/github/repos")
+async def get_github_repos(page: int = 1, per_page: int = 30):
+    """Obtener repositorios del usuario"""
+    token = db.get_github_token()
+    if not token:
+        raise HTTPException(status_code=401, detail="GitHub no configurado")
+    
+    github_service.set_token(token)
+    result = github_service.get_user_repos(page, per_page)
+    
+    if result.get("success"):
+        return result
+    else:
+        raise HTTPException(status_code=500, detail=result.get("error"))
+
+
+@app.get("/api/github/repos/{owner}/{repo}/branches")
+async def get_repo_branches(owner: str, repo: str):
+    """Obtener branches de un repositorio"""
+    token = db.get_github_token()
+    if not token:
+        raise HTTPException(status_code=401, detail="GitHub no configurado")
+    
+    github_service.set_token(token)
+    result = github_service.get_repo_branches(owner, repo)
+    
+    if result.get("success"):
+        return result
+    else:
+        raise HTTPException(status_code=500, detail=result.get("error"))
+
+
+@app.post("/api/github/launch")
+async def launch_repo(request: LaunchRepoRequest):
+    """Iniciar/clonar un repositorio y crear conversación"""
+    global current_workspace
+    
+    token = db.get_github_token()
+    if not token:
+        raise HTTPException(status_code=401, detail="GitHub no configurado")
+    
+    github_service.set_token(token)
+    
+    # Verificar si ya existe el proyecto
+    existing = db.get_project_by_repo(request.owner, request.repo, request.branch)
+    
+    if existing:
+        # Actualizar repositorio existente
+        clone_result = github_service.clone_repo(
+            request.owner, request.repo, request.branch,
+            existing['path']
+        )
+        project_id = existing['id']
+        db.update_project_access(project_id)
+    else:
+        # Clonar nuevo
+        project_name = f"{request.owner}-{request.repo}"
+        if request.branch != "main":
+            project_name += f"-{request.branch}"
+        
+        project_path = str(settings.projects_dir / project_name)
+        
+        clone_result = github_service.clone_repo(
+            request.owner, request.repo, request.branch,
+            project_path
+        )
+        
+        if not clone_result.get("success"):
+            raise HTTPException(status_code=500, detail=clone_result.get("error"))
+        
+        # Guardar en BD
+        git_url = f"https://github.com/{request.owner}/{request.repo}.git"
+        project_id = db.add_project_with_repo(
+            name=project_name,
+            path=project_path,
+            repo_owner=request.owner,
+            repo_name=request.repo,
+            branch=request.branch,
+            git_url=git_url
+        )
+    
+    # Crear nueva conversación
+    conv_id = db.create_conversation(project_id, f"Trabajo en {request.repo}")
+    
+    # Actualizar workspace actual
+    project = db.get_project_by_repo(request.owner, request.repo, request.branch)
+    current_workspace = project['path']
+    
+    return {
+        "success": True,
+        "project_id": project_id,
+        "conversation_id": conv_id,
+        "project_name": project['name'],
+        "path": project['path'],
+        "action": clone_result.get("action", "cloned")
+    }
+
+
+# === CONVERSACIONES ENDPOINTS ===
+
+@app.get("/api/conversations")
+async def get_conversations(limit: int = 50):
+    """Obtener todas las conversaciones recientes"""
+    conversations = db.get_all_conversations(limit)
+    return {"conversations": conversations}
+
+
+@app.post("/api/conversations")
+async def create_conversation(request: NewConversationRequest):
+    """Crear nueva conversación"""
+    conv_id = db.create_conversation(request.project_id, request.title)
+    return {"success": True, "conversation_id": conv_id}
+
+
+@app.get("/api/conversations/{conv_id}")
+async def get_conversation(conv_id: int):
+    """Obtener una conversación con sus mensajes"""
+    conn = db.db_path
+    # Obtener conversación
+    conversations = db.get_all_conversations()
+    conv = next((c for c in conversations if c['id'] == conv_id), None)
+    
+    if not conv:
+        raise HTTPException(status_code=404, detail="Conversación no encontrada")
+    
+    # Obtener mensajes
+    messages = db.get_messages(conv_id)
+    
+    return {
+        "conversation": conv,
+        "messages": messages
+    }
+
+
+@app.put("/api/conversations/{conv_id}")
+async def update_conversation_endpoint(conv_id: int, title: str = None, status: str = None):
+    """Actualizar conversación"""
+    db.update_conversation(conv_id, title, status)
+    return {"success": True}
+
+
+@app.get("/api/conversations/project/{project_id}")
+async def get_project_conversations(project_id: int):
+    """Obtener conversaciones de un proyecto"""
+    conversations = db.get_conversations_by_project(project_id)
+    return {"conversations": conversations}
+
+
 # === HEALTH CHECK ===
 
 @app.get("/health")
 async def health():
     """Health check"""
-    return {"status": "ok", "has_api_key": db.has_api_key()}
+    return {
+        "status": "ok",
+        "has_api_key": db.has_api_key(),
+        "has_github": db.has_github_token()
+    }

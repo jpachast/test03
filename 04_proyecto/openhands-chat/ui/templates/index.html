@@ -5,6 +5,206 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OpenHands Chat</title>
     <link rel="stylesheet" href="/static/style.css">
+    <style>
+        /* Estilos adicionales para página de inicio */
+        .home-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        
+        .home-header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        
+        .home-header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .home-tip {
+            background: #333;
+            border-radius: 20px;
+            padding: 0.5rem 1rem;
+            display: inline-block;
+            margin-bottom: 2rem;
+            font-size: 0.9rem;
+        }
+        
+        .home-tip a {
+            color: #4da6ff;
+        }
+        
+        .launch-options {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .launch-card {
+            background: #1a1a2e;
+            border: 1px solid #333;
+            border-radius: 12px;
+            padding: 1.5rem;
+        }
+        
+        .launch-card h3 {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .launch-card p {
+            color: #888;
+            font-size: 0.9rem;
+            margin-bottom: 1rem;
+        }
+        
+        .launch-card select,
+        .launch-card input {
+            width: 100%;
+            padding: 0.75rem;
+            margin-bottom: 0.75rem;
+            background: #0d0d1a;
+            border: 1px solid #333;
+            border-radius: 8px;
+            color: #fff;
+        }
+        
+        .launch-btn {
+            width: 100%;
+            padding: 0.75rem;
+            background: #c9a227;
+            color: #000;
+            border: none;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        
+        .launch-btn:hover {
+            background: #dbb52e;
+        }
+        
+        .launch-btn:disabled {
+            background: #555;
+            color: #888;
+            cursor: not-allowed;
+        }
+        
+        .launch-btn.secondary {
+            background: transparent;
+            border: 1px solid #c9a227;
+            color: #c9a227;
+        }
+        
+        .conversations-section {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 1.5rem;
+        }
+        
+        .conversations-list h3,
+        .suggested-tasks h3 {
+            margin-bottom: 1rem;
+            font-size: 1rem;
+            color: #888;
+        }
+        
+        .conversation-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+            padding: 1rem;
+            background: #1a1a2e;
+            border-radius: 8px;
+            margin-bottom: 0.75rem;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        
+        .conversation-item:hover {
+            background: #252540;
+        }
+        
+        .conv-status {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #4da6ff;
+            margin-top: 6px;
+        }
+        
+        .conv-status.done {
+            background: #4caf50;
+        }
+        
+        .conv-info {
+            flex: 1;
+        }
+        
+        .conv-title {
+            font-weight: 500;
+            margin-bottom: 0.25rem;
+        }
+        
+        .conv-repo {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.85rem;
+            color: #888;
+        }
+        
+        .conv-repo .github-icon {
+            width: 14px;
+            height: 14px;
+        }
+        
+        .conv-time {
+            font-size: 0.8rem;
+            color: #666;
+        }
+        
+        .conv-menu {
+            color: #666;
+            cursor: pointer;
+        }
+        
+        .view-more {
+            text-align: center;
+            padding: 1rem;
+            color: #4da6ff;
+            cursor: pointer;
+        }
+        
+        .no-conversations {
+            text-align: center;
+            color: #666;
+            padding: 2rem;
+        }
+        
+        .github-not-configured {
+            text-align: center;
+            padding: 2rem;
+            color: #888;
+        }
+        
+        .github-not-configured a {
+            color: #c9a227;
+        }
+        
+        @media (max-width: 768px) {
+            .launch-options,
+            .conversations-section {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
 </head>
 <body>
     <div class="container">
@@ -12,7 +212,7 @@
         <header>
             <h1>🤖 OpenHands Chat</h1>
             <nav>
-                <a href="/" class="active">Chat</a>
+                <a href="/" class="active">Inicio</a>
                 <a href="/settings">⚙️ Configuración</a>
             </nav>
         </header>
@@ -25,33 +225,87 @@
         </div>
         {% endif %}
 
-        <div class="main-content">
+        <!-- Página de inicio estilo OpenHands -->
+        <div class="home-container" id="homePage">
+            <div class="home-header">
+                <div class="home-tip">
+                    ¿Nuevo por aquí? ¿No sabes por dónde empezar? <a href="#" onclick="showHelp()">Haz clic aquí</a>
+                </div>
+                <h1>¡Comencemos a construir!</h1>
+            </div>
+            
+            <!-- Opciones de inicio -->
+            <div class="launch-options">
+                <!-- Abrir repositorio -->
+                <div class="launch-card">
+                    <h3>🔀 Abrir repositorio</h3>
+                    <p>Selecciona o introduce una URL</p>
+                    
+                    <select id="repoSelect" onchange="onRepoSelect()">
+                        <option value="">Cargando repositorios...</option>
+                    </select>
+                    
+                    <select id="branchSelect" disabled>
+                        <option value="">Selecciona branch...</option>
+                    </select>
+                    
+                    <button class="launch-btn" id="launchBtn" onclick="launchRepo()" disabled>
+                        Launch
+                    </button>
+                </div>
+                
+                <!-- Empezar desde cero -->
+                <div class="launch-card">
+                    <h3>➕ Empezar desde cero</h3>
+                    <p>Inicia una nueva conversación que no está conectada a un repositorio existente.</p>
+                    
+                    <button class="launch-btn secondary" onclick="startNewConversation()">
+                        Nueva conversación
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Conversaciones y tareas -->
+            <div class="conversations-section">
+                <div class="conversations-list">
+                    <h3>Conversaciones recientes</h3>
+                    <div id="conversationsList">
+                        <div class="no-conversations">Cargando...</div>
+                    </div>
+                    <div class="view-more" id="viewMore" style="display:none" onclick="loadMoreConversations()">
+                        Ver más
+                    </div>
+                </div>
+                
+                <div class="suggested-tasks">
+                    <h3>Tareas sugeridas</h3>
+                    <div id="suggestedTasks">
+                        <p style="color: #666;">No hay tareas disponibles</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Chat Area (oculto inicialmente) -->
+        <div class="main-content" id="chatPage" style="display: none;">
             <!-- Sidebar - Proyectos -->
             <aside class="sidebar">
                 <h3>📁 Proyectos</h3>
                 
-                <!-- Nuevo proyecto -->
-                <form action="/api/project/new" method="post" class="project-form">
-                    <input type="text" name="name" placeholder="Nombre del proyecto" required>
-                    <button type="submit">+ Crear</button>
-                </form>
-                
-                <!-- Clonar repo -->
-                <form action="/api/project/clone" method="post" class="project-form">
-                    <input type="text" name="git_url" placeholder="URL del repo Git" required>
-                    <button type="submit">📥 Clonar</button>
-                </form>
+                <button class="project-btn" onclick="goHome()" style="width:100%; margin-bottom:1rem; background:#333;">
+                    ← Volver al inicio
+                </button>
                 
                 <!-- Lista de proyectos -->
-                <div class="project-list">
+                <div class="project-list" id="projectList">
                     {% for project in projects %}
-                    <form action="/api/project/select" method="post" class="project-item">
-                        <input type="hidden" name="name" value="{{ project.name }}">
-                        <button type="submit" class="project-btn {% if current_workspace and project.name in current_workspace %}active{% endif %}">
+                    <div class="project-item">
+                        <button type="button" class="project-btn {% if current_workspace and project.name in current_workspace %}active{% endif %}" 
+                                onclick="selectProject('{{ project.name }}')">
                             {% if project.is_git %}📦{% else %}📁{% endif %}
                             {{ project.name }}
                         </button>
-                    </form>
+                    </div>
                     {% else %}
                     <p class="no-projects">No hay proyectos aún</p>
                     {% endfor %}
@@ -60,27 +314,18 @@
 
             <!-- Chat Area -->
             <main class="chat-area">
-                <div class="chat-header">
-                    {% if current_workspace %}
-                    <span>📂 {{ current_workspace }}</span>
-                    {% else %}
+                <div class="chat-header" id="chatHeader">
                     <span>Selecciona o crea un proyecto</span>
-                    {% endif %}
                 </div>
                 
                 <div class="chat-messages" id="chatMessages">
                     <div class="message system">
-                        👋 ¡Hola! Soy tu asistente de desarrollo. 
-                        {% if has_api_key %}
-                        ¿En qué puedo ayudarte hoy?
-                        {% else %}
-                        Configura tu API key para empezar.
-                        {% endif %}
+                        👋 ¡Hola! Soy tu asistente de desarrollo. ¿En qué puedo ayudarte hoy?
                     </div>
                 </div>
                 
                 <form class="chat-input" id="chatForm" onsubmit="sendMessage(event)">
-                    <input type="hidden" name="project" value="{{ current_workspace or '' }}">
+                    <input type="hidden" name="project" id="currentProject" value="">
                     <input 
                         type="text" 
                         name="message" 
@@ -98,13 +343,251 @@
     </div>
 
     <script>
+        // === ESTADO GLOBAL ===
+        let currentProject = '';
+        let selectedRepo = null;
+        let repos = [];
+        
         const chatMessages = document.getElementById('chatMessages');
         const messageInput = document.getElementById('messageInput');
+        const repoSelect = document.getElementById('repoSelect');
+        const branchSelect = document.getElementById('branchSelect');
+        const launchBtn = document.getElementById('launchBtn');
         
-        // Nombre del proyecto actual
-        const currentProject = '{{ current_workspace.split("/")[-1] if current_workspace else "" }}';
+        // === INICIALIZACIÓN ===
+        document.addEventListener('DOMContentLoaded', async () => {
+            await loadGitHubRepos();
+            await loadConversations();
+        });
         
-        // Cargar mensajes guardados al iniciar
+        // === GITHUB ===
+        async function loadGitHubRepos() {
+            try {
+                const response = await fetch('/api/github/repos');
+                if (response.status === 401) {
+                    repoSelect.innerHTML = '<option value="">GitHub no configurado</option>';
+                    repoSelect.innerHTML += '<option value="_config">⚙️ Configurar GitHub...</option>';
+                    return;
+                }
+                
+                const data = await response.json();
+                repos = data.repos || [];
+                
+                repoSelect.innerHTML = '<option value="">Selecciona un repositorio...</option>';
+                repos.forEach(repo => {
+                    const opt = document.createElement('option');
+                    opt.value = `${repo.owner}/${repo.name}`;
+                    opt.textContent = `${repo.private ? '🔒' : '📂'} ${repo.full_name}`;
+                    opt.dataset.owner = repo.owner;
+                    opt.dataset.name = repo.name;
+                    opt.dataset.defaultBranch = repo.default_branch;
+                    repoSelect.appendChild(opt);
+                });
+            } catch (error) {
+                console.error('Error cargando repos:', error);
+                repoSelect.innerHTML = '<option value="">Error cargando repos</option>';
+            }
+        }
+        
+        async function onRepoSelect() {
+            const value = repoSelect.value;
+            
+            if (value === '_config') {
+                window.location.href = '/settings';
+                return;
+            }
+            
+            if (!value) {
+                branchSelect.disabled = true;
+                branchSelect.innerHTML = '<option value="">Selecciona branch...</option>';
+                launchBtn.disabled = true;
+                return;
+            }
+            
+            const option = repoSelect.options[repoSelect.selectedIndex];
+            selectedRepo = {
+                owner: option.dataset.owner,
+                name: option.dataset.name,
+                defaultBranch: option.dataset.defaultBranch
+            };
+            
+            // Cargar branches
+            branchSelect.innerHTML = '<option value="">Cargando branches...</option>';
+            branchSelect.disabled = true;
+            
+            try {
+                const response = await fetch(`/api/github/repos/${selectedRepo.owner}/${selectedRepo.name}/branches`);
+                const data = await response.json();
+                
+                branchSelect.innerHTML = '';
+                (data.branches || []).forEach(branch => {
+                    const opt = document.createElement('option');
+                    opt.value = branch.name;
+                    opt.textContent = `🔀 ${branch.name}${branch.protected ? ' 🔒' : ''}`;
+                    if (branch.name === selectedRepo.defaultBranch) {
+                        opt.selected = true;
+                    }
+                    branchSelect.appendChild(opt);
+                });
+                
+                branchSelect.disabled = false;
+                launchBtn.disabled = false;
+            } catch (error) {
+                console.error('Error cargando branches:', error);
+                branchSelect.innerHTML = '<option value="">Error cargando branches</option>';
+            }
+        }
+        
+        async function launchRepo() {
+            if (!selectedRepo || !branchSelect.value) return;
+            
+            launchBtn.disabled = true;
+            launchBtn.textContent = 'Clonando...';
+            
+            try {
+                const response = await fetch('/api/github/launch', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        owner: selectedRepo.owner,
+                        repo: selectedRepo.name,
+                        branch: branchSelect.value
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    currentProject = data.project_name;
+                    showChat(data.project_name, `${selectedRepo.owner}/${selectedRepo.name}`);
+                } else {
+                    alert('Error: ' + (data.error || 'No se pudo clonar'));
+                }
+            } catch (error) {
+                alert('Error: ' + error.message);
+            } finally {
+                launchBtn.disabled = false;
+                launchBtn.textContent = 'Launch';
+            }
+        }
+        
+        // === CONVERSACIONES ===
+        async function loadConversations() {
+            try {
+                const response = await fetch('/api/conversations');
+                const data = await response.json();
+                
+                const container = document.getElementById('conversationsList');
+                const conversations = data.conversations || [];
+                
+                if (conversations.length === 0) {
+                    container.innerHTML = '<div class="no-conversations">No hay conversaciones aún. ¡Empieza una nueva!</div>';
+                    return;
+                }
+                
+                container.innerHTML = '';
+                conversations.slice(0, 10).forEach(conv => {
+                    const timeAgo = getTimeAgo(conv.updated_at || conv.created_at);
+                    const repoInfo = conv.repo_owner && conv.repo_name 
+                        ? `${conv.repo_owner}/${conv.repo_name}` 
+                        : conv.project_name || 'Sin proyecto';
+                    
+                    container.innerHTML += `
+                        <div class="conversation-item" onclick="openConversation(${conv.id}, '${conv.project_name || ''}')">
+                            <div class="conv-status ${conv.status === 'done' ? 'done' : ''}"></div>
+                            <div class="conv-info">
+                                <div class="conv-title">${conv.title || 'Sin título'}</div>
+                                <div class="conv-repo">
+                                    <span>📦</span>
+                                    <span>${repoInfo}</span>
+                                    ${conv.branch ? `<span>🔀 ${conv.branch}</span>` : ''}
+                                </div>
+                            </div>
+                            <div class="conv-time">${timeAgo}</div>
+                            <div class="conv-menu">⋮</div>
+                        </div>
+                    `;
+                });
+                
+                if (conversations.length > 10) {
+                    document.getElementById('viewMore').style.display = 'block';
+                }
+            } catch (error) {
+                console.error('Error cargando conversaciones:', error);
+                document.getElementById('conversationsList').innerHTML = 
+                    '<div class="no-conversations">Error cargando conversaciones</div>';
+            }
+        }
+        
+        function getTimeAgo(dateStr) {
+            if (!dateStr) return '';
+            const date = new Date(dateStr);
+            const now = new Date();
+            const diff = Math.floor((now - date) / 1000);
+            
+            if (diff < 60) return 'ahora';
+            if (diff < 3600) return `${Math.floor(diff/60)}m atrás`;
+            if (diff < 86400) return `${Math.floor(diff/3600)}h atrás`;
+            return `${Math.floor(diff/86400)}d atrás`;
+        }
+        
+        async function openConversation(convId, projectName) {
+            currentProject = projectName;
+            showChat(projectName, projectName);
+            
+            // Cargar mensajes de la conversación
+            try {
+                const response = await fetch(`/api/conversations/${convId}`);
+                const data = await response.json();
+                
+                chatMessages.innerHTML = '';
+                (data.messages || []).forEach(msg => {
+                    addMessage(msg.content, msg.role);
+                });
+                
+                if (!data.messages || data.messages.length === 0) {
+                    chatMessages.innerHTML = '<div class="message system">👋 ¡Hola! ¿En qué puedo ayudarte?</div>';
+                }
+            } catch (error) {
+                console.error('Error cargando mensajes:', error);
+            }
+        }
+        
+        function startNewConversation() {
+            currentProject = '';
+            showChat('', 'Nueva conversación');
+            chatMessages.innerHTML = '<div class="message system">👋 ¡Hola! Soy tu asistente de desarrollo. ¿Qué quieres crear hoy?</div>';
+        }
+        
+        // === NAVEGACIÓN ===
+        function showChat(projectName, title) {
+            document.getElementById('homePage').style.display = 'none';
+            document.getElementById('chatPage').style.display = 'flex';
+            document.getElementById('chatHeader').innerHTML = `<span>📂 ${title || projectName}</span>`;
+            document.getElementById('currentProject').value = projectName;
+            currentProject = projectName;
+            
+            if (messageInput) messageInput.focus();
+        }
+        
+        function goHome() {
+            document.getElementById('homePage').style.display = 'block';
+            document.getElementById('chatPage').style.display = 'none';
+            loadConversations();
+        }
+        
+        function selectProject(name) {
+            currentProject = name;
+            document.getElementById('currentProject').value = name;
+            document.getElementById('chatHeader').innerHTML = `<span>📂 ${name}</span>`;
+            loadMessages();
+        }
+        
+        function showHelp() {
+            alert('🤖 OpenHands Chat\n\n1. Configura tu API key en Configuración\n2. Conecta tu cuenta de GitHub\n3. Selecciona un repositorio o empieza desde cero\n4. ¡Empieza a construir!');
+        }
+        
+        // === MENSAJES ===
         async function loadMessages() {
             if (!currentProject) return;
             
@@ -113,10 +596,7 @@
                 const data = await response.json();
                 
                 if (data.messages && data.messages.length > 0) {
-                    // Limpiar solo el mensaje de bienvenida inicial
                     chatMessages.innerHTML = '';
-                    
-                    // Agregar todos los mensajes guardados
                     data.messages.forEach(msg => {
                         addMessage(msg.content, msg.role);
                     });
@@ -126,47 +606,16 @@
             }
         }
         
-        // Cargar mensajes cuando la página carga
-        document.addEventListener('DOMContentLoaded', loadMessages);
-        
-        // Convertir markdown básico a HTML
         function formatMessage(text) {
             if (!text) return '';
-            
-            // Escapar HTML primero
             text = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-            
-            // Links: [texto](url) o URLs directas
             text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank">$1</a>');
             text = text.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank">$1</a>');
-            
-            // Código en bloque: ```code```
             text = text.replace(/```(\w*)\n?([\s\S]*?)```/g, '<pre><code class="lang-$1">$2</code></pre>');
-            
-            // Código inline: `code`
             text = text.replace(/`([^`]+)`/g, '<code>$1</code>');
-            
-            // Negrita: **texto** o __texto__
             text = text.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-            text = text.replace(/__([^_]+)__/g, '<strong>$1</strong>');
-            
-            // Cursiva: *texto* o _texto_
-            text = text.replace(/\*([^*]+)\*/g, '<em>$1</em>');
-            text = text.replace(/_([^_]+)_/g, '<em>$1</em>');
-            
-            // Listas: - item
-            text = text.replace(/^- (.+)$/gm, '<li>$1</li>');
-            text = text.replace(/(<li>.*<\/li>\n?)+/g, '<ul>$&</ul>');
-            
-            // Headers: # ## ###
-            text = text.replace(/^### (.+)$/gm, '<h4>$1</h4>');
-            text = text.replace(/^## (.+)$/gm, '<h3>$1</h3>');
-            text = text.replace(/^# (.+)$/gm, '<h2>$1</h2>');
-            
-            // Saltos de línea
             text = text.replace(/\n\n/g, '</p><p>');
             text = text.replace(/\n/g, '<br>');
-            
             return '<p>' + text + '</p>';
         }
         
@@ -174,7 +623,6 @@
             const div = document.createElement('div');
             div.className = `message ${type}`;
             
-            // Formatear si es respuesta del asistente
             if (type === 'assistant') {
                 div.innerHTML = '🤖 ' + formatMessage(content);
             } else if (type === 'user') {
@@ -193,11 +641,8 @@
             const message = messageInput.value.trim();
             if (!message) return;
             
-            // Mostrar mensaje del usuario
             addMessage(message, 'user');
             messageInput.value = '';
-            
-            // Mostrar indicador de carga
             addMessage('⏳ Procesando tu solicitud...', 'system loading');
             
             try {
@@ -212,7 +657,6 @@
                 
                 const data = await response.json();
                 
-                // Quitar indicador de carga
                 const loading = chatMessages.querySelector('.loading');
                 if (loading) loading.remove();
                 
@@ -226,11 +670,6 @@
                 if (loading) loading.remove();
                 addMessage('Error de conexión: ' + error.message, 'error');
             }
-        }
-        
-        // Focus en el input al cargar
-        if (messageInput && !messageInput.disabled) {
-            messageInput.focus();
         }
     </script>
 </body>
