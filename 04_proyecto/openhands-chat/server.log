@@ -1,0 +1,22 @@
+INFO:     Will watch for changes in these directories: ['/workspace/project/test03/04_proyecto/openhands-chat']
+INFO:     Uvicorn running on http://0.0.0.0:12000 (Press CTRL+C to quit)
+INFO:     Started reloader process [1086] using StatReload
+============================================================
+  🤖 OPENHANDS CHAT
+============================================================
+  🌐 Servidor: http://0.0.0.0:12000
+  📁 Proyectos: /workspace/project/test03/04_proyecto/openhands-chat/projects
+============================================================
+
+  Abre tu navegador en la URL de arriba
+  Presiona Ctrl+C para detener
+
+INFO:     Started server process [1089]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+/home/openhands/.local/lib/python3.12/site-packages/starlette/templating.py:162: DeprecationWarning: The `name` is not the first parameter anymore. The first parameter should be the `Request` instance.
+Replace `TemplateResponse(name, {"request": request})` by `TemplateResponse(request, name)`.
+  warnings.warn(
+INFO:     10.2.24.167:38218 - "GET / HTTP/1.1" 200 OK
+INFO:     10.2.24.167:38218 - "GET / HTTP/1.1" 200 OK
+INFO:     10.2.24.167:38218 - "GET / HTTP/1.1" 200 OK
