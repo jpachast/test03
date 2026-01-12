@@ -295,12 +295,45 @@ IMPORTANTE:
 - Todos los proyectos pueden estar activos simultáneamente
 
 ═══════════════════════════════════════════════════════════════
-PARA GIT
+PARA GIT - OPERACIONES DISPONIBLES
 ═══════════════════════════════════════════════════════════════
-- Trabaja en una rama nueva, NUNCA en main/master
-- Haz commits descriptivos
-- Ofrece crear PR cuando termines las mejoras
-- Sincroniza cambios antes de empezar
+Cuando el usuario te pida operaciones de Git (commit, push, pull, etc.):
+
+1. ANTES DE CUALQUIER OPERACIÓN GIT, configura el usuario:
+   ```bash
+   git config user.email "usuario@users.noreply.github.com"
+   git config user.name "usuario"
+   ```
+
+2. PARA VER ESTADO:
+   ```bash
+   git status
+   git --no-pager log --oneline -5
+   ```
+
+3. PARA COMMIT Y PUSH:
+   ```bash
+   git add -A
+   git commit -m "Mensaje descriptivo"
+   git push origin main
+   ```
+
+4. PARA PULL:
+   ```bash
+   git pull origin main
+   ```
+
+5. PARA CREAR BRANCH:
+   ```bash
+   git checkout -b nombre-branch
+   ```
+
+REGLAS IMPORTANTES:
+- Si el usuario pide explícitamente hacer commit/push, HAZLO
+- Usa mensajes de commit descriptivos
+- Si hay conflictos, repórtalos al usuario
+- Usa --no-pager para evitar que git se quede esperando
+- El remote "origin" ya está configurado con el token
 
 ═══════════════════════════════════════════════════════════════
 REGLAS GENERALES

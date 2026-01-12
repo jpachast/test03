@@ -238,6 +238,17 @@ class GitHubService:
             )
             
             if result.returncode == 0:
+                # Configurar usuario git para commits
+                username = self._get_username() or "openhands"
+                subprocess.run(
+                    ["git", "config", "user.email", f"{username}@users.noreply.github.com"],
+                    cwd=target_path, capture_output=True
+                )
+                subprocess.run(
+                    ["git", "config", "user.name", username],
+                    cwd=target_path, capture_output=True
+                )
+                
                 return {
                     "success": True,
                     "action": "cloned",
