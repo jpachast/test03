@@ -308,23 +308,58 @@ class Database:
         conn.close()
         return conv_id
 
-    def get_conversation(self, project_id: int) -> dict:
-        """Obtener conversación activa del proyecto (o crear una)"""
+    def get_conversation(self, conv_id_or_project_id: int, by_conv_id: bool = False) -> dict:
+        """Obtener conversación con info del proyecto
+        
+        Args:
+            conv_id_or_project_id: ID de conversación o proyecto según by_conv_id
+            by_conv_id: Si True, busca por conversation_id, si False por project_id
+        """
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
-        cursor.execute('''
-            SELECT id, title, created_at FROM conversations
-            WHERE project_id = ?
-            ORDER BY created_at DESC LIMIT 1
-        ''', (project_id,))
+        
+        if by_conv_id:
+            # Buscar por ID de conversación
+            cursor.execute('''
+                SELECT c.id, c.title, c.created_at, c.project_id,
+                       p.name, p.path, p.repo_owner, p.repo_name, p.branch
+                FROM conversations c
+                LEFT JOIN projects p ON c.project_id = p.id
+                WHERE c.id = ?
+            ''', (conv_id_or_project_id,))
+        else:
+            # Buscar por project_id (comportamiento anterior)
+            cursor.execute('''
+                SELECT c.id, c.title, c.created_at, c.project_id,
+                       p.name, p.path, p.repo_owner, p.repo_name, p.branch
+                FROM conversations c
+                LEFT JOIN projects p ON c.project_id = p.id
+                WHERE c.project_id = ?
+                ORDER BY c.created_at DESC LIMIT 1
+            ''', (conv_id_or_project_id,))
+        
         row = cursor.fetchone()
         conn.close()
         
         if row:
-            return {'id': row[0], 'title': row[1], 'created_at': row[2]}
-        # Crear si no existe
-        conv_id = self.create_conversation(project_id)
-        return {'id': conv_id, 'title': 'Nueva conversación', 'created_at': None}
+            return {
+                'id': row[0],
+                'title': row[1],
+                'created_at': row[2],
+                'project_id': row[3],
+                'project_name': row[4],
+                'workspace_path': row[5],  # path del proyecto
+                'repo_owner': row[6],
+                'repo_name': row[7],
+                'branch': row[8]
+            }
+        
+        # Si busca por project_id y no existe, crear
+        if not by_conv_id:
+            conv_id = self.create_conversation(conv_id_or_project_id)
+            return {'id': conv_id, 'title': 'Nueva conversación', 'created_at': None}
+        
+        return None
 
     # === MENSAJES ===
 

@@ -10,12 +10,13 @@ import threading
 from pathlib import Path
 from typing import Optional
 
-from fastapi import FastAPI, Request, Form, HTTPException, Response
+from fastapi import FastAPI, Request, Form, HTTPException, Response, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 import httpx
+import websockets
 
 from openhands.sdk import Conversation
 
@@ -885,12 +886,12 @@ async def api_start_code_server(request: Request):
     if not conv_id:
         return JSONResponse({"error": "conversation_id requerido"}, status_code=400)
     
-    # Obtener info de la conversación
-    conv_data = db.get_conversation(conv_id)
+    # Obtener info de la conversación con datos del proyecto
+    conv_data = db.get_conversation(int(conv_id), by_conv_id=True)
     if not conv_data:
         return JSONResponse({"error": "Conversación no encontrada"}, status_code=404)
     
-    repo_name = conv_data.get("repo_name", "")
+    repo_name = conv_data.get("repo_name", "") or conv_data.get("project_name", "")
     
     # Verificar si es el proyecto principal (test03)
     if is_main_project(repo_name):
@@ -902,7 +903,10 @@ async def api_start_code_server(request: Request):
     # Obtener ruta del workspace
     workspace_path = conv_data.get("workspace_path")
     if not workspace_path or not os.path.isdir(workspace_path):
-        return JSONResponse({"error": "Workspace no encontrado"}, status_code=404)
+        return JSONResponse({
+            "error": f"Workspace no encontrado: {workspace_path}",
+            "conv_data": conv_data
+        }, status_code=404)
     
     # Iniciar code-server
     result = start_code_server(workspace_path)
@@ -949,9 +953,10 @@ async def proxy_code_server(request: Request, path: str):
     
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
-            # Preparar headers (excluir host)
+            # Preparar headers (excluir host y accept-encoding para evitar gzip)
             headers = dict(request.headers)
             headers.pop("host", None)
+            headers.pop("accept-encoding", None)  # Evitar respuestas comprimidas
             
             # Hacer la petición
             body = await request.body()
@@ -963,12 +968,13 @@ async def proxy_code_server(request: Request, path: str):
                 follow_redirects=False
             )
             
-            # Preparar headers de respuesta
+            # Preparar headers de respuesta (usar .text para descomprimir automáticamente)
             response_headers = dict(response.headers)
             response_headers.pop("content-encoding", None)
             response_headers.pop("content-length", None)
             response_headers.pop("transfer-encoding", None)
             
+            # Usar .content que ya está decodificado por httpx
             return Response(
                 content=response.content,
                 status_code=response.status_code,
@@ -985,6 +991,48 @@ async def proxy_code_server(request: Request, path: str):
             content=f"<h1>Error de proxy</h1><p>{str(e)}</p>",
             status_code=500
         )
+
+
+# === WEBSOCKET PROXY PARA CODE-SERVER ===
+
+@app.websocket("/code-server/{path:path}")
+async def websocket_proxy(websocket: WebSocket, path: str):
+    """Proxy WebSocket para code-server"""
+    await websocket.accept()
+    
+    # Construir URL de WebSocket destino
+    ws_url = f"ws://127.0.0.1:{CODE_SERVER_PORT}/{path}"
+    if websocket.query_params:
+        ws_url += f"?{websocket.query_params}"
+    
+    try:
+        async with websockets.connect(ws_url) as ws_backend:
+            async def forward_to_backend():
+                try:
+                    while True:
+                        data = await websocket.receive()
+                        if "text" in data:
+                            await ws_backend.send(data["text"])
+                        elif "bytes" in data:
+                            await ws_backend.send(data["bytes"])
+                except WebSocketDisconnect:
+                    pass
+            
+            async def forward_to_client():
+                try:
+                    async for message in ws_backend:
+                        if isinstance(message, str):
+                            await websocket.send_text(message)
+                        else:
+                            await websocket.send_bytes(message)
+                except websockets.ConnectionClosed:
+                    pass
+            
+            # Ejecutar ambas direcciones concurrentemente
+            await asyncio.gather(forward_to_backend(), forward_to_client())
+    except Exception as e:
+        print(f"WebSocket proxy error: {e}")
+        await websocket.close()
 
 
 # === HEALTH CHECK ===

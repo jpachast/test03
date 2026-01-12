@@ -9,7 +9,7 @@ import time
 from pathlib import Path
 from typing import Optional
 
-# Puerto interno para code-server
+# Puerto para code-server (interno, proxy vía /code-server/)
 CODE_SERVER_PORT = 8080
 CODE_SERVER_PROCESS: Optional[subprocess.Popen] = None
 CURRENT_PROJECT_PATH: Optional[str] = None
@@ -54,22 +54,32 @@ def start_code_server(project_path: str) -> dict:
             project_path
         ]
         
+        # Usar archivo temporal para logs
+        log_file = open("/tmp/code-server.log", "w")
+        
+        # IMPORTANTE: Limpiar variable PORT del entorno porque code-server la lee
+        env = os.environ.copy()
+        env.pop('PORT', None)  # Remover PORT si existe
+        
         CODE_SERVER_PROCESS = subprocess.Popen(
             cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            start_new_session=True
+            stdout=log_file,
+            stderr=log_file,
+            start_new_session=True,
+            env=env
         )
         
         CURRENT_PROJECT_PATH = project_path
         
         # Esperar a que inicie
-        time.sleep(2)
+        time.sleep(3)
         
         if CODE_SERVER_PROCESS.poll() is not None:
-            # Proceso terminó
-            stderr = CODE_SERVER_PROCESS.stderr.read().decode() if CODE_SERVER_PROCESS.stderr else ""
-            return {"status": "error", "message": f"code-server falló: {stderr}"}
+            # Proceso terminó - leer logs
+            log_file.close()
+            with open("/tmp/code-server.log", "r") as f:
+                logs = f.read()
+            return {"status": "error", "message": f"code-server falló: {logs[-500:]}"}
         
         return {
             "status": "started",
