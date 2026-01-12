@@ -371,32 +371,54 @@ async def launch_repo(request: LaunchRepoRequest):
     
     github_service.set_token(token)
     
-    # Verificar si ya existe el proyecto
+    # Caso especial: si es el repositorio del proyecto principal (test03)
+    # No clonamos, usamos el directorio actual
+    is_main_project = (request.owner == "jpachast" and request.repo == "test03")
+    
+    # Verificar si ya existe el proyecto en BD
     existing = db.get_project_by_repo(request.owner, request.repo, request.branch)
     
     if existing:
-        # Actualizar repositorio existente
-        clone_result = github_service.clone_repo(
-            request.owner, request.repo, request.branch,
-            existing['path']
-        )
+        # Proyecto ya existe - solo actualizar si no es el principal
         project_id = existing['id']
         db.update_project_access(project_id)
+        
+        if not is_main_project:
+            # Solo hacer pull para repos externos
+            clone_result = github_service.clone_repo(
+                request.owner, request.repo, request.branch,
+                existing['path']
+            )
+            action = clone_result.get("action", "updated")
+        else:
+            action = "existing"
+        
+        project_path = existing['path']
+        project_name = existing['name']
     else:
-        # Clonar nuevo
-        project_name = f"{request.owner}-{request.repo}"
-        if request.branch != "main":
-            project_name += f"-{request.branch}"
-        
-        project_path = str(settings.projects_dir / project_name)
-        
-        clone_result = github_service.clone_repo(
-            request.owner, request.repo, request.branch,
-            project_path
-        )
-        
-        if not clone_result.get("success"):
-            raise HTTPException(status_code=500, detail=clone_result.get("error"))
+        # Proyecto nuevo
+        if is_main_project:
+            # Para test03, usar el directorio raíz del proyecto actual
+            project_name = "test03-main"
+            project_path = str(Path(__file__).parent.parent.parent.parent)  # /workspace/project/test03
+            action = "linked"
+        else:
+            # Clonar repositorio externo
+            project_name = f"{request.owner}-{request.repo}"
+            if request.branch != "main":
+                project_name += f"-{request.branch}"
+            
+            project_path = str(settings.projects_dir / project_name)
+            
+            clone_result = github_service.clone_repo(
+                request.owner, request.repo, request.branch,
+                project_path
+            )
+            
+            if not clone_result.get("success"):
+                raise HTTPException(status_code=500, detail=clone_result.get("error"))
+            
+            action = clone_result.get("action", "cloned")
         
         # Guardar en BD
         git_url = f"https://github.com/{request.owner}/{request.repo}.git"
@@ -413,16 +435,15 @@ async def launch_repo(request: LaunchRepoRequest):
     conv_id = db.create_conversation(project_id, f"Trabajo en {request.repo}")
     
     # Actualizar workspace actual
-    project = db.get_project_by_repo(request.owner, request.repo, request.branch)
-    current_workspace = project['path']
+    current_workspace = project_path
     
     return {
         "success": True,
         "project_id": project_id,
         "conversation_id": conv_id,
-        "project_name": project['name'],
-        "path": project['path'],
-        "action": clone_result.get("action", "cloned")
+        "project_name": project_name,
+        "path": project_path,
+        "action": action
     }
 
 
