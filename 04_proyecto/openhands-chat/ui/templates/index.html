@@ -416,6 +416,19 @@
             to { transform: rotate(360deg); }
         }
         
+        /* Progreso streaming */
+        .streaming-progress {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            border: 1px solid #30363d;
+            border-left: 3px solid #f0ad4e;
+        }
+        
+        .progress-content {
+            font-family: 'Fira Code', monospace;
+            font-size: 0.9rem;
+            color: #c9d1d9;
+        }
+        
         /* Barra de acciones Git */
         .git-actions-bar {
             display: flex;
@@ -1223,36 +1236,77 @@
             messageInput.value = '';
             
             // Cambiar estado a procesando
-            setTaskStatus('processing', 'Procesando...');
-            addMessage('⏳ Procesando tu solicitud...', 'system loading');
+            setTaskStatus('processing', 'Iniciando...');
+            
+            // Crear elemento para mostrar progreso
+            const progressDiv = document.createElement('div');
+            progressDiv.className = 'message system streaming-progress';
+            progressDiv.innerHTML = '<div class="progress-content">🚀 Iniciando...</div>';
+            chatMessages.appendChild(progressDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
             
             try {
                 const formData = new FormData();
                 formData.append('message', message);
                 formData.append('project', currentProject);
                 
-                const response = await fetch('/api/chat/send', {
+                // Usar streaming SSE
+                const response = await fetch('/api/chat/stream', {
                     method: 'POST',
                     body: formData
                 });
                 
-                const data = await response.json();
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let finalMessage = '';
                 
-                const loading = chatMessages.querySelector('.loading');
-                if (loading) loading.remove();
-                
-                if (data.status === 'ok') {
-                    addMessage(data.message, 'assistant');
-                    setTaskStatus('completed', 'Tarea completada');
-                    // Volver a estado esperando después de 3 segundos
-                    setTimeout(() => setTaskStatus('', 'Esperando tarea.'), 3000);
-                } else {
-                    addMessage('Error: ' + data.message, 'error');
-                    setTaskStatus('error', 'Error en tarea');
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    
+                    const text = decoder.decode(value);
+                    const lines = text.split('\n');
+                    
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            try {
+                                const data = JSON.parse(line.substring(6));
+                                
+                                if (data.type === 'heartbeat') {
+                                    continue;
+                                }
+                                
+                                if (data.type === 'done') {
+                                    finalMessage = data.message;
+                                } else if (data.type === 'error') {
+                                    progressDiv.querySelector('.progress-content').innerHTML = 
+                                        `❌ Error: ${data.text}`;
+                                    setTaskStatus('error', 'Error');
+                                } else if (data.type && data.icon && data.text) {
+                                    // Actualizar progreso
+                                    progressDiv.querySelector('.progress-content').innerHTML = 
+                                        `${data.icon} ${data.text}`;
+                                    setTaskStatus('processing', data.text.substring(0, 30) + '...');
+                                    chatMessages.scrollTop = chatMessages.scrollHeight;
+                                }
+                            } catch (e) {
+                                // Ignorar líneas mal formadas
+                            }
+                        }
+                    }
                 }
+                
+                // Remover progreso y mostrar mensaje final
+                progressDiv.remove();
+                
+                if (finalMessage) {
+                    addMessage(finalMessage, 'assistant');
+                    setTaskStatus('completed', 'Tarea completada');
+                    setTimeout(() => setTaskStatus('', 'Esperando tarea.'), 3000);
+                }
+                
             } catch (error) {
-                const loading = chatMessages.querySelector('.loading');
-                if (loading) loading.remove();
+                progressDiv.remove();
                 addMessage('Error de conexión: ' + error.message, 'error');
                 setTaskStatus('error', 'Error de conexión');
             }

@@ -269,30 +269,35 @@ PARA CORRECCIÓN DE ERRORES
 ═══════════════════════════════════════════════════════════════
 PARA DESPLIEGUE - MUY IMPORTANTE
 ═══════════════════════════════════════════════════════════════
-El servidor de proyectos YA ESTÁ CORRIENDO en el puerto 12001.
-Sirve TODOS los proyectos desde /workspace/project/test03/04_proyecto/openhands-chat/projects/
+Los archivos estáticos se sirven desde:
+https://work-1-ycbycghbyxbnnhxb.prod-runtime.all-hands.dev/projects/
 
-CADA PROYECTO tiene su propia URL basada en el nombre de la carpeta:
-- https://work-2-ycbycghbyxbnnhxb.prod-runtime.all-hands.dev/NOMBRE_PROYECTO/
+TU WORKSPACE ACTUAL es algo como: /workspace/project/test03/04_proyecto/openhands-chat/projects/{repo}/chat{N}/
+
+PARA CONSTRUIR LA URL CORRECTA:
+1. Primero ejecuta `pwd` para ver tu directorio actual
+2. Extrae la parte después de "projects/" 
+3. La URL será: https://work-1-ycbycghbyxbnnhxb.prod-runtime.all-hands.dev/projects/{esa-parte}/
+
+EJEMPLO:
+- Si tu pwd es: /workspace/project/test03/04_proyecto/openhands-chat/projects/jpachast-demo01/chat01/
+- Y creas carpeta "calculadora" con index.html
+- La URL correcta es: https://work-1-ycbycghbyxbnnhxb.prod-runtime.all-hands.dev/projects/jpachast-demo01/chat01/calculadora/index.html
 
 PASOS PARA DESPLEGAR:
-1. Crea los archivos del proyecto en su carpeta (ya está hecho al crear el proyecto)
-2. NO necesitas levantar ningún servidor - ya está corriendo
-3. Muestra la URL del proyecto al usuario:
+1. Ejecuta `pwd` para saber dónde estás
+2. Crea tus archivos (en raíz o subcarpeta)
+3. Construye la URL basándote en la ruta relativa desde "projects/"
+4. Muestra la URL al usuario:
    ```
-   🌐 Tu app está en: https://work-2-ycbycghbyxbnnhxb.prod-runtime.all-hands.dev/NOMBRE_PROYECTO/
+   🌐 Tu app está en: https://work-1-ycbycghbyxbnnhxb.prod-runtime.all-hands.dev/projects/{ruta-relativa}/index.html
    ```
-
-EJEMPLOS:
-- Proyecto "calculadora" → https://work-2-ycbycghbyxbnnhxb.prod-runtime.all-hands.dev/calculadora/
-- Proyecto "mi-app" → https://work-2-ycbycghbyxbnnhxb.prod-runtime.all-hands.dev/mi-app/
-- Proyecto "juego" → https://work-2-ycbycghbyxbnnhxb.prod-runtime.all-hands.dev/juego/
 
 IMPORTANTE:
-- NUNCA muestres "localhost" - el usuario no puede acceder
-- SIEMPRE incluye el nombre del proyecto en la URL
-- SIEMPRE termina la URL con "/" 
-- Todos los proyectos pueden estar activos simultáneamente
+- NUNCA uses work-2, siempre usa work-1
+- NUNCA uses localhost
+- SIEMPRE incluye /projects/ en la URL
+- SIEMPRE verifica con pwd tu ubicación actual
 
 ═══════════════════════════════════════════════════════════════
 PARA GIT - OPERACIONES DISPONIBLES

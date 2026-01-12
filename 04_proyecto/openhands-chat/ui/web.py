@@ -1,14 +1,17 @@
 """
-Servidor web FastAPI
+Servidor web FastAPI con streaming SSE
 """
 
 import os
+import json
 import asyncio
+import queue
+import threading
 from pathlib import Path
 from typing import Optional
 
 from fastapi import FastAPI, Request, Form, HTTPException
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
@@ -169,27 +172,96 @@ async def project_info(name: str):
     return JSONResponse(info)
 
 
-# Variable global para capturar respuestas
+# Variables globales para streaming
 last_agent_response = ""
+event_queue = None  # Cola para eventos SSE
+
+def create_streaming_callback(q):
+    """Crea un callback que envía eventos a la cola SSE"""
+    def streaming_callback(event):
+        global last_agent_response
+        event_type = str(type(event).__name__)
+        
+        try:
+            # ActionEvent - comandos y acciones
+            if event_type == 'ActionEvent':
+                if hasattr(event, 'action') and event.action:
+                    action = event.action
+                    action_type = str(type(action).__name__)
+                    
+                    # Terminal/Command
+                    if 'Command' in action_type or 'Bash' in action_type:
+                        cmd = getattr(action, 'command', '') or getattr(action, 'code', '')
+                        if cmd:
+                            q.put({"type": "action", "icon": "🔧", "text": f"Ejecutando: {cmd[:100]}"})
+                    
+                    # FileEditor - crear/editar archivos
+                    elif 'File' in action_type or 'Edit' in action_type or 'Create' in action_type:
+                        path = getattr(action, 'path', '') or getattr(action, 'file', '')
+                        if path:
+                            filename = Path(path).name if path else 'archivo'
+                            q.put({"type": "action", "icon": "📄", "text": f"Editando: {filename}"})
+                    
+                    # Finish - respuesta final
+                    elif 'Finish' in action_type:
+                        if hasattr(action, 'message') and action.message:
+                            last_agent_response = action.message
+                            q.put({"type": "finish", "icon": "✅", "text": "Completado"})
+                    
+                    # Thinking/Planning
+                    elif 'Think' in action_type or 'Message' in action_type:
+                        msg = getattr(action, 'message', '') or getattr(action, 'thought', '')
+                        if msg:
+                            q.put({"type": "thinking", "icon": "💭", "text": msg[:150]})
+            
+            # ObservationEvent - resultados
+            elif event_type == 'ObservationEvent':
+                if hasattr(event, 'observation') and event.observation:
+                    obs = event.observation
+                    obs_type = str(type(obs).__name__)
+                    
+                    if 'Command' in obs_type or 'Bash' in obs_type:
+                        output = getattr(obs, 'output', '') or getattr(obs, 'content', '')
+                        if output and len(output) > 0:
+                            preview = output[:100].replace('\n', ' ')
+                            q.put({"type": "output", "icon": "📋", "text": f"Resultado: {preview}"})
+            
+            # MessageEvent - mensajes del agente
+            elif event_type == 'MessageEvent':
+                if hasattr(event, 'llm_message') and event.llm_message:
+                    msg = event.llm_message
+                    if hasattr(msg, 'role') and msg.role == 'assistant':
+                        if hasattr(msg, 'content') and msg.content:
+                            text_parts = []
+                            for part in msg.content:
+                                if hasattr(part, 'text') and part.text:
+                                    text_parts.append(part.text)
+                            if text_parts:
+                                response = '\n'.join(text_parts)
+                                last_agent_response = response
+                                # Solo enviar preview
+                                q.put({"type": "thinking", "icon": "💭", "text": response[:100]})
+        
+        except Exception as e:
+            print(f"[CALLBACK ERROR] {e}")
+    
+    return streaming_callback
+
 
 def capture_response(event):
-    """Callback para capturar la respuesta del agente"""
+    """Callback legacy para capturar la respuesta del agente"""
     global last_agent_response
     
     event_type = str(type(event).__name__)
     
-    # Capturar de ActionEvent con FinishAction
     if event_type == 'ActionEvent':
         if hasattr(event, 'action') and event.action:
             action = event.action
-            # Verificar si es FinishAction
             action_type = str(type(action).__name__)
             if 'Finish' in action_type:
                 if hasattr(action, 'message') and action.message:
                     last_agent_response = action.message
-                    print(f"[CALLBACK] Captured FINISH message: {action.message[:200]}...")
     
-    # También capturar de MessageEvent
     elif event_type == 'MessageEvent':
         if hasattr(event, 'llm_message') and event.llm_message:
             msg = event.llm_message
@@ -200,9 +272,7 @@ def capture_response(event):
                         if hasattr(part, 'text') and part.text:
                             text_parts.append(part.text)
                     if text_parts:
-                        response = '\n'.join(text_parts)
-                        print(f"[CALLBACK] Captured agent response: {response[:200]}...")
-                        last_agent_response = response
+                        last_agent_response = '\n'.join(text_parts)
 
 
 @app.post("/api/chat/send")
@@ -278,6 +348,108 @@ async def send_message(message: str = Form(...), project: str = Form(None)):
             "status": "error",
             "message": str(e)
         }, status_code=500)
+
+
+@app.post("/api/chat/stream")
+async def stream_message(message: str = Form(...), project: str = Form(None)):
+    """Enviar mensaje al agente con streaming SSE"""
+    global current_conversation, current_workspace, last_agent_response
+    
+    # Resetear respuesta
+    last_agent_response = ""
+    
+    # Verificar API key
+    api_key = db.get_api_key()
+    if not api_key:
+        return JSONResponse({"error": "API key no configurada"}, status_code=400)
+    
+    # SIEMPRE usar el workspace del proyecto actual
+    if project:
+        workspace = str(settings.projects_dir / project)
+    else:
+        workspace = str(settings.projects_dir)
+    current_workspace = workspace
+    
+    print(f"[STREAM] Workspace: {workspace}")
+    
+    async def generate_events():
+        global last_agent_response
+        q = queue.Queue()
+        
+        # Obtener conversación ID para guardar
+        conversation_id = None
+        if project:
+            proj = db.get_project_by_name(project)
+            if proj:
+                conv = db.get_conversation(proj['id'])
+                conversation_id = conv['id']
+        
+        # Guardar mensaje del usuario
+        if conversation_id:
+            db.add_message(conversation_id, 'user', message)
+        
+        # Evento inicial
+        yield f"data: {json.dumps({'type': 'start', 'icon': '🚀', 'text': 'Iniciando...'})}\n\n"
+        
+        # Crear agente con callback de streaming
+        model = db.get_setting("llm_model", settings.default_model)
+        agent = create_agent(api_key, model)
+        
+        streaming_cb = create_streaming_callback(q)
+        conv = Conversation(
+            agent=agent,
+            workspace=workspace,
+            callbacks=[streaming_cb, capture_response]
+        )
+        
+        # Enviar mensaje
+        conv.send_message(message)
+        
+        # Ejecutar en thread separado
+        def run_agent():
+            try:
+                conv.run()
+            except Exception as e:
+                q.put({"type": "error", "icon": "❌", "text": str(e)})
+            finally:
+                q.put(None)  # Señal de fin
+        
+        thread = threading.Thread(target=run_agent)
+        thread.start()
+        
+        # Enviar eventos mientras el agente trabaja
+        while True:
+            try:
+                event = q.get(timeout=0.5)
+                if event is None:
+                    break
+                yield f"data: {json.dumps(event)}\n\n"
+            except queue.Empty:
+                # Enviar heartbeat para mantener conexión
+                yield f"data: {json.dumps({'type': 'heartbeat'})}\n\n"
+        
+        thread.join(timeout=5)
+        
+        # Enviar respuesta final
+        agent_response = last_agent_response
+        if not agent_response:
+            agent_response = "✅ Tarea completada. Revisa los archivos creados."
+        
+        # Guardar respuesta
+        if conversation_id:
+            db.add_message(conversation_id, 'assistant', agent_response)
+        
+        yield f"data: {json.dumps({'type': 'done', 'message': agent_response})}\n\n"
+    
+    return StreamingResponse(
+        generate_events(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"
+        }
+    )
 
 
 @app.post("/api/chat/reset")
