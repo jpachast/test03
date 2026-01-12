@@ -372,78 +372,89 @@ async def launch_repo(request: LaunchRepoRequest):
     github_service.set_token(token)
     
     # Caso especial: si es el repositorio del proyecto principal (test03)
-    # No clonamos, usamos el directorio actual
     is_main_project = (request.owner == "jpachast" and request.repo == "test03")
     
-    # Verificar si ya existe el proyecto en BD
-    existing = db.get_project_by_repo(request.owner, request.repo, request.branch)
-    
-    if existing:
-        # Proyecto ya existe - solo actualizar si no es el principal
-        project_id = existing['id']
-        db.update_project_access(project_id)
+    if is_main_project:
+        # Para test03, usar el directorio raíz del proyecto actual (NO clonar)
+        project_name = "test03-main"
+        project_path = str(Path(__file__).parent.parent.parent.parent)  # /workspace/project/test03
         
-        if not is_main_project:
-            # Solo hacer pull para repos externos
-            clone_result = github_service.clone_repo(
-                request.owner, request.repo, request.branch,
-                existing['path']
-            )
-            action = clone_result.get("action", "updated")
+        # Verificar si ya existe en BD
+        existing = db.get_project_by_repo(request.owner, request.repo, request.branch)
+        if existing:
+            project_id = existing['id']
         else:
-            action = "existing"
-        
-        project_path = existing['path']
-        project_name = existing['name']
-    else:
-        # Proyecto nuevo
-        if is_main_project:
-            # Para test03, usar el directorio raíz del proyecto actual
-            project_name = "test03-main"
-            project_path = str(Path(__file__).parent.parent.parent.parent)  # /workspace/project/test03
-            action = "linked"
-        else:
-            # Clonar repositorio externo
-            project_name = f"{request.owner}-{request.repo}"
-            if request.branch != "main":
-                project_name += f"-{request.branch}"
-            
-            project_path = str(settings.projects_dir / project_name)
-            
-            clone_result = github_service.clone_repo(
-                request.owner, request.repo, request.branch,
-                project_path
+            git_url = f"https://github.com/{request.owner}/{request.repo}.git"
+            project_id = db.add_project_with_repo(
+                name=project_name,
+                path=project_path,
+                repo_owner=request.owner,
+                repo_name=request.repo,
+                branch=request.branch,
+                git_url=git_url
             )
-            
-            if not clone_result.get("success"):
-                raise HTTPException(status_code=500, detail=clone_result.get("error"))
-            
-            action = clone_result.get("action", "cloned")
         
-        # Guardar en BD
-        git_url = f"https://github.com/{request.owner}/{request.repo}.git"
-        project_id = db.add_project_with_repo(
-            name=project_name,
-            path=project_path,
-            repo_owner=request.owner,
-            repo_name=request.repo,
-            branch=request.branch,
-            git_url=git_url
-        )
+        # Crear conversación (sin clonar)
+        conv_id = db.create_conversation(project_id, f"Trabajo en {request.repo}")
+        current_workspace = project_path
+        
+        return {
+            "success": True,
+            "project_id": project_id,
+            "conversation_id": conv_id,
+            "project_name": project_name,
+            "path": project_path,
+            "action": "linked"
+        }
     
-    # Crear nueva conversación
+    # Para otros repositorios: cada conversación tiene su propia carpeta
+    # Estructura: projects/{owner}-{repo}/chat{id}/
+    
+    repo_folder = f"{request.owner}-{request.repo}"
+    repo_base_path = settings.projects_dir / repo_folder
+    repo_base_path.mkdir(parents=True, exist_ok=True)
+    
+    # Contar chats existentes para este repo
+    existing_chats = list(repo_base_path.glob("chat*"))
+    chat_num = len(existing_chats) + 1
+    chat_folder = f"chat{chat_num:02d}"
+    
+    # Path para este chat específico
+    chat_path = repo_base_path / chat_folder
+    
+    # Clonar repositorio en la carpeta del chat
+    clone_result = github_service.clone_repo(
+        request.owner, request.repo, request.branch,
+        str(chat_path)
+    )
+    
+    if not clone_result.get("success"):
+        raise HTTPException(status_code=500, detail=clone_result.get("error"))
+    
+    # Guardar proyecto en BD (con path del chat específico)
+    git_url = f"https://github.com/{request.owner}/{request.repo}.git"
+    project_id = db.add_project_with_repo(
+        name=f"{repo_folder}/{chat_folder}",
+        path=str(chat_path),
+        repo_owner=request.owner,
+        repo_name=request.repo,
+        branch=request.branch,
+        git_url=git_url
+    )
+    
+    # Crear conversación
     conv_id = db.create_conversation(project_id, f"Trabajo en {request.repo}")
     
     # Actualizar workspace actual
-    current_workspace = project_path
+    current_workspace = str(chat_path)
     
     return {
         "success": True,
         "project_id": project_id,
         "conversation_id": conv_id,
-        "project_name": project_name,
-        "path": project_path,
-        "action": action
+        "project_name": f"{repo_folder}/{chat_folder}",
+        "path": str(chat_path),
+        "action": "cloned"
     }
 
 
