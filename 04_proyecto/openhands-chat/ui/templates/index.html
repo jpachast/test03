@@ -284,10 +284,95 @@
             background: #ff6b6b;
         }
         
+        /* Barra de acciones Git */
+        .git-actions-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 15px;
+            background: #161b22;
+            border-top: 1px solid #30363d;
+            border-radius: 0 0 8px 8px;
+            margin-top: 10px;
+        }
+        
+        .git-repo-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .git-icon {
+            font-size: 1.1rem;
+        }
+        
+        .git-repo {
+            background: #21262d;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            color: #8b949e;
+            border: 1px solid #30363d;
+        }
+        
+        .git-branch-badge {
+            background: #238636;
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            color: white;
+        }
+        
+        .git-buttons {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .git-btn {
+            padding: 8px 16px;
+            background: #21262d;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            color: #c9d1d9;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: all 0.2s;
+        }
+        
+        .git-btn:hover {
+            background: #30363d;
+            border-color: #8b949e;
+        }
+        
+        .git-btn-pr {
+            background: #238636;
+            border-color: #238636;
+            color: white;
+        }
+        
+        .git-btn-pr:hover {
+            background: #2ea043;
+        }
+        
+        .git-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
         @media (max-width: 768px) {
             .launch-options,
             .conversations-section {
                 grid-template-columns: 1fr;
+            }
+            
+            .git-actions-bar {
+                flex-direction: column;
+                gap: 10px;
+            }
+            
+            .git-buttons {
+                width: 100%;
+                justify-content: center;
             }
         }
     </style>
@@ -409,6 +494,26 @@
                         Enviar ➤
                     </button>
                 </form>
+                
+                <!-- Barra de acciones Git -->
+                <div class="git-actions-bar" id="gitActionsBar">
+                    <div class="git-repo-info">
+                        <span class="git-icon">⚙️</span>
+                        <span class="git-repo" id="gitRepoName">jpachast/demo01</span>
+                        <span class="git-branch-badge" id="gitBranchBadge">🔀 main</span>
+                    </div>
+                    <div class="git-buttons">
+                        <button class="git-btn" onclick="gitPull()" title="Traer cambios del remoto">
+                            ↓ Pull
+                        </button>
+                        <button class="git-btn" onclick="gitPush()" title="Enviar cambios al remoto">
+                            ↑ Push
+                        </button>
+                        <button class="git-btn git-btn-pr" onclick="createPR()" title="Crear Pull Request">
+                            ⇆ Solicitud de PR
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -659,6 +764,11 @@
             const repoFullName = repoOwner && repoName ? `${repoOwner}/${repoName}` : projectName;
             showChat(projectName, repoFullName, branch);
             
+            // Actualizar barra de Git
+            if (repoOwner && repoName) {
+                updateGitBar(repoOwner, repoName, branch);
+            }
+            
             // Cargar mensajes de la conversación
             try {
                 const response = await fetch(`/api/conversations/${convId}`);
@@ -703,10 +813,143 @@
             document.getElementById('chatPage').style.display = 'none';
             currentConversationId = null;
             loadConversations();
+            // Limpiar URL
+            window.history.pushState({}, '', '/');
         }
         
         function showHelp() {
             alert('🤖 OpenHands Chat\n\n1. Configura tu API key en Configuración\n2. Conecta tu cuenta de GitHub\n3. Selecciona un repositorio o empieza desde cero\n4. ¡Empieza a construir!');
+        }
+        
+        // === ACCIONES GIT ===
+        let currentGitInfo = { owner: '', repo: '', branch: 'main' };
+        
+        function updateGitBar(owner, repo, branch) {
+            currentGitInfo = { owner, repo, branch: branch || 'main' };
+            document.getElementById('gitRepoName').textContent = `${owner}/${repo}`;
+            document.getElementById('gitBranchBadge').textContent = `🔀 ${branch || 'main'}`;
+        }
+        
+        async function gitPull() {
+            if (!currentGitInfo.owner || !currentGitInfo.repo) {
+                alert('No hay repositorio seleccionado');
+                return;
+            }
+            
+            const btn = event.target;
+            btn.disabled = true;
+            btn.textContent = '⏳ Pulling...';
+            
+            try {
+                const response = await fetch('/api/git/pull', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        project: currentProject,
+                        owner: currentGitInfo.owner,
+                        repo: currentGitInfo.repo,
+                        branch: currentGitInfo.branch
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    addMessage(`✅ Pull exitoso: ${data.message || 'Cambios actualizados'}`, 'system');
+                } else {
+                    addMessage(`❌ Error en Pull: ${data.error || 'Error desconocido'}`, 'system');
+                }
+            } catch (error) {
+                addMessage(`❌ Error: ${error.message}`, 'system');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '↓ Pull';
+            }
+        }
+        
+        async function gitPush() {
+            if (!currentGitInfo.owner || !currentGitInfo.repo) {
+                alert('No hay repositorio seleccionado');
+                return;
+            }
+            
+            const commitMsg = prompt('Mensaje del commit:', 'Actualización desde OpenHands Chat');
+            if (!commitMsg) return;
+            
+            const btn = event.target;
+            btn.disabled = true;
+            btn.textContent = '⏳ Pushing...';
+            
+            try {
+                const response = await fetch('/api/git/push', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        project: currentProject,
+                        owner: currentGitInfo.owner,
+                        repo: currentGitInfo.repo,
+                        branch: currentGitInfo.branch,
+                        commit_message: commitMsg
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    addMessage(`✅ Push exitoso: ${data.message || 'Cambios enviados al repositorio'}`, 'system');
+                } else {
+                    addMessage(`❌ Error en Push: ${data.error || 'Error desconocido'}`, 'system');
+                }
+            } catch (error) {
+                addMessage(`❌ Error: ${error.message}`, 'system');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '↑ Push';
+            }
+        }
+        
+        async function createPR() {
+            if (!currentGitInfo.owner || !currentGitInfo.repo) {
+                alert('No hay repositorio seleccionado');
+                return;
+            }
+            
+            const title = prompt('Título del Pull Request:', 'Cambios desde OpenHands Chat');
+            if (!title) return;
+            
+            const body = prompt('Descripción (opcional):', '');
+            
+            const btn = event.target;
+            btn.disabled = true;
+            btn.textContent = '⏳ Creando PR...';
+            
+            try {
+                const response = await fetch('/api/git/create-pr', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        project: currentProject,
+                        owner: currentGitInfo.owner,
+                        repo: currentGitInfo.repo,
+                        branch: currentGitInfo.branch,
+                        title: title,
+                        body: body || ''
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    addMessage(`✅ PR creado: <a href="${data.url}" target="_blank">${data.url}</a>`, 'system');
+                } else {
+                    addMessage(`❌ Error creando PR: ${data.error || 'Error desconocido'}`, 'system');
+                }
+            } catch (error) {
+                addMessage(`❌ Error: ${error.message}`, 'system');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '⇆ Solicitud de PR';
+            }
         }
         
         // === MENSAJES ===
