@@ -258,6 +258,93 @@ PARA REPOS EXISTENTES
 - Ofrece crear PR con los cambios
 
 ═══════════════════════════════════════════════════════════════
+PARA PROYECTOS PYTHON (Django, Flask, FastAPI, etc.)
+═══════════════════════════════════════════════════════════════
+1. SIEMPRE crear entorno virtual:
+   ```bash
+   python -m venv venv
+   source venv/bin/activate  # Linux/Mac
+   ```
+
+2. Si existe requirements.txt:
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+3. Si existe pyproject.toml (Poetry/PDM):
+   ```bash
+   pip install poetry && poetry install
+   # o
+   pip install pdm && pdm install
+   ```
+
+4. Si existe setup.py:
+   ```bash
+   pip install -e .
+   ```
+
+5. Para ejecutar el proyecto:
+   - Django: `python manage.py runserver 0.0.0.0:8000`
+   - Flask: `flask run --host=0.0.0.0 --port=8000`
+   - FastAPI: `uvicorn main:app --host 0.0.0.0 --port 8000`
+
+6. URL de acceso:
+   https://work-1-ycbycghbyxbnnhxb.prod-runtime.all-hands.dev (puerto 12000)
+   https://work-2-ycbycghbyxbnnhxb.prod-runtime.all-hands.dev (puerto 12001)
+
+═══════════════════════════════════════════════════════════════
+PARA PROYECTOS .NET (Blazor, ASP.NET, etc.)
+═══════════════════════════════════════════════════════════════
+1. Verificar que .NET está instalado:
+   ```bash
+   dotnet --version || (wget https://dot.net/v1/dotnet-install.sh && chmod +x dotnet-install.sh && ./dotnet-install.sh)
+   ```
+
+2. Restaurar dependencias:
+   ```bash
+   dotnet restore
+   ```
+
+3. Compilar el proyecto:
+   ```bash
+   dotnet build
+   ```
+
+4. Ejecutar el proyecto:
+   ```bash
+   dotnet run --urls "http://0.0.0.0:8000"
+   ```
+
+5. Para Blazor WebAssembly:
+   ```bash
+   dotnet run --project Server --urls "http://0.0.0.0:8000"
+   ```
+
+═══════════════════════════════════════════════════════════════
+PARA PROYECTOS NODE.JS (React, Vue, Next.js, etc.)
+═══════════════════════════════════════════════════════════════
+1. Instalar dependencias:
+   ```bash
+   npm install
+   # o
+   yarn install
+   # o
+   pnpm install
+   ```
+
+2. Ejecutar en desarrollo:
+   ```bash
+   npm run dev -- --host 0.0.0.0 --port 8000
+   # o para Next.js
+   npm run dev -- -H 0.0.0.0 -p 8000
+   ```
+
+3. Para producción:
+   ```bash
+   npm run build && npm run start
+   ```
+
+═══════════════════════════════════════════════════════════════
 PARA CORRECCIÓN DE ERRORES
 ═══════════════════════════════════════════════════════════════
 - Lee el error completo
