@@ -504,42 +504,70 @@
         }
         
         /* Barra de acciones Git */
+        /* Status Bar - Estilo OpenHands Cloud (fixed bottom) */
         .git-actions-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 10px 15px;
-            background: #161b22;
-            border-top: 1px solid #30363d;
-            border-radius: 0 0 8px 8px;
-            margin-top: 10px;
+            padding: 8px 16px;
+            background: #0d1117;
+            border-top: 1px solid #21262d;
+            z-index: 1000;
+            height: 44px;
+            box-sizing: border-box;
         }
         
         .git-repo-info {
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 12px;
         }
         
         .git-icon {
-            font-size: 1.1rem;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #8b949e;
+        }
+        
+        .git-icon svg {
+            width: 22px;
+            height: 22px;
+            fill: currentColor;
+        }
+        
+        .git-icon svg path {
+            fill: currentColor;
         }
         
         .git-repo {
-            background: #21262d;
-            padding: 5px 12px;
-            border-radius: 20px;
-            font-size: 0.85rem;
-            color: #8b949e;
-            border: 1px solid #30363d;
+            color: #c9d1d9;
+            font-size: 0.9rem;
+            font-weight: 400;
         }
         
         .git-branch-badge {
+            display: flex;
+            align-items: center;
+            gap: 6px;
             background: #238636;
-            padding: 5px 10px;
+            padding: 4px 12px;
             border-radius: 20px;
             font-size: 0.8rem;
             color: white;
+            font-weight: 500;
+        }
+        
+        .git-branch-badge svg {
+            width: 14px;
+            height: 14px;
+            fill: currentColor;
         }
         
         .git-buttons {
@@ -548,19 +576,32 @@
         }
         
         .git-btn {
-            padding: 8px 16px;
+            padding: 6px 14px;
             background: #21262d;
             border: 1px solid #30363d;
             border-radius: 6px;
             color: #c9d1d9;
             cursor: pointer;
             font-size: 0.85rem;
-            transition: all 0.2s;
+            font-weight: 500;
+            transition: all 0.15s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .git-btn svg {
+            width: 16px;
+            height: 16px;
+        }
+        
+        .git-btn svg path {
+            fill: currentColor;
         }
         
         .git-btn:hover {
             background: #30363d;
-            border-color: #8b949e;
+            border-color: #484f58;
         }
         
         .git-btn-pr {
@@ -571,11 +612,27 @@
         
         .git-btn-pr:hover {
             background: #2ea043;
+            border-color: #2ea043;
         }
         
         .git-btn:disabled {
             opacity: 0.5;
             cursor: not-allowed;
+        }
+        
+        /* Animación de loading */
+        .git-btn svg.spin {
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        
+        /* Ajustar contenido para no quedar detrás de la barra fija */
+        body {
+            padding-bottom: 50px;
         }
         
         @media (max-width: 768px) {
@@ -764,26 +821,45 @@
                     </div>
                 </div>
                 
-                <!-- Barra de acciones Git -->
-                <div class="git-actions-bar" id="gitActionsBar">
-                    <div class="git-repo-info">
-                        <span class="git-icon">⚙️</span>
-                        <span class="git-repo" id="gitRepoName">jpachast/demo01</span>
-                        <span class="git-branch-badge" id="gitBranchBadge">🔀 main</span>
-                    </div>
-                    <div class="git-buttons">
-                        <button class="git-btn" onclick="gitPull()" title="Traer cambios del remoto">
-                            ↓ Pull
-                        </button>
-                        <button class="git-btn" onclick="gitPush()" title="Enviar cambios al remoto">
-                            ↑ Push
-                        </button>
-                        <button class="git-btn git-btn-pr" onclick="createPR()" title="Crear Pull Request">
-                            ⇆ Solicitud de PR
-                        </button>
-                    </div>
-                </div>
             </div>
+        </div>
+    </div>
+    
+    <!-- Status Bar - Estilo OpenHands Cloud (fixed bottom) -->
+    <div class="git-actions-bar" id="gitActionsBar">
+        <div class="git-repo-info">
+            <span class="git-icon">
+                <svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
+                </svg>
+            </span>
+            <span class="git-repo" id="gitRepoName">jpachast/demo01</span>
+            <span class="git-branch-badge" id="gitBranchBadge">
+                <svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+                    <path fill-rule="evenodd" d="M11.75 2.5a.75.75 0 100 1.5.75.75 0 000-1.5zm-2.25.75a2.25 2.25 0 113 2.122V6A2.5 2.5 0 0110 8.5H6a1 1 0 00-1 1v1.128a2.251 2.251 0 11-1.5 0V5.372a2.25 2.25 0 111.5 0v1.836A2.492 2.492 0 016 7h4a1 1 0 001-1v-.628A2.25 2.25 0 019.5 3.25zM4.25 12a.75.75 0 100 1.5.75.75 0 000-1.5zM3.5 3.25a.75.75 0 111.5 0 .75.75 0 01-1.5 0z"/>
+                </svg>
+                <span id="gitBranchName">main</span>
+            </span>
+        </div>
+        <div class="git-buttons">
+            <button class="git-btn" onclick="gitPull()" title="Traer cambios del remoto">
+                <svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+                    <path fill-rule="evenodd" d="M7.47 10.78a.75.75 0 001.06 0l3.75-3.75a.75.75 0 00-1.06-1.06L8.75 8.44V1.75a.75.75 0 00-1.5 0v6.69L4.78 5.97a.75.75 0 00-1.06 1.06l3.75 3.75zM3.75 13a.75.75 0 000 1.5h8.5a.75.75 0 000-1.5h-8.5z"/>
+                </svg>
+                Pull
+            </button>
+            <button class="git-btn" onclick="gitPush()" title="Enviar cambios al remoto">
+                <svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+                    <path fill-rule="evenodd" d="M8.53 1.22a.75.75 0 00-1.06 0L3.72 4.97a.75.75 0 001.06 1.06l2.47-2.47v6.69a.75.75 0 001.5 0V3.56l2.47 2.47a.75.75 0 101.06-1.06L8.53 1.22zM3.75 13a.75.75 0 000 1.5h8.5a.75.75 0 000-1.5h-8.5z"/>
+                </svg>
+                Push
+            </button>
+            <button class="git-btn git-btn-pr" onclick="createPR()" title="Crear Pull Request">
+                <svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+                    <path fill-rule="evenodd" d="M7.177 3.073L9.573.677A.25.25 0 0110 .854v4.792a.25.25 0 01-.427.177L7.177 3.427a.25.25 0 010-.354zM3.75 2.5a.75.75 0 100 1.5.75.75 0 000-1.5zm-2.25.75a2.25 2.25 0 113 2.122v5.256a2.251 2.251 0 11-1.5 0V5.372A2.25 2.25 0 011.5 3.25zM11 2.5h-1V4h1a1 1 0 011 1v5.628a2.251 2.251 0 101.5 0V5A2.5 2.5 0 0011 2.5zm1 10.25a.75.75 0 111.5 0 .75.75 0 01-1.5 0zM3.75 12a.75.75 0 100 1.5.75.75 0 000-1.5z"/>
+                </svg>
+                Solicitud de ...
+            </button>
         </div>
     </div>
 
@@ -1194,8 +1270,16 @@
         function updateGitBar(owner, repo, branch) {
             currentGitInfo = { owner, repo, branch: branch || 'main' };
             document.getElementById('gitRepoName').textContent = `${owner}/${repo}`;
-            document.getElementById('gitBranchBadge').textContent = `🔀 ${branch || 'main'}`;
+            document.getElementById('gitBranchName').textContent = branch || 'main';
         }
+        
+        // SVG icons para los botones Git
+        const gitIcons = {
+            pull: '<svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M7.47 10.78a.75.75 0 001.06 0l3.75-3.75a.75.75 0 00-1.06-1.06L8.75 8.44V1.75a.75.75 0 00-1.5 0v6.69L4.78 5.97a.75.75 0 00-1.06 1.06l3.75 3.75zM3.75 13a.75.75 0 000 1.5h8.5a.75.75 0 000-1.5h-8.5z"/></svg>',
+            push: '<svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M8.53 1.22a.75.75 0 00-1.06 0L3.72 4.97a.75.75 0 001.06 1.06l2.47-2.47v6.69a.75.75 0 001.5 0V3.56l2.47 2.47a.75.75 0 101.06-1.06L8.53 1.22zM3.75 13a.75.75 0 000 1.5h8.5a.75.75 0 000-1.5h-8.5z"/></svg>',
+            pr: '<svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M7.177 3.073L9.573.677A.25.25 0 0110 .854v4.792a.25.25 0 01-.427.177L7.177 3.427a.25.25 0 010-.354zM3.75 2.5a.75.75 0 100 1.5.75.75 0 000-1.5zm-2.25.75a2.25 2.25 0 113 2.122v5.256a2.251 2.251 0 11-1.5 0V5.372A2.25 2.25 0 011.5 3.25zM11 2.5h-1V4h1a1 1 0 011 1v5.628a2.251 2.251 0 101.5 0V5A2.5 2.5 0 0011 2.5zm1 10.25a.75.75 0 111.5 0 .75.75 0 01-1.5 0zM3.75 12a.75.75 0 100 1.5.75.75 0 000-1.5z"/></svg>',
+            loading: '<svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" class="spin"><path d="M8 0a8 8 0 100 16A8 8 0 008 0zm0 1.5a6.5 6.5 0 110 13 6.5 6.5 0 010-13z" opacity="0.3"/><path d="M8 0a8 8 0 018 8h-1.5A6.5 6.5 0 008 1.5V0z"/></svg>'
+        };
         
         async function gitPull() {
             if (!currentGitInfo.owner || !currentGitInfo.repo) {
@@ -1203,9 +1287,9 @@
                 return;
             }
             
-            const btn = event.target;
+            const btn = event.target.closest('.git-btn');
             btn.disabled = true;
-            btn.textContent = '⏳ Pulling...';
+            btn.innerHTML = gitIcons.loading + ' Pulling...';
             
             try {
                 const response = await fetch('/api/git/pull', {
@@ -1230,7 +1314,7 @@
                 addMessage(`❌ Error: ${error.message}`, 'system');
             } finally {
                 btn.disabled = false;
-                btn.textContent = '↓ Pull';
+                btn.innerHTML = gitIcons.pull + ' Pull';
             }
         }
         
@@ -1243,9 +1327,9 @@
             const commitMsg = prompt('Mensaje del commit:', 'Actualización desde OpenHands Chat');
             if (!commitMsg) return;
             
-            const btn = event.target;
+            const btn = event.target.closest('.git-btn');
             btn.disabled = true;
-            btn.textContent = '⏳ Pushing...';
+            btn.innerHTML = gitIcons.loading + ' Pushing...';
             
             try {
                 const response = await fetch('/api/git/push', {
@@ -1271,7 +1355,7 @@
                 addMessage(`❌ Error: ${error.message}`, 'system');
             } finally {
                 btn.disabled = false;
-                btn.textContent = '↑ Push';
+                btn.innerHTML = gitIcons.push + ' Push';
             }
         }
         
@@ -1286,9 +1370,9 @@
             
             const body = prompt('Descripción (opcional):', '');
             
-            const btn = event.target;
+            const btn = event.target.closest('.git-btn');
             btn.disabled = true;
-            btn.textContent = '⏳ Creando PR...';
+            btn.innerHTML = gitIcons.loading + ' Creando...';
             
             try {
                 const response = await fetch('/api/git/create-pr', {
@@ -1315,7 +1399,7 @@
                 addMessage(`❌ Error: ${error.message}`, 'system');
             } finally {
                 btn.disabled = false;
-                btn.textContent = '⇆ Solicitud de PR';
+                btn.innerHTML = gitIcons.pr + ' Solicitud de PR';
             }
         }
         

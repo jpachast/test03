@@ -1,6 +1,5 @@
 # OpenHands SDK
 openhands-sdk>=1.8.0
-openhands-tools>=1.8.0
 
 # Web Framework
 fastapi>=0.109.0
@@ -8,11 +7,19 @@ uvicorn>=0.27.0
 python-multipart>=0.0.6
 jinja2>=3.1.2
 
+# HTTP Client
+httpx>=0.25.0
+aiohttp>=3.9.0
+websockets>=12.0
+
 # Database
 aiosqlite>=0.19.0
 
 # Security (encriptar API key)
 cryptography>=41.0.0
+
+# Git
+gitpython>=3.1.40
 
 # Utilities
 pydantic>=2.0.0

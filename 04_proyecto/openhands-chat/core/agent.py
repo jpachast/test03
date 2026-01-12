@@ -4,16 +4,8 @@ BASADO 100% EN LA DOCUMENTACIÓN OFICIAL Y PROMPTS DE REFERENCIA
 """
 
 from pydantic import SecretStr
-from openhands.sdk import LLM, Agent, AgentContext, Tool
+from openhands.sdk import LLM, Agent, AgentContext
 from openhands.sdk.context import Skill
-
-# === TOOLS PRINCIPALES ===
-from openhands.tools.terminal import TerminalTool
-from openhands.tools.file_editor import FileEditorTool
-from openhands.tools.task_tracker import TaskTrackerTool
-from openhands.tools.glob import GlobTool
-from openhands.tools.grep import GrepTool
-from openhands.tools.apply_patch import ApplyPatchTool
 
 from config.rules import REGLAS_AGENTE, SYSTEM_PROMPT_COMPLETO, IN_CONTEXT_EXAMPLE
 
@@ -37,21 +29,6 @@ def create_agent(api_key: str, model: str = "gemini/gemini-2.5-pro", base_url: s
         api_key=SecretStr(api_key),
         base_url=base_url,
     )
-    
-    # === TOOLS ESENCIALES ===
-    tools = [
-        # Core - Crear y ejecutar código
-        Tool(name=TerminalTool.name),      # Ejecutar comandos bash
-        Tool(name=FileEditorTool.name),    # Crear/editar archivos
-        Tool(name=TaskTrackerTool.name),   # Seguimiento de tareas
-        
-        # Búsqueda
-        Tool(name=GlobTool.name),          # Buscar archivos por patrón
-        Tool(name=GrepTool.name),          # Buscar contenido en archivos
-        
-        # Avanzadas
-        Tool(name=ApplyPatchTool.name),    # Aplicar parches de código
-    ]
     
     # === CONTEXT CON TODOS LOS PROMPTS INTEGRADOS ===
     agent_context = AgentContext(
@@ -82,10 +59,9 @@ def create_agent(api_key: str, model: str = "gemini/gemini-2.5-pro", base_url: s
         load_public_skills=True,
     )
     
-    # Crear agente
+    # Crear agente (sin tools explícitas, usa las del SDK)
     agent = Agent(
         llm=llm,
-        tools=tools,
         agent_context=agent_context,
     )
     
