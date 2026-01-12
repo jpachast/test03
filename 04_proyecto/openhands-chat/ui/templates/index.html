@@ -429,7 +429,39 @@
         document.addEventListener('DOMContentLoaded', async () => {
             await loadGitHubRepos();
             await loadConversations();
+            
+            // Verificar si hay parámetro conv en URL para abrir conversación directamente
+            const urlParams = new URLSearchParams(window.location.search);
+            const convId = urlParams.get('conv');
+            if (convId) {
+                await openConversationById(parseInt(convId));
+            }
         });
+        
+        // Abrir conversación por ID (desde URL)
+        async function openConversationById(convId) {
+            try {
+                const response = await fetch(`/api/conversations/${convId}`);
+                if (!response.ok) {
+                    console.error('Conversación no encontrada');
+                    return;
+                }
+                const data = await response.json();
+                const conv = data.conversation;
+                
+                if (conv) {
+                    await openConversation(
+                        conv.id,
+                        conv.project_name || '',
+                        conv.repo_owner || '',
+                        conv.repo_name || '',
+                        conv.branch || 'main'
+                    );
+                }
+            } catch (error) {
+                console.error('Error abriendo conversación:', error);
+            }
+        }
         
         // === GITHUB ===
         async function loadGitHubRepos() {
