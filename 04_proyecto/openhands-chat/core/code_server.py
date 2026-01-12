@@ -1,0 +1,130 @@
+"""
+Servicio para manejar code-server (VS Code en el navegador)
+"""
+
+import os
+import subprocess
+import signal
+import time
+from pathlib import Path
+from typing import Optional
+
+# Puerto interno para code-server
+CODE_SERVER_PORT = 8080
+CODE_SERVER_PROCESS: Optional[subprocess.Popen] = None
+CURRENT_PROJECT_PATH: Optional[str] = None
+
+
+def start_code_server(project_path: str) -> dict:
+    """
+    Inicia code-server para un proyecto específico
+    
+    Args:
+        project_path: Ruta absoluta al directorio del proyecto
+        
+    Returns:
+        dict con status y url
+    """
+    global CODE_SERVER_PROCESS, CURRENT_PROJECT_PATH
+    
+    # Verificar que el directorio existe
+    if not os.path.isdir(project_path):
+        return {"status": "error", "message": f"Directorio no existe: {project_path}"}
+    
+    # Si ya hay un code-server corriendo para el mismo proyecto, retornar
+    if CODE_SERVER_PROCESS and CURRENT_PROJECT_PATH == project_path:
+        if CODE_SERVER_PROCESS.poll() is None:  # Sigue corriendo
+            return {
+                "status": "running",
+                "port": CODE_SERVER_PORT,
+                "path": project_path
+            }
+    
+    # Detener cualquier instancia anterior
+    stop_code_server()
+    
+    # Iniciar code-server
+    try:
+        cmd = [
+            "code-server",
+            "--bind-addr", f"0.0.0.0:{CODE_SERVER_PORT}",
+            "--auth", "none",
+            "--disable-telemetry",
+            "--disable-update-check",
+            project_path
+        ]
+        
+        CODE_SERVER_PROCESS = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            start_new_session=True
+        )
+        
+        CURRENT_PROJECT_PATH = project_path
+        
+        # Esperar a que inicie
+        time.sleep(2)
+        
+        if CODE_SERVER_PROCESS.poll() is not None:
+            # Proceso terminó
+            stderr = CODE_SERVER_PROCESS.stderr.read().decode() if CODE_SERVER_PROCESS.stderr else ""
+            return {"status": "error", "message": f"code-server falló: {stderr}"}
+        
+        return {
+            "status": "started",
+            "port": CODE_SERVER_PORT,
+            "path": project_path,
+            "pid": CODE_SERVER_PROCESS.pid
+        }
+        
+    except FileNotFoundError:
+        return {"status": "error", "message": "code-server no está instalado"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+
+def stop_code_server() -> dict:
+    """Detiene code-server si está corriendo"""
+    global CODE_SERVER_PROCESS, CURRENT_PROJECT_PATH
+    
+    if CODE_SERVER_PROCESS:
+        try:
+            # Enviar SIGTERM al grupo de procesos
+            os.killpg(os.getpgid(CODE_SERVER_PROCESS.pid), signal.SIGTERM)
+            CODE_SERVER_PROCESS.wait(timeout=5)
+        except ProcessLookupError:
+            pass  # Ya terminó
+        except subprocess.TimeoutExpired:
+            os.killpg(os.getpgid(CODE_SERVER_PROCESS.pid), signal.SIGKILL)
+        except Exception:
+            pass
+        
+        CODE_SERVER_PROCESS = None
+        CURRENT_PROJECT_PATH = None
+    
+    return {"status": "stopped"}
+
+
+def get_code_server_status() -> dict:
+    """Retorna el estado actual de code-server"""
+    global CODE_SERVER_PROCESS, CURRENT_PROJECT_PATH
+    
+    if CODE_SERVER_PROCESS and CODE_SERVER_PROCESS.poll() is None:
+        return {
+            "status": "running",
+            "port": CODE_SERVER_PORT,
+            "path": CURRENT_PROJECT_PATH,
+            "pid": CODE_SERVER_PROCESS.pid
+        }
+    
+    return {"status": "stopped"}
+
+
+def is_main_project(repo_name: str) -> bool:
+    """
+    Verifica si es el proyecto principal (test03)
+    El proyecto principal no debe tener code-server
+    """
+    # El repo principal es test03
+    return repo_name and "test03" in repo_name.lower()

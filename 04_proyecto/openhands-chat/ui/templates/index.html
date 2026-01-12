@@ -246,6 +246,80 @@
             font-size: 0.9rem;
         }
         
+        /* Tabs Chat/Código */
+        .view-tabs {
+            display: flex;
+            gap: 0.5rem;
+            margin-left: auto;
+        }
+        
+        .view-tab {
+            background: #333;
+            border: none;
+            color: #888;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+        
+        .view-tab:hover {
+            background: #444;
+            color: #fff;
+        }
+        
+        .view-tab.active {
+            background: #4a6cf7;
+            color: #fff;
+        }
+        
+        /* Vista de código */
+        #chatView {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        
+        #codeView {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        
+        .code-server-container {
+            flex: 1;
+            background: #1e1e1e;
+            border-radius: 8px;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .code-loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            color: #888;
+        }
+        
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid #333;
+            border-top-color: #4a6cf7;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
         .chat-messages {
             flex: 1;
             overflow-y: auto;
@@ -614,12 +688,39 @@
                         <span class="repo-name" id="repoName">repositorio</span>
                         <span class="repo-branch" id="repoBranch">🔀 main</span>
                     </div>
+                    <!-- Tabs para Chat/Código -->
+                    <div class="view-tabs" id="viewTabs" style="display: none;">
+                        <button class="view-tab active" id="tabChat" onclick="switchView('chat')">
+                            💬 Chat
+                        </button>
+                        <button class="view-tab" id="tabCode" onclick="switchView('code')">
+                            &lt;/&gt; Código
+                        </button>
+                    </div>
                 </div>
                 
-                <!-- Mensajes del chat -->
-                <div class="chat-messages" id="chatMessages">
-                    <div class="message system">
-                        👋 ¡Hola! Soy tu asistente de desarrollo. ¿En qué puedo ayudarte hoy?
+                <!-- Vista de Chat -->
+                <div id="chatView">
+                    <!-- Mensajes del chat -->
+                    <div class="chat-messages" id="chatMessages">
+                        <div class="message system">
+                            👋 ¡Hola! Soy tu asistente de desarrollo. ¿En qué puedo ayudarte hoy?
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Vista de Código (VS Code) -->
+                <div id="codeView" style="display: none;">
+                    <div class="code-server-container" id="codeServerContainer">
+                        <div class="code-loading" id="codeLoading">
+                            <div class="loading-spinner"></div>
+                            <p>Cargando VS Code...</p>
+                        </div>
+                        <iframe 
+                            id="codeServerFrame" 
+                            src="about:blank" 
+                            style="display: none; width: 100%; height: 100%; border: none;"
+                        ></iframe>
                     </div>
                 </div>
                 
@@ -691,6 +792,9 @@
         let currentProject = '';
         let selectedRepo = null;
         let repos = [];
+        let currentView = 'chat';
+        let codeServerLoaded = false;
+        let isMainProject = false;
         
         const chatMessages = document.getElementById('chatMessages');
         const messageInput = document.getElementById('messageInput');
@@ -932,6 +1036,10 @@
             const repoFullName = repoOwner && repoName ? `${repoOwner}/${repoName}` : projectName;
             showChat(projectName, repoFullName, branch);
             
+            // Mostrar/ocultar tabs de código según el proyecto
+            showCodeTabs(repoName || projectName);
+            codeServerLoaded = false; // Reset para nuevo proyecto
+            
             // Actualizar barra de Git
             if (repoOwner && repoName) {
                 updateGitBar(repoOwner, repoName, branch);
@@ -983,6 +1091,97 @@
             loadConversations();
             // Limpiar URL
             window.history.pushState({}, '', '/');
+            // Reset view y code-server
+            switchView('chat');
+            stopCodeServer();
+        }
+        
+        // === TABS CHAT/CÓDIGO ===
+        function switchView(view) {
+            currentView = view;
+            const chatView = document.getElementById('chatView');
+            const codeView = document.getElementById('codeView');
+            const tabChat = document.getElementById('tabChat');
+            const tabCode = document.getElementById('tabCode');
+            const chatInputContainer = document.querySelector('.chat-input-container');
+            
+            if (view === 'chat') {
+                chatView.style.display = 'flex';
+                codeView.style.display = 'none';
+                tabChat.classList.add('active');
+                tabCode.classList.remove('active');
+                if (chatInputContainer) chatInputContainer.style.display = 'block';
+            } else if (view === 'code') {
+                chatView.style.display = 'none';
+                codeView.style.display = 'flex';
+                tabChat.classList.remove('active');
+                tabCode.classList.add('active');
+                if (chatInputContainer) chatInputContainer.style.display = 'none';
+                // Iniciar code-server si no está cargado
+                if (!codeServerLoaded) {
+                    startCodeServer();
+                }
+            }
+        }
+        
+        async function startCodeServer() {
+            const loading = document.getElementById('codeLoading');
+            const frame = document.getElementById('codeServerFrame');
+            
+            loading.style.display = 'block';
+            frame.style.display = 'none';
+            
+            try {
+                const response = await fetch('/api/code-server/start', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ conversation_id: currentConversationId })
+                });
+                
+                const data = await response.json();
+                
+                if (response.status === 403) {
+                    // Es el proyecto principal
+                    loading.innerHTML = '<p>⚠️ El editor de código no está disponible para el proyecto principal (test03)</p>';
+                    return;
+                }
+                
+                if (data.status === 'started' || data.status === 'running') {
+                    // Esperar un poco más para que code-server inicie completamente
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+                    frame.src = '/code-server/?folder=' + encodeURIComponent(data.path);
+                    frame.style.display = 'block';
+                    loading.style.display = 'none';
+                    codeServerLoaded = true;
+                } else {
+                    loading.innerHTML = `<p>❌ Error: ${data.message || 'No se pudo iniciar el editor'}</p>`;
+                }
+            } catch (error) {
+                loading.innerHTML = `<p>❌ Error: ${error.message}</p>`;
+            }
+        }
+        
+        async function stopCodeServer() {
+            try {
+                await fetch('/api/code-server/stop', { method: 'POST' });
+                codeServerLoaded = false;
+                const frame = document.getElementById('codeServerFrame');
+                if (frame) frame.src = 'about:blank';
+            } catch (error) {
+                console.error('Error deteniendo code-server:', error);
+            }
+        }
+        
+        function showCodeTabs(repoName) {
+            // Mostrar tabs solo si NO es el proyecto principal (test03)
+            const viewTabs = document.getElementById('viewTabs');
+            isMainProject = repoName && repoName.toLowerCase().includes('test03');
+            
+            if (isMainProject) {
+                viewTabs.style.display = 'none';
+            } else {
+                viewTabs.style.display = 'flex';
+            }
         }
         
         function showHelp() {

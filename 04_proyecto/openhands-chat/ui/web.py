@@ -10,11 +10,12 @@ import threading
 from pathlib import Path
 from typing import Optional
 
-from fastapi import FastAPI, Request, Form, HTTPException
+from fastapi import FastAPI, Request, Form, HTTPException, Response
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
+import httpx
 
 from openhands.sdk import Conversation
 
@@ -23,6 +24,7 @@ from config.settings import Settings
 from core.agent import create_agent
 from core.workspace import setup_workspace, list_projects, get_project_info
 from core.github_service import GitHubService
+from core.code_server import start_code_server, stop_code_server, get_code_server_status, is_main_project, CODE_SERVER_PORT
 
 
 # Inicializar
@@ -868,6 +870,121 @@ async def git_create_pr(request: GitPRRequest):
             
     except Exception as e:
         return {"success": False, "error": str(e)}
+
+
+# === CODE SERVER (VS Code en navegador) ===
+
+@app.post("/api/code-server/start")
+async def api_start_code_server(request: Request):
+    """Inicia code-server para el proyecto actual"""
+    global current_workspace
+    
+    data = await request.json()
+    conv_id = data.get("conversation_id")
+    
+    if not conv_id:
+        return JSONResponse({"error": "conversation_id requerido"}, status_code=400)
+    
+    # Obtener info de la conversación
+    conv_data = db.get_conversation(conv_id)
+    if not conv_data:
+        return JSONResponse({"error": "Conversación no encontrada"}, status_code=404)
+    
+    repo_name = conv_data.get("repo_name", "")
+    
+    # Verificar si es el proyecto principal (test03)
+    if is_main_project(repo_name):
+        return JSONResponse({
+            "error": "El editor de código no está disponible para el proyecto principal",
+            "is_main_project": True
+        }, status_code=403)
+    
+    # Obtener ruta del workspace
+    workspace_path = conv_data.get("workspace_path")
+    if not workspace_path or not os.path.isdir(workspace_path):
+        return JSONResponse({"error": "Workspace no encontrado"}, status_code=404)
+    
+    # Iniciar code-server
+    result = start_code_server(workspace_path)
+    
+    if result.get("status") in ["started", "running"]:
+        # Construir URL de code-server
+        # Como solo tenemos 2 puertos públicos, usamos proxy interno
+        result["url"] = f"/code-server/"
+        result["direct_port"] = CODE_SERVER_PORT
+    
+    return JSONResponse(result)
+
+
+@app.post("/api/code-server/stop")
+async def api_stop_code_server():
+    """Detiene code-server"""
+    result = stop_code_server()
+    return JSONResponse(result)
+
+
+@app.get("/api/code-server/status")
+async def api_code_server_status():
+    """Obtiene el estado de code-server"""
+    result = get_code_server_status()
+    return JSONResponse(result)
+
+
+# Proxy para code-server - redirige todas las peticiones a code-server interno
+@app.api_route("/code-server/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"])
+async def proxy_code_server(request: Request, path: str):
+    """Proxy para code-server"""
+    status = get_code_server_status()
+    
+    if status.get("status") != "running":
+        return HTMLResponse(
+            content="<h1>Code Server no está corriendo</h1><p>Inicia el editor desde el botón 'Código'</p>",
+            status_code=503
+        )
+    
+    # Construir URL destino
+    target_url = f"http://127.0.0.1:{CODE_SERVER_PORT}/{path}"
+    if request.query_params:
+        target_url += f"?{request.query_params}"
+    
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            # Preparar headers (excluir host)
+            headers = dict(request.headers)
+            headers.pop("host", None)
+            
+            # Hacer la petición
+            body = await request.body()
+            response = await client.request(
+                method=request.method,
+                url=target_url,
+                headers=headers,
+                content=body if body else None,
+                follow_redirects=False
+            )
+            
+            # Preparar headers de respuesta
+            response_headers = dict(response.headers)
+            response_headers.pop("content-encoding", None)
+            response_headers.pop("content-length", None)
+            response_headers.pop("transfer-encoding", None)
+            
+            return Response(
+                content=response.content,
+                status_code=response.status_code,
+                headers=response_headers,
+                media_type=response.headers.get("content-type")
+            )
+    except httpx.ConnectError:
+        return HTMLResponse(
+            content="<h1>No se puede conectar a Code Server</h1>",
+            status_code=502
+        )
+    except Exception as e:
+        return HTMLResponse(
+            content=f"<h1>Error de proxy</h1><p>{str(e)}</p>",
+            status_code=500
+        )
 
 
 # === HEALTH CHECK ===
