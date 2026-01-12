@@ -267,37 +267,43 @@ PARA CORRECCIÓN DE ERRORES
 - Si no estás seguro qué archivo tocar, PREGUNTA
 
 ═══════════════════════════════════════════════════════════════
-PARA DESPLIEGUE - MUY IMPORTANTE
+PARA DESPLIEGUE - MUY IMPORTANTE (LEE CON CUIDADO)
 ═══════════════════════════════════════════════════════════════
-Los archivos estáticos se sirven desde:
-https://work-1-ycbycghbyxbnnhxb.prod-runtime.all-hands.dev/projects/
+BASE_URL: https://work-1-ycbycghbyxbnnhxb.prod-runtime.all-hands.dev
 
-TU WORKSPACE ACTUAL es algo como: /workspace/project/test03/04_proyecto/openhands-chat/projects/{repo}/chat{N}/
+PASO 1 - OBTENER TU UBICACIÓN:
+Ejecuta `pwd` para ver tu directorio actual. Ejemplo de resultado:
+/workspace/project/test03/04_proyecto/openhands-chat/projects/jpachast-demo01/chat01
 
-PARA CONSTRUIR LA URL CORRECTA:
-1. Primero ejecuta `pwd` para ver tu directorio actual
-2. Extrae la parte después de "projects/" 
-3. La URL será: https://work-1-ycbycghbyxbnnhxb.prod-runtime.all-hands.dev/projects/{esa-parte}/
+PASO 2 - EXTRAER RUTA RELATIVA:
+De la salida de pwd, extrae todo después de "openhands-chat/":
+- Si pwd = .../openhands-chat/projects/jpachast-demo01/chat01
+- Ruta relativa = projects/jpachast-demo01/chat01
 
-EJEMPLO:
-- Si tu pwd es: /workspace/project/test03/04_proyecto/openhands-chat/projects/jpachast-demo01/chat01/
-- Y creas carpeta "calculadora" con index.html
-- La URL correcta es: https://work-1-ycbycghbyxbnnhxb.prod-runtime.all-hands.dev/projects/jpachast-demo01/chat01/calculadora/index.html
+PASO 3 - CREAR ARCHIVOS:
+Crea tus archivos en el directorio actual o en una subcarpeta.
+- En raíz: index.html → ruta = projects/jpachast-demo01/chat01/index.html
+- En subcarpeta: calculadora/index.html → ruta = projects/jpachast-demo01/chat01/calculadora/index.html
 
-PASOS PARA DESPLEGAR:
-1. Ejecuta `pwd` para saber dónde estás
-2. Crea tus archivos (en raíz o subcarpeta)
-3. Construye la URL basándote en la ruta relativa desde "projects/"
-4. Muestra la URL al usuario:
-   ```
-   🌐 Tu app está en: https://work-1-ycbycghbyxbnnhxb.prod-runtime.all-hands.dev/projects/{ruta-relativa}/index.html
-   ```
+PASO 4 - CONSTRUIR URL:
+URL = BASE_URL + "/" + ruta relativa
+Ejemplo: https://work-1-ycbycghbyxbnnhxb.prod-runtime.all-hands.dev/projects/jpachast-demo01/chat01/calculadora/index.html
 
-IMPORTANTE:
-- NUNCA uses work-2, siempre usa work-1
-- NUNCA uses localhost
-- SIEMPRE incluye /projects/ en la URL
-- SIEMPRE verifica con pwd tu ubicación actual
+CÓDIGO PARA OBTENER URL AUTOMÁTICAMENTE:
+```bash
+# Obtener ruta relativa y construir URL
+PWD_RESULT=$(pwd)
+RELATIVE_PATH=$(echo $PWD_RESULT | sed 's|.*/openhands-chat/||')
+echo "🌐 Tu app está en: https://work-1-ycbycghbyxbnnhxb.prod-runtime.all-hands.dev/${RELATIVE_PATH}/index.html"
+```
+
+REGLAS CRÍTICAS:
+✅ SIEMPRE usa work-1 (NO work-2)
+✅ SIEMPRE incluye /projects/ en la URL
+✅ SIEMPRE incluye la ruta completa del chat (jpachast-demo01/chat01/)
+✅ SIEMPRE ejecuta pwd primero para saber dónde estás
+❌ NUNCA uses localhost
+❌ NUNCA omitas la ruta del proyecto en la URL
 
 ═══════════════════════════════════════════════════════════════
 PARA GIT - OPERACIONES DISPONIBLES
