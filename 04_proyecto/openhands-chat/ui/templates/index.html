@@ -284,6 +284,138 @@
             background: #ff6b6b;
         }
         
+        /* Input container estilo OpenHands */
+        .chat-input-container {
+            background: #1e2530;
+            border-radius: 12px;
+            border: 1px solid #30363d;
+            overflow: hidden;
+        }
+        
+        .chat-input-row {
+            display: flex;
+            align-items: center;
+            padding: 8px 12px;
+            gap: 8px;
+        }
+        
+        .attach-btn {
+            background: transparent;
+            border: none;
+            font-size: 1.3rem;
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 8px;
+            transition: background 0.2s;
+            opacity: 0.7;
+        }
+        
+        .attach-btn:hover {
+            background: #30363d;
+            opacity: 1;
+        }
+        
+        .chat-input-row input[type="text"] {
+            flex: 1;
+            padding: 12px;
+            background: transparent;
+            border: none;
+            color: #fff;
+            font-size: 1rem;
+            outline: none;
+        }
+        
+        .chat-input-row input[type="text"]::placeholder {
+            color: #8b949e;
+        }
+        
+        .send-btn {
+            width: 40px;
+            height: 40px;
+            background: #30363d;
+            border: 1px solid #444;
+            border-radius: 50%;
+            color: #fff;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+        
+        .send-btn:hover {
+            background: #e94560;
+            border-color: #e94560;
+        }
+        
+        .send-icon {
+            font-size: 1rem;
+        }
+        
+        /* Toolbar con herramientas y estado */
+        .chat-toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 12px;
+            border-top: 1px solid #30363d;
+            background: #161b22;
+        }
+        
+        .tools-btn {
+            background: transparent;
+            border: none;
+            color: #8b949e;
+            font-size: 0.85rem;
+            cursor: pointer;
+            padding: 6px 10px;
+            border-radius: 6px;
+            transition: all 0.2s;
+        }
+        
+        .tools-btn:hover {
+            background: #21262d;
+            color: #c9d1d9;
+        }
+        
+        .task-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #8b949e;
+            font-size: 0.85rem;
+        }
+        
+        .status-text {
+            color: #8b949e;
+        }
+        
+        .status-icon {
+            font-size: 1rem;
+        }
+        
+        /* Estados de la tarea */
+        .task-status.processing .status-text {
+            color: #f0ad4e;
+        }
+        
+        .task-status.processing .status-icon {
+            animation: spin 1s linear infinite;
+        }
+        
+        .task-status.completed .status-text {
+            color: #238636;
+        }
+        
+        .task-status.error .status-text {
+            color: #f85149;
+        }
+        
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        
         /* Barra de acciones Git */
         .git-actions-bar {
             display: flex;
@@ -478,22 +610,45 @@
                     </div>
                 </div>
                 
-                <!-- Input del chat -->
-                <form class="chat-input" id="chatForm" onsubmit="sendMessage(event)">
-                    <input type="hidden" name="project" id="currentProject" value="">
-                    <input type="hidden" id="currentConversationId" value="">
-                    <input 
-                        type="text" 
-                        name="message" 
-                        id="messageInput"
-                        placeholder="Escribe tu mensaje..." 
-                        {% if not has_api_key %}disabled{% endif %}
-                        autocomplete="off"
-                    >
-                    <button type="submit" {% if not has_api_key %}disabled{% endif %}>
-                        Enviar ➤
-                    </button>
-                </form>
+                <!-- Input del chat con adjuntar y estado -->
+                <div class="chat-input-container">
+                    <form class="chat-input-row" id="chatForm" onsubmit="sendMessage(event)">
+                        <input type="hidden" name="project" id="currentProject" value="">
+                        <input type="hidden" id="currentConversationId" value="">
+                        
+                        <!-- Botón adjuntar -->
+                        <button type="button" class="attach-btn" onclick="attachFile()" title="Adjuntar archivo">
+                            📎
+                        </button>
+                        
+                        <!-- Input de mensaje -->
+                        <input 
+                            type="text" 
+                            name="message" 
+                            id="messageInput"
+                            placeholder="¿Qué quieres construir?" 
+                            {% if not has_api_key %}disabled{% endif %}
+                            autocomplete="off"
+                        >
+                        
+                        <!-- Botón enviar -->
+                        <button type="submit" class="send-btn" {% if not has_api_key %}disabled{% endif %}>
+                            <span class="send-icon">⬆</span>
+                        </button>
+                    </form>
+                    
+                    <!-- Barra inferior con herramientas y estado -->
+                    <div class="chat-toolbar">
+                        <button class="tools-btn" onclick="toggleTools()" title="Herramientas">
+                            🔧 Herramientas
+                        </button>
+                        
+                        <div class="task-status" id="taskStatus">
+                            <span class="status-text" id="statusText">Esperando tarea.</span>
+                            <span class="status-icon" id="statusIcon">⏱</span>
+                        </div>
+                    </div>
+                </div>
                 
                 <!-- Barra de acciones Git -->
                 <div class="git-actions-bar" id="gitActionsBar">
@@ -1002,6 +1157,62 @@
             chatMessages.scrollTop = chatMessages.scrollHeight;
         }
         
+        // === FUNCIONES DE UI ===
+        function setTaskStatus(status, text) {
+            const taskStatus = document.getElementById('taskStatus');
+            const statusText = document.getElementById('statusText');
+            const statusIcon = document.getElementById('statusIcon');
+            
+            taskStatus.className = 'task-status ' + status;
+            statusText.textContent = text;
+            
+            switch(status) {
+                case 'processing':
+                    statusIcon.textContent = '⚙️';
+                    break;
+                case 'completed':
+                    statusIcon.textContent = '✅';
+                    break;
+                case 'error':
+                    statusIcon.textContent = '❌';
+                    break;
+                default:
+                    statusIcon.textContent = '⏱';
+            }
+        }
+        
+        function attachFile() {
+            // Crear input file dinámico
+            const fileInput = document.createElement('input');
+            fileInput.type = 'file';
+            fileInput.accept = '.txt,.md,.js,.py,.html,.css,.json,.xml,.csv';
+            fileInput.onchange = async (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                        const content = event.target.result;
+                        // Agregar contenido al mensaje
+                        const currentMsg = messageInput.value;
+                        messageInput.value = currentMsg + (currentMsg ? '\n\n' : '') + 
+                            `📎 Archivo adjunto: ${file.name}\n\`\`\`\n${content.substring(0, 2000)}${content.length > 2000 ? '...(truncado)' : ''}\n\`\`\``;
+                        messageInput.focus();
+                    };
+                    reader.readAsText(file);
+                }
+            };
+            fileInput.click();
+        }
+        
+        function toggleTools() {
+            alert('🔧 Herramientas disponibles:\n\n' +
+                '• Terminal - Ejecutar comandos bash\n' +
+                '• Editor - Crear y editar archivos\n' +
+                '• Git - Pull, Push, crear PR\n' +
+                '• Tareas - Organizar trabajo\n\n' +
+                'Escribe tu solicitud y el agente usará las herramientas necesarias.');
+        }
+        
         async function sendMessage(event) {
             event.preventDefault();
             
@@ -1010,6 +1221,9 @@
             
             addMessage(message, 'user');
             messageInput.value = '';
+            
+            // Cambiar estado a procesando
+            setTaskStatus('processing', 'Procesando...');
             addMessage('⏳ Procesando tu solicitud...', 'system loading');
             
             try {
@@ -1029,13 +1243,18 @@
                 
                 if (data.status === 'ok') {
                     addMessage(data.message, 'assistant');
+                    setTaskStatus('completed', 'Tarea completada');
+                    // Volver a estado esperando después de 3 segundos
+                    setTimeout(() => setTaskStatus('', 'Esperando tarea.'), 3000);
                 } else {
                     addMessage('Error: ' + data.message, 'error');
+                    setTaskStatus('error', 'Error en tarea');
                 }
             } catch (error) {
                 const loading = chatMessages.querySelector('.loading');
                 if (loading) loading.remove();
                 addMessage('Error de conexión: ' + error.message, 'error');
+                setTaskStatus('error', 'Error de conexión');
             }
         }
     </script>
