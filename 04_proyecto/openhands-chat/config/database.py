@@ -260,6 +260,28 @@ class Database:
         conn.commit()
         conn.close()
 
+    def get_project(self, project_id: int) -> dict:
+        """Obtener proyecto por ID"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT id, name, path, git_url, repo_owner, repo_name, branch
+            FROM projects WHERE id = ?
+        ''', (project_id,))
+        row = cursor.fetchone()
+        conn.close()
+        if row:
+            return {
+                'id': row[0],
+                'name': row[1],
+                'path': row[2],
+                'git_url': row[3],
+                'repo_owner': row[4],
+                'repo_name': row[5],
+                'branch': row[6]
+            }
+        return None
+
     def get_project_by_name(self, name: str) -> dict:
         """Obtener proyecto por nombre"""
         conn = sqlite3.connect(self.db_path)
@@ -342,6 +364,23 @@ class Database:
             return []
         conv = self.get_conversation(project['id'])
         return self.get_messages(conv['id'])
+
+    def delete_conversation(self, conversation_id: int):
+        """Eliminar conversación y sus mensajes"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute('DELETE FROM messages WHERE conversation_id = ?', (conversation_id,))
+        cursor.execute('DELETE FROM conversations WHERE id = ?', (conversation_id,))
+        conn.commit()
+        conn.close()
+
+    def delete_project(self, project_id: int):
+        """Eliminar proyecto"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute('DELETE FROM projects WHERE id = ?', (project_id,))
+        conn.commit()
+        conn.close()
 
     # === GITHUB ===
     

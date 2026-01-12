@@ -85,6 +85,12 @@ async def settings_page(request: Request):
     })
 
 
+@app.get("/conversations", response_class=HTMLResponse)
+async def conversations_page(request: Request):
+    """Página de lista de conversaciones"""
+    return templates.TemplateResponse("conversations.html", {"request": request})
+
+
 # === API ENDPOINTS ===
 
 @app.post("/api/settings/api-key")
@@ -374,42 +380,7 @@ async def launch_repo(request: LaunchRepoRequest):
     # Caso especial: si es el repositorio del proyecto principal (test03)
     is_main_project = (request.owner == "jpachast" and request.repo == "test03")
     
-    if is_main_project:
-        # Para test03, usar el directorio raíz del proyecto actual (NO clonar)
-        project_name = "test03-main"
-        project_path = str(Path(__file__).parent.parent.parent.parent)  # /workspace/project/test03
-        
-        # Verificar si ya existe en BD
-        existing = db.get_project_by_repo(request.owner, request.repo, request.branch)
-        if existing:
-            project_id = existing['id']
-        else:
-            git_url = f"https://github.com/{request.owner}/{request.repo}.git"
-            project_id = db.add_project_with_repo(
-                name=project_name,
-                path=project_path,
-                repo_owner=request.owner,
-                repo_name=request.repo,
-                branch=request.branch,
-                git_url=git_url
-            )
-        
-        # Crear conversación (sin clonar)
-        conv_id = db.create_conversation(project_id, f"Trabajo en {request.repo}")
-        current_workspace = project_path
-        
-        return {
-            "success": True,
-            "project_id": project_id,
-            "conversation_id": conv_id,
-            "project_name": project_name,
-            "path": project_path,
-            "action": "linked"
-        }
-    
-    # Para otros repositorios: cada conversación tiene su propia carpeta
     # Estructura: projects/{owner}-{repo}/chat{id}/
-    
     repo_folder = f"{request.owner}-{request.repo}"
     repo_base_path = settings.projects_dir / repo_folder
     repo_base_path.mkdir(parents=True, exist_ok=True)
@@ -422,14 +393,21 @@ async def launch_repo(request: LaunchRepoRequest):
     # Path para este chat específico
     chat_path = repo_base_path / chat_folder
     
-    # Clonar repositorio en la carpeta del chat
-    clone_result = github_service.clone_repo(
-        request.owner, request.repo, request.branch,
-        str(chat_path)
-    )
-    
-    if not clone_result.get("success"):
-        raise HTTPException(status_code=500, detail=clone_result.get("error"))
+    if is_main_project:
+        # Para test03: crear carpeta pero NO clonar
+        chat_path.mkdir(parents=True, exist_ok=True)
+        action = "created"
+    else:
+        # Para otros repos: clonar en la carpeta del chat
+        clone_result = github_service.clone_repo(
+            request.owner, request.repo, request.branch,
+            str(chat_path)
+        )
+        
+        if not clone_result.get("success"):
+            raise HTTPException(status_code=500, detail=clone_result.get("error"))
+        
+        action = "cloned"
     
     # Guardar proyecto en BD (con path del chat específico)
     git_url = f"https://github.com/{request.owner}/{request.repo}.git"
@@ -454,7 +432,7 @@ async def launch_repo(request: LaunchRepoRequest):
         "conversation_id": conv_id,
         "project_name": f"{repo_folder}/{chat_folder}",
         "path": str(chat_path),
-        "action": "cloned"
+        "action": action
     }
 
 
@@ -476,8 +454,9 @@ async def create_conversation(request: NewConversationRequest):
 
 @app.get("/api/conversations/{conv_id}")
 async def get_conversation(conv_id: int):
-    """Obtener una conversación con sus mensajes"""
-    conn = db.db_path
+    """Obtener una conversación con sus mensajes y establecer workspace"""
+    global current_workspace
+    
     # Obtener conversación
     conversations = db.get_all_conversations()
     conv = next((c for c in conversations if c['id'] == conv_id), None)
@@ -485,19 +464,56 @@ async def get_conversation(conv_id: int):
     if not conv:
         raise HTTPException(status_code=404, detail="Conversación no encontrada")
     
+    # Obtener el proyecto para establecer el workspace
+    project = db.get_project(conv['project_id'])
+    if project and project.get('path'):
+        current_workspace = project['path']
+    
     # Obtener mensajes
     messages = db.get_messages(conv_id)
     
     return {
         "conversation": conv,
-        "messages": messages
+        "messages": messages,
+        "workspace": current_workspace
     }
 
 
 @app.put("/api/conversations/{conv_id}")
-async def update_conversation_endpoint(conv_id: int, title: str = None, status: str = None):
+async def update_conversation_endpoint(conv_id: int, request: dict = None):
     """Actualizar conversación"""
+    title = request.get('title') if request else None
+    status = request.get('status') if request else None
     db.update_conversation(conv_id, title, status)
+    return {"success": True}
+
+
+@app.delete("/api/conversations/{conv_id}")
+async def delete_conversation_endpoint(conv_id: int):
+    """Eliminar conversación y su carpeta"""
+    import shutil
+    
+    # Obtener info de la conversación
+    conversations = db.get_all_conversations()
+    conv = next((c for c in conversations if c['id'] == conv_id), None)
+    
+    if not conv:
+        raise HTTPException(status_code=404, detail="Conversación no encontrada")
+    
+    # Obtener proyecto para saber la carpeta
+    project = db.get_project(conv['project_id'])
+    
+    if project and project.get('path'):
+        # Eliminar carpeta física
+        project_path = Path(project['path'])
+        if project_path.exists():
+            shutil.rmtree(project_path)
+    
+    # Eliminar de la BD
+    db.delete_conversation(conv_id)
+    if project:
+        db.delete_project(conv['project_id'])
+    
     return {"success": True}
 
 

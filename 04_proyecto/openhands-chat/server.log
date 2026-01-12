@@ -1,6 +1,6 @@
 INFO:     Will watch for changes in these directories: ['/workspace/project/test03/04_proyecto/openhands-chat']
 INFO:     Uvicorn running on http://0.0.0.0:12000 (Press CTRL+C to quit)
-INFO:     Started reloader process [989] using StatReload
+INFO:     Started reloader process [2611] using StatReload
 ============================================================
   🤖 OPENHANDS CHAT
 ============================================================
@@ -13,18 +13,33 @@ INFO:     Started reloader process [989] using StatReload
   • Chat: https://work-1-ycbycghbyxbnnhxb.prod-runtime.all-hands.dev
   • Proyectos: https://work-2-ycbycghbyxbnnhxb.prod-runtime.all-hands.dev/PROYECTO/
 
-  Servidor de proyectos PID: 993
+  Servidor de proyectos PID: 2615
   Presiona Ctrl+C para detener
 
-INFO:     Started server process [995]
+INFO:     Started server process [2617]
 INFO:     Waiting for application startup.
 INFO:     Application startup complete.
-INFO:     127.0.0.1:46852 - "GET /health HTTP/1.1" 200 OK
-INFO:     127.0.0.1:44946 - "POST /api/github/launch HTTP/1.1" 200 OK
-INFO:     127.0.0.1:42288 - "POST /api/github/launch HTTP/1.1" 200 OK
 /home/openhands/.local/lib/python3.12/site-packages/starlette/templating.py:162: DeprecationWarning: The `name` is not the first parameter anymore. The first parameter should be the `Request` instance.
 Replace `TemplateResponse(name, {"request": request})` by `TemplateResponse(request, name)`.
   warnings.warn(
-INFO:     10.2.78.161:56714 - "GET / HTTP/1.1" 200 OK
-INFO:     10.2.78.161:56714 - "GET / HTTP/1.1" 200 OK
-INFO:     10.2.78.161:56788 - "GET / HTTP/1.1" 200 OK
+INFO:     10.2.20.139:36952 - "GET / HTTP/1.1" 200 OK
+INFO:     10.2.20.139:36952 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54030 - "GET /health HTTP/1.1" 200 OK
+INFO:     10.2.20.139:36952 - "GET / HTTP/1.1" 200 OK
+INFO:     10.2.20.139:36952 - "GET / HTTP/1.1" 200 OK
+INFO:     10.2.20.139:36952 - "GET / HTTP/1.1" 200 OK
+INFO:     10.2.78.161:53492 - "GET /conversations HTTP/1.1" 200 OK
+INFO:     10.2.78.161:53492 - "GET /api/conversations HTTP/1.1" 200 OK
+INFO:     10.2.78.161:53492 - "GET /favicon.ico HTTP/1.1" 404 Not Found
+INFO:     10.2.70.94:34328 - "GET / HTTP/1.1" 200 OK
+INFO:     10.2.70.94:34328 - "GET / HTTP/1.1" 200 OK
+INFO:     10.2.70.94:34328 - "GET / HTTP/1.1" 200 OK
+INFO:     10.2.20.139:51576 - "GET / HTTP/1.1" 200 OK
+INFO:     10.2.20.139:51576 - "GET / HTTP/1.1" 200 OK
+INFO:     10.2.20.139:51576 - "GET / HTTP/1.1" 200 OK
+INFO:     10.2.20.139:51576 - "GET / HTTP/1.1" 200 OK
+INFO:     10.2.20.139:51576 - "GET / HTTP/1.1" 200 OK
+INFO:     10.2.20.139:51576 - "GET / HTTP/1.1" 200 OK
+INFO:     10.2.66.141:42032 - "GET / HTTP/1.1" 200 OK
+INFO:     10.2.66.141:42032 - "GET / HTTP/1.1" 200 OK
+INFO:     10.2.66.141:42032 - "GET / HTTP/1.1" 200 OK

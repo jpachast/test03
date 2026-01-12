@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Conversaciones - OpenHands Chat</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0d1117;
+            color: #e6edf3;
+            min-height: 100vh;
+        }
+        
+        /* Navbar */
+        .navbar {
+            background: #161b22;
+            padding: 12px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #30363d;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        
+        .navbar-brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: #e6edf3;
+            text-decoration: none;
+        }
+        
+        .navbar-links {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+        
+        .navbar-links a {
+            color: #8b949e;
+            text-decoration: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            transition: all 0.2s;
+        }
+        
+        .navbar-links a:hover {
+            color: #e6edf3;
+            background: #21262d;
+        }
+        
+        .navbar-links a.active {
+            background: #1f6feb;
+            color: white;
+        }
+        
+        /* Container */
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 30px 20px;
+        }
+        
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+        }
+        
+        .page-title {
+            font-size: 1.5rem;
+            color: #e6edf3;
+        }
+        
+        .btn-new {
+            background: #238636;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .btn-new:hover {
+            background: #2ea043;
+        }
+        
+        /* Conversations List */
+        .conversations-list {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            background: #161b22;
+            border-radius: 8px;
+            border: 1px solid #30363d;
+            overflow: hidden;
+        }
+        
+        .conversation-item {
+            display: flex;
+            align-items: center;
+            padding: 16px 20px;
+            background: #161b22;
+            border-bottom: 1px solid #21262d;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        
+        .conversation-item:hover {
+            background: #21262d;
+        }
+        
+        .conversation-item:last-child {
+            border-bottom: none;
+        }
+        
+        .conv-status {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 15px;
+            flex-shrink: 0;
+        }
+        
+        .conv-status.active { background: #3fb950; }
+        .conv-status.archived { background: #8b949e; }
+        
+        .conv-info {
+            flex: 1;
+            min-width: 0;
+        }
+        
+        .conv-title {
+            font-weight: 500;
+            color: #e6edf3;
+            margin-bottom: 5px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .conv-title-text {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        
+        .conv-meta {
+            font-size: 0.85rem;
+            color: #8b949e;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .conv-repo {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .conv-time {
+            color: #6e7681;
+            font-size: 0.85rem;
+            white-space: nowrap;
+        }
+        
+        /* Menu */
+        .conv-menu {
+            position: relative;
+        }
+        
+        .menu-btn {
+            background: none;
+            border: none;
+            color: #8b949e;
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 4px;
+            font-size: 1.2rem;
+            line-height: 1;
+        }
+        
+        .menu-btn:hover {
+            background: #30363d;
+            color: #e6edf3;
+        }
+        
+        .menu-dropdown {
+            display: none;
+            position: absolute;
+            right: 0;
+            top: 100%;
+            background: #21262d;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            min-width: 180px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+            z-index: 100;
+            overflow: hidden;
+        }
+        
+        .menu-dropdown.show {
+            display: block;
+        }
+        
+        .menu-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 16px;
+            color: #e6edf3;
+            cursor: pointer;
+            transition: background 0.2s;
+            font-size: 0.9rem;
+        }
+        
+        .menu-item:hover {
+            background: #30363d;
+        }
+        
+        .menu-item.danger {
+            color: #f85149;
+        }
+        
+        .menu-item.danger:hover {
+            background: #f8514920;
+        }
+        
+        /* Empty state */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #8b949e;
+        }
+        
+        .empty-state h3 {
+            margin-bottom: 10px;
+            color: #e6edf3;
+        }
+        
+        /* Modal */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.7);
+            z-index: 200;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .modal-overlay.show {
+            display: flex;
+        }
+        
+        .modal {
+            background: #21262d;
+            border: 1px solid #30363d;
+            border-radius: 12px;
+            padding: 24px;
+            width: 90%;
+            max-width: 400px;
+        }
+        
+        .modal h3 {
+            margin-bottom: 20px;
+            color: #e6edf3;
+        }
+        
+        .modal input {
+            width: 100%;
+            padding: 10px 12px;
+            background: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            color: #e6edf3;
+            font-size: 1rem;
+            margin-bottom: 20px;
+        }
+        
+        .modal input:focus {
+            outline: none;
+            border-color: #1f6feb;
+        }
+        
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+        
+        .btn {
+            padding: 8px 16px;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+        
+        .btn-secondary {
+            background: #30363d;
+            color: #e6edf3;
+        }
+        
+        .btn-primary {
+            background: #238636;
+            color: white;
+        }
+        
+        .btn-danger {
+            background: #da3633;
+            color: white;
+        }
+        
+        .btn:hover {
+            opacity: 0.9;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <a href="/" class="navbar-brand">🤖 OpenHands Chat</a>
+        <div class="navbar-links">
+            <a href="/">Inicio</a>
+            <a href="/conversations" class="active">📋 Conversaciones</a>
+            <a href="/settings">⚙️ Configuración</a>
+        </div>
+    </nav>
+    
+    <div class="container">
+        <div class="page-header">
+            <h1 class="page-title">📋 Conversaciones</h1>
+            <a href="/" class="btn-new">+ Nueva conversación</a>
+        </div>
+        
+        <div id="conversationsList" class="conversations-list">
+            <div class="empty-state">
+                <h3>No hay conversaciones</h3>
+                <p>Inicia una nueva conversación desde el inicio</p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal Renombrar -->
+    <div id="renameModal" class="modal-overlay">
+        <div class="modal">
+            <h3>✏️ Renombrar conversación</h3>
+            <input type="text" id="renameInput" placeholder="Nuevo nombre">
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeRenameModal()">Cancelar</button>
+                <button class="btn btn-primary" onclick="saveRename()">Guardar</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal Eliminar -->
+    <div id="deleteModal" class="modal-overlay">
+        <div class="modal">
+            <h3>🗑️ Eliminar conversación</h3>
+            <p style="color: #8b949e; margin-bottom: 20px;">
+                ¿Estás seguro de eliminar esta conversación? Se eliminará también la carpeta del proyecto.
+            </p>
+            <p id="deleteConvName" style="color: #f85149; margin-bottom: 20px; font-weight: 500;"></p>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeDeleteModal()">Cancelar</button>
+                <button class="btn btn-danger" onclick="confirmDelete()">Eliminar</button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let conversations = [];
+        let selectedConvId = null;
+        let openMenuId = null;
+        
+        // Cargar conversaciones
+        async function loadConversations() {
+            try {
+                const response = await fetch('/api/conversations');
+                const data = await response.json();
+                conversations = data.conversations || [];
+                renderConversations();
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+        
+        function renderConversations() {
+            const list = document.getElementById('conversationsList');
+            
+            if (conversations.length === 0) {
+                list.innerHTML = `
+                    <div class="empty-state">
+                        <h3>No hay conversaciones</h3>
+                        <p>Inicia una nueva conversación desde el inicio</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            list.innerHTML = conversations.map(conv => {
+                const timeAgo = getTimeAgo(conv.created_at);
+                return `
+                    <div class="conversation-item" onclick="openConversation(${conv.id})">
+                        <div class="conv-status ${conv.status}"></div>
+                        <div class="conv-info">
+                            <div class="conv-title">
+                                <span class="conv-title-text">${conv.title}</span>
+                            </div>
+                            <div class="conv-meta">
+                                <span class="conv-repo">📦 ${conv.repo_owner}/${conv.repo_name}</span>
+                                <span>🔀 ${conv.branch}</span>
+                            </div>
+                        </div>
+                        <span class="conv-time">${timeAgo}</span>
+                        <div class="conv-menu">
+                            <button class="menu-btn" onclick="toggleMenu(event, ${conv.id})">⋮</button>
+                            <div id="menu-${conv.id}" class="menu-dropdown">
+                                <div class="menu-item" onclick="openRenameModal(event, ${conv.id}, '${conv.title.replace(/'/g, "\\'")}')">
+                                    ✏️ Renombrar
+                                </div>
+                                <div class="menu-item danger" onclick="openDeleteModal(event, ${conv.id}, '${conv.title.replace(/'/g, "\\'")}')">
+                                    🗑️ Eliminar conversación
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        function getTimeAgo(dateStr) {
+            const date = new Date(dateStr);
+            const now = new Date();
+            const diff = now - date;
+            
+            const minutes = Math.floor(diff / 60000);
+            const hours = Math.floor(diff / 3600000);
+            const days = Math.floor(diff / 86400000);
+            
+            if (minutes < 1) return 'ahora';
+            if (minutes < 60) return `${minutes}m atrás`;
+            if (hours < 24) return `${hours}h atrás`;
+            return `${days}d atrás`;
+        }
+        
+        function toggleMenu(event, convId) {
+            event.stopPropagation();
+            
+            // Cerrar otros menus
+            document.querySelectorAll('.menu-dropdown').forEach(m => m.classList.remove('show'));
+            
+            const menu = document.getElementById(`menu-${convId}`);
+            if (openMenuId === convId) {
+                openMenuId = null;
+            } else {
+                menu.classList.add('show');
+                openMenuId = convId;
+            }
+        }
+        
+        // Cerrar menus al hacer clic fuera
+        document.addEventListener('click', () => {
+            document.querySelectorAll('.menu-dropdown').forEach(m => m.classList.remove('show'));
+            openMenuId = null;
+        });
+        
+        function openConversation(convId) {
+            window.location.href = `/?conv=${convId}`;
+        }
+        
+        // Renombrar
+        function openRenameModal(event, convId, currentTitle) {
+            event.stopPropagation();
+            selectedConvId = convId;
+            document.getElementById('renameInput').value = currentTitle;
+            document.getElementById('renameModal').classList.add('show');
+        }
+        
+        function closeRenameModal() {
+            document.getElementById('renameModal').classList.remove('show');
+            selectedConvId = null;
+        }
+        
+        async function saveRename() {
+            const newTitle = document.getElementById('renameInput').value.trim();
+            if (!newTitle || !selectedConvId) return;
+            
+            try {
+                await fetch(`/api/conversations/${selectedConvId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ title: newTitle })
+                });
+                closeRenameModal();
+                loadConversations();
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+        
+        // Eliminar
+        function openDeleteModal(event, convId, title) {
+            event.stopPropagation();
+            selectedConvId = convId;
+            document.getElementById('deleteConvName').textContent = title;
+            document.getElementById('deleteModal').classList.add('show');
+        }
+        
+        function closeDeleteModal() {
+            document.getElementById('deleteModal').classList.remove('show');
+            selectedConvId = null;
+        }
+        
+        async function confirmDelete() {
+            if (!selectedConvId) return;
+            
+            try {
+                await fetch(`/api/conversations/${selectedConvId}`, {
+                    method: 'DELETE'
+                });
+                closeDeleteModal();
+                loadConversations();
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+        
+        // Iniciar
+        loadConversations();
+    </script>
+</body>
+</html>
