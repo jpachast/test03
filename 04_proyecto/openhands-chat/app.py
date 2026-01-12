@@ -149,14 +149,14 @@ def main():
     # Registrar cleanup al salir
     atexit.register(cleanup)
     
-    # Iniciar servidor de proyectos
-    projects_pid = start_projects_server(settings.projects_dir, 12001)
+    # Iniciar servidor de proyectos (usa puerto del settings)
+    projects_pid = start_projects_server(settings.projects_dir, settings.projects_port)
     
     print("=" * 60)
     print("  🤖 OPENHANDS CHAT")
     print("=" * 60)
     print(f"  🌐 Chat UI: http://{settings.host}:{settings.port}")
-    print(f"  🌐 Proyectos: http://{settings.host}:12001")
+    print(f"  🌐 Proyectos: http://{settings.host}:{settings.projects_port}")
     print(f"  📁 Directorio: {settings.projects_dir}")
     print("=" * 60)
     print()
@@ -172,7 +172,7 @@ def main():
         "ui.web:app",
         host=settings.host,
         port=settings.port,
-        reload=True,
+        reload=False,  # Desactivar reload para producción
         log_level="info"
     )
 

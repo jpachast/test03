@@ -1,8 +1,8 @@
 """
 Configuración del proyecto
+TODOS los valores están HARDCODEADOS - no dependen de variables de entorno
 """
 
-import os
 from pathlib import Path
 
 
@@ -16,12 +16,15 @@ class Settings:
         self.data_dir.mkdir(parents=True, exist_ok=True)
         self.projects_dir.mkdir(parents=True, exist_ok=True)
         
-        # Configuración del servidor
-        self.host = os.getenv("HOST", "0.0.0.0")
-        self.port = int(os.getenv("PORT", 8000))
+        # Configuración del servidor - HARDCODEADO
+        self.host = "0.0.0.0"
+        self.port = 12000  # Puerto fijo para work-1
+        
+        # Puerto del servidor de proyectos
+        self.projects_port = 12001  # Puerto fijo para work-2
         
         # Modelo por defecto
-        self.default_model = os.getenv("LLM_MODEL", "gemini/gemini-2.5-pro")
+        self.default_model = "gemini/gemini-2.5-pro"
         
         # Base URL (opcional)
-        self.llm_base_url = os.getenv("LLM_BASE_URL", None)
+        self.llm_base_url = None
