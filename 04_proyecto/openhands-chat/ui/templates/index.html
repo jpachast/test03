@@ -426,15 +426,23 @@
         const launchBtn = document.getElementById('launchBtn');
         
         // === INICIALIZACIÓN ===
+        // Verificar parámetro conv ANTES de mostrar nada
+        const urlParams = new URLSearchParams(window.location.search);
+        const convIdFromUrl = urlParams.get('conv');
+        
+        // Si hay conv en URL, ocultar home inmediatamente
+        if (convIdFromUrl) {
+            document.getElementById('homePage').style.display = 'none';
+            document.getElementById('chatPage').style.display = 'block';
+        }
+        
         document.addEventListener('DOMContentLoaded', async () => {
-            await loadGitHubRepos();
-            await loadConversations();
-            
-            // Verificar si hay parámetro conv en URL para abrir conversación directamente
-            const urlParams = new URLSearchParams(window.location.search);
-            const convId = urlParams.get('conv');
-            if (convId) {
-                await openConversationById(parseInt(convId));
+            // Si hay conv en URL, abrir directamente sin cargar home
+            if (convIdFromUrl) {
+                await openConversationById(parseInt(convIdFromUrl));
+            } else {
+                await loadGitHubRepos();
+                await loadConversations();
             }
         });
         
