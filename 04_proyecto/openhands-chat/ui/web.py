@@ -31,9 +31,14 @@ github_service = GitHubService()
 # Templates y static files
 templates_dir = Path(__file__).parent / "templates"
 static_dir = Path(__file__).parent.parent / "static"
+projects_dir = Path(__file__).parent.parent / "projects"
 
 templates = Jinja2Templates(directory=str(templates_dir))
 app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
+
+# Montar proyectos para servir archivos estáticos (si existe el directorio)
+if projects_dir.exists():
+    app.mount("/projects", StaticFiles(directory=str(projects_dir), html=True), name="projects")
 
 # Estado global
 current_conversation = None
