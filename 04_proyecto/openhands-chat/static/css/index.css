@@ -482,6 +482,10 @@
             position: relative;
         }
         
+        #codeViewRight {
+            position: relative;
+        }
+        
         .code-loading {
             position: absolute;
             top: 50%;
@@ -489,6 +493,10 @@
             transform: translate(-50%, -50%);
             text-align: center;
             color: #888;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
         }
         
         .loading-spinner {

@@ -35,12 +35,24 @@ async def chat_page(request: Request, conv_id: int):
     """Página de chat con conversación específica"""
     has_api_key = db.has_api_key()
     projects = list_projects(settings.projects_dir)
+    
+    # Detectar si es el proyecto principal (test03)
+    is_main_project = False
+    conv = db.get_conversation(conv_id, by_conv_id=True)
+    if conv:
+        # Verificar por repo_name o project_name
+        repo_name = conv.get('repo_name', '')
+        project_name = conv.get('project_name', '')
+        if repo_name == 'test03' or 'test03' in project_name.lower():
+            is_main_project = True
+    
     return templates.TemplateResponse("index.html", {
         "request": request,
         "has_api_key": has_api_key,
         "projects": projects,
         "current_workspace": None,
         "conversation_id": conv_id,
+        "is_main_project": is_main_project,
     })
 
 

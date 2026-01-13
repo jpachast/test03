@@ -64,38 +64,39 @@ def ensure_dependencies():
         os.execv(sys.executable, [sys.executable] + sys.argv)
 
 def ensure_code_server():
-    """Instala code-server si no está instalado"""
-    home = os.path.expanduser("~")
-    code_server_path = os.path.join(home, ".local", "bin", "code-server")
+    """Instala code-server dentro del proyecto para que persista entre sesiones"""
+    script_dir = os.path.dirname(os.path.abspath(__file__))
     
-    # Verificar si existe
-    result = subprocess.run(
-        ["which", "code-server"],
-        capture_output=True,
-        text=True
-    )
+    # Instalar DENTRO del proyecto para que persista
+    project_bin = os.path.join(script_dir, ".bin")
+    code_server_path = os.path.join(project_bin, "bin", "code-server")
     
-    if result.returncode != 0 and not os.path.exists(code_server_path):
+    # Agregar al PATH primero
+    bin_path = os.path.join(project_bin, "bin")
+    if bin_path not in os.environ.get("PATH", ""):
+        os.environ["PATH"] = f"{bin_path}:{os.environ.get('PATH', '')}"
+    
+    # Solo instalar si NO existe (persiste entre sesiones)
+    if not os.path.exists(code_server_path):
         print("=" * 60)
-        print("  💻 INSTALANDO CODE-SERVER (VS Code)...")
+        print("  💻 INSTALANDO CODE-SERVER (primera vez)...")
+        print("  📁 Ubicación: .bin/ (persiste entre sesiones)")
         print("=" * 60)
         print()
         
-        # Instalar code-server
+        # Crear directorio
+        os.makedirs(project_bin, exist_ok=True)
+        
+        # Instalar code-server en el proyecto
         subprocess.run(
-            "curl -fsSL https://code-server.dev/install.sh | sh -s -- --method=standalone --prefix=$HOME/.local",
+            f"curl -fsSL https://code-server.dev/install.sh | sh -s -- --method=standalone --prefix={project_bin}",
             shell=True,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL
         )
         
-        print("  ✅ code-server instalado correctamente")
+        print("  ✅ code-server instalado (no se reinstalará)")
         print()
-    
-    # Agregar al PATH si no está
-    local_bin = os.path.join(home, ".local", "bin")
-    if local_bin not in os.environ.get("PATH", ""):
-        os.environ["PATH"] = f"{local_bin}:{os.environ.get('PATH', '')}"
 
 # Ejecutar auto-instalación ANTES de cualquier otro import
 ensure_dependencies()

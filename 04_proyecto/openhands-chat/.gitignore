@@ -45,3 +45,6 @@ obj/
 # OS
 .DS_Store
 Thumbs.db
+
+# Code-server binarios (se instala automáticamente)
+.bin/
