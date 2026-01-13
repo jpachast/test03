@@ -335,14 +335,24 @@
             color: #c9d1d9;
         }
         
-        .icon-btn.app-btn {
+        /* Botón activo - resaltado azul */
+        .icon-btn.active {
             background: #1f6feb;
             color: #fff;
+        }
+        
+        .icon-btn.active:hover {
+            background: #388bfd;
+        }
+        
+        /* Botón de aplicación - solo activo cuando tiene clase active */
+        .icon-btn.app-btn {
             padding: 6px 12px;
         }
         
-        .icon-btn.app-btn:hover {
-            background: #388bfd;
+        .icon-btn.app-btn.active {
+            background: #1f6feb;
+            color: #fff;
         }
         
         .chat-right-panel .right-content {
