@@ -169,7 +169,8 @@ def start_code_server(project_path: str, conversation_id: int = 0) -> dict:
         }
         CODE_SERVER_PORT = port
         
-        time.sleep(3)
+        # Solo esperar 0.5s para verificar que no crasheó inmediatamente
+        time.sleep(0.5)
         
         if process.poll() is not None:
             log_file.close()
@@ -218,6 +219,12 @@ def stop_code_server(conversation_id: int = None) -> dict:
     
     CODE_SERVER_PORT = None
     return {"status": "stopped"}
+
+
+def stop_all_code_servers():
+    """Limpia todos los code-servers (llamar al cerrar la aplicación)"""
+    for conv_id in list(CODE_SERVER_INSTANCES.keys()):
+        stop_code_server(conv_id)
 
 
 def get_code_server_status(conversation_id: int = None) -> dict:

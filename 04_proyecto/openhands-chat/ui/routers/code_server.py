@@ -63,6 +63,45 @@ async def api_start_code_server(request: Request):
     return JSONResponse(result)
 
 
+@router.post("/api/code-server/prestart")
+async def api_prestart_code_server(request: Request):
+    """
+    Pre-inicia code-server en background cuando se carga el chat.
+    Así cuando el usuario haga clic en el botón, ya estará listo.
+    """
+    import asyncio
+    
+    data = await request.json()
+    conv_id = data.get("conversation_id")
+    
+    if not conv_id:
+        return JSONResponse({"status": "skipped", "reason": "no conversation_id"})
+    
+    conv_data = db.get_conversation(int(conv_id), by_conv_id=True)
+    if not conv_data:
+        return JSONResponse({"status": "skipped", "reason": "conversation not found"})
+    
+    repo_name = conv_data.get("repo_name", "") or conv_data.get("project_name", "")
+    
+    # No pre-iniciar para proyecto principal
+    if is_main_project(repo_name):
+        return JSONResponse({"status": "skipped", "reason": "main project"})
+    
+    workspace_path = conv_data.get("workspace_path")
+    if not workspace_path or not os.path.isdir(workspace_path):
+        return JSONResponse({"status": "skipped", "reason": "no workspace"})
+    
+    # Iniciar en background (no bloquear)
+    def _start_bg():
+        start_code_server(workspace_path, conversation_id=int(conv_id))
+    
+    import threading
+    thread = threading.Thread(target=_start_bg, daemon=True)
+    thread.start()
+    
+    return JSONResponse({"status": "starting", "conversation_id": conv_id})
+
+
 @router.post("/api/code-server/stop")
 async def api_stop_code_server():
     """Detiene code-server"""

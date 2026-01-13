@@ -484,6 +484,11 @@
         
         #codeViewRight {
             position: relative;
+            background: #1e1e1e; /* Color de fondo de VS Code */
+        }
+        
+        #codeViewRight iframe {
+            background: #1e1e1e; /* Mismo color mientras carga */
         }
         
         .code-loading {

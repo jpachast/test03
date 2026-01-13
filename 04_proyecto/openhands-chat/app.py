@@ -108,71 +108,206 @@ ensure_code_server()
 import signal
 import atexit
 import uvicorn
+import glob
+import time as time_module
 from config.settings import Settings
+from core.app_server import cleanup_all_servers as cleanup_app_servers
+from core.code_server import stop_all_code_servers
 
-# PID del servidor de proyectos
-projects_server_pid = None
+# PID file para tracking
+PID_FILE = "/tmp/openhands-chat.pid"
 
-def is_port_in_use(port: int) -> bool:
-    """Verifica si un puerto está en uso"""
-    import socket
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        return s.connect_ex(('localhost', port)) == 0
-
-def start_projects_server(projects_dir: str, port: int = 12001):
-    """Inicia el servidor HTTP para proyectos si no está corriendo"""
-    global projects_server_pid
+# =============================================================================
+# CLEANUP DE SERVIDORES HUÉRFANOS (ejecutar INMEDIATAMENTE al cargar)
+# =============================================================================
+def _initial_cleanup():
+    """Limpia servidores huérfanos ANTES de iniciar (como OpenHands)"""
+    print("  🧹 Limpiando servidores anteriores...")
     
-    # Verificar si ya hay un servidor corriendo en el puerto
-    if is_port_in_use(port):
-        print(f"  ℹ️  Servidor de proyectos ya está corriendo en puerto {port}")
-        return -1  # Ya corriendo
+    # 1. Matar proceso anterior si existe PID file
+    if os.path.exists(PID_FILE):
+        try:
+            with open(PID_FILE, 'r') as f:
+                old_pid = int(f.read().strip())
+            os.kill(old_pid, signal.SIGKILL)
+            print(f"  ✓ Proceso anterior (PID {old_pid}) terminado")
+        except:
+            pass
+        try:
+            os.unlink(PID_FILE)
+        except:
+            pass
     
-    # Asegurar que el directorio existe
-    os.makedirs(projects_dir, exist_ok=True)
-    
-    # Iniciar nuevo servidor
-    process = subprocess.Popen(
-        ["python3", "-m", "http.server", str(port)],
-        cwd=projects_dir,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL
+    # 2. Liberar puerto 12000 usando ss
+    result = subprocess.run(
+        "ss -tlnp 'sport = :12000' 2>/dev/null | grep -oP 'pid=\\K[0-9]+' | head -1",
+        shell=True, capture_output=True, text=True
     )
-    projects_server_pid = process.pid
-    return process.pid
+    if result.stdout.strip():
+        try:
+            os.kill(int(result.stdout.strip()), signal.SIGKILL)
+            print(f"  ✓ Puerto 12000 liberado")
+        except:
+            pass
+    
+    # 3. Matar code-servers huérfanos
+    subprocess.run("pkill -9 -f 'code-server.*--bind-addr.*4000' 2>/dev/null", shell=True)
+    
+    # 4. Matar http.servers huérfanos en puertos 50000+
+    subprocess.run("pkill -9 -f 'http.server.*5000' 2>/dev/null", shell=True)
+    
+    # 5. Limpiar locks
+    for pattern in ["/tmp/openhands_*_locks/*.lock", "/tmp/code-server-*.lock"]:
+        for f in glob.glob(pattern):
+            try:
+                os.unlink(f)
+            except:
+                pass
+    
+    time_module.sleep(0.5)
+    print("  ✓ Limpieza completada")
+
+# Ejecutar cleanup INMEDIATAMENTE
+_initial_cleanup()
+
+def cleanup_orphaned_servers():
+    """
+    Limpia servidores huérfanos de ejecuciones anteriores (como OpenHands).
+    Se ejecuta al INICIAR la aplicación.
+    """
+    import glob
+    import time
+    
+    print("  🧹 Limpiando servidores anteriores...")
+    
+    # Matar proceso anterior si existe PID file (PRIMERO)
+    if os.path.exists(PID_FILE):
+        try:
+            with open(PID_FILE, 'r') as f:
+                old_pid = int(f.read().strip())
+            os.kill(old_pid, signal.SIGTERM)
+            time.sleep(1)  # Esperar que termine
+            try:
+                os.kill(old_pid, signal.SIGKILL)  # Forzar si no terminó
+            except ProcessLookupError:
+                pass
+            print(f"  ✓ Proceso anterior (PID {old_pid}) terminado")
+        except (ProcessLookupError, ValueError, FileNotFoundError):
+            pass
+        try:
+            os.unlink(PID_FILE)
+        except:
+            pass
+    
+    # Liberar puerto principal (12000) - matar cualquier uvicorn en ese puerto
+    # Usar ss + awk para encontrar el PID y matarlo
+    result = subprocess.run(
+        "ss -tlnp 'sport = :12000' | grep -oP 'pid=\\K[0-9]+' | head -1",
+        shell=True,
+        capture_output=True,
+        text=True
+    )
+    if result.stdout.strip():
+        try:
+            old_port_pid = int(result.stdout.strip())
+            os.kill(old_port_pid, signal.SIGKILL)
+            print(f"  ✓ Proceso en puerto 12000 (PID {old_port_pid}) terminado")
+            time.sleep(0.5)
+        except:
+            pass
+    
+    # Matar code-servers huérfanos por puerto
+    for port in range(40000, 40100):
+        subprocess.run(
+            f"fuser -k {port}/tcp 2>/dev/null",
+            shell=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL
+        )
+    
+    # Matar app-servers huérfanos por puerto
+    for port in range(50000, 50200):
+        subprocess.run(
+            f"fuser -k {port}/tcp 2>/dev/null",
+            shell=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL
+        )
+    
+    # Limpiar archivos de lock huérfanos
+    for lock_file in glob.glob("/tmp/openhands_*_locks/*.lock"):
+        try:
+            os.unlink(lock_file)
+        except:
+            pass
+    
+    for lock_file in glob.glob("/tmp/code-server-*.lock"):
+        try:
+            os.unlink(lock_file)
+        except:
+            pass
+    
+    # Pequeña pausa para que los puertos se liberen
+    time.sleep(0.5)
+    
+    print("  ✓ Limpieza completada")
+
+
+def save_pid():
+    """Guarda el PID actual en archivo"""
+    with open(PID_FILE, 'w') as f:
+        f.write(str(os.getpid()))
+
 
 def cleanup():
-    """Limpia el servidor de proyectos al salir"""
-    global projects_server_pid
-    if projects_server_pid:
-        try:
-            os.kill(projects_server_pid, signal.SIGTERM)
-        except ProcessLookupError:
-            pass
+    """Limpia todos los servidores al salir"""
+    print("\n  🧹 Limpiando servidores...")
+    cleanup_app_servers()
+    stop_all_code_servers()
+    # Eliminar PID file
+    try:
+        os.unlink(PID_FILE)
+    except:
+        pass
+
+
+def signal_handler(signum, frame):
+    """Maneja señales SIGTERM/SIGINT para cleanup graceful"""
+    print(f"\n  📍 Señal {signum} recibida, cerrando...")
+    cleanup()
+    sys.exit(0)
+
 
 def main():
     """Iniciar servidor"""
     settings = Settings()
     
-    # Registrar cleanup al salir
-    atexit.register(cleanup)
+    # 1. Limpiar servidores huérfanos ANTES de iniciar
+    cleanup_orphaned_servers()
     
-    # Iniciar servidor de proyectos (usa puerto del settings)
-    projects_pid = start_projects_server(settings.projects_dir, settings.projects_port)
+    # 2. Guardar PID actual
+    save_pid()
+    
+    # 3. Registrar handlers de señales (como OpenHands)
+    signal.signal(signal.SIGTERM, signal_handler)
+    signal.signal(signal.SIGINT, signal_handler)
+    
+    # 4. Registrar cleanup al salir
+    atexit.register(cleanup)
     
     print("=" * 60)
     print("  🤖 OPENHANDS CHAT")
     print("=" * 60)
     print(f"  🌐 Chat UI: http://{settings.host}:{settings.port}")
-    print(f"  🌐 Proyectos: http://{settings.host}:{settings.projects_port}")
-    print(f"  📁 Directorio: {settings.projects_dir}")
+    print(f"  📁 Directorio proyectos: {settings.projects_dir}")
+    print(f"  📍 PID: {os.getpid()}")
     print("=" * 60)
     print()
-    print("  URLs Públicas:")
-    print("  • Chat: https://work-1-ycbycghbyxbnnhxb.prod-runtime.all-hands.dev")
-    print("  • Proyectos: https://work-2-ycbycghbyxbnnhxb.prod-runtime.all-hands.dev/PROYECTO/")
+    print("  Arquitectura (como OpenHands):")
+    print("  • Code-server: puertos dinámicos 40000-40099 (por conversación)")
+    print("  • App-server: puertos dinámicos 50000-50199 (por conversación)")
+    print("  • Cleanup automático de servidores huérfanos al iniciar")
     print()
-    print(f"  Servidor de proyectos PID: {projects_pid}")
     print("  Presiona Ctrl+C para detener")
     print()
     

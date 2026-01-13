@@ -175,6 +175,25 @@
                     document.getElementById('currentConversationId').value = data.conversation_id;
                     showChat(data.project_name, `${selectedRepo.owner}/${selectedRepo.name}`, branchSelect.value);
                     chatMessages.innerHTML = '<div class="message system">👋 ¡Hola! Repositorio clonado correctamente. ¿Qué quieres hacer?</div>';
+                    
+                    // PRE-INICIAR servidores para el nuevo chat (como OpenHands)
+                    fetch('/api/code-server/prestart', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ conversation_id: data.conversation_id })
+                    }).catch(() => {});
+                    
+                    fetch('/api/app-server/prestart', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ conversation_id: data.conversation_id })
+                    }).catch(() => {});
+                    
+                    // Mostrar tabs y actualizar git bar
+                    showCodeTabs(selectedRepo.name);
+                    updateGitBar(selectedRepo.owner, selectedRepo.name, branchSelect.value);
+                    codeServerLoaded = false;
+                    browserLoaded = false;
                 } else {
                     alert('Error: ' + (data.error || 'No se pudo clonar'));
                 }
@@ -267,6 +286,20 @@
             showCodeTabs(repoName || projectName);
             codeServerLoaded = false; // Reset para nuevo proyecto
             browserLoaded = false; // Reset navegador también
+            
+            // PRE-INICIAR code-server y app-server en background (como OpenHands)
+            // Así cuando el usuario haga clic en <> o 🌐, ya estarán listos
+            fetch('/api/code-server/prestart', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ conversation_id: convId })
+            }).catch(() => {});
+            
+            fetch('/api/app-server/prestart', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ conversation_id: convId })
+            }).catch(() => {});
             
             // Actualizar barra de Git
             if (repoOwner && repoName) {
@@ -408,29 +441,47 @@
             const frame = document.getElementById('browserFrame');
             const urlInput = document.getElementById('browserUrl');
             
-            // Primero asegurar que el servidor de proyectos está corriendo
+            // Verificar si el app-server ya está corriendo (por el prestart)
             try {
-                urlInput.value = 'Iniciando servidor...';
-                const response = await fetch('/api/projects-server/ensure', { method: 'POST' });
-                const data = await response.json();
-                console.log('Servidor de proyectos:', data);
-            } catch (error) {
-                console.error('Error iniciando servidor de proyectos:', error);
+                const statusResp = await fetch('/api/app-server/status');
+                const statusData = await statusResp.json();
+                
+                if (statusData.status === 'running' && statusData.port) {
+                    // Ya está corriendo, usar proxy
+                    const previewUrl = '/api/app-server/app-preview/index.html';
+                    urlInput.value = `http://localhost:${statusData.port}/index.html`;
+                    frame.src = previewUrl;
+                    browserLoaded = true;
+                    return;
+                }
+            } catch (e) {
+                console.log('Status check failed, iniciando servidor...');
             }
             
-            // Construir URL del proyecto
-            // Estructura: projects/{owner}-{repo}/chat01/index.html
-            const projectsBaseUrl = 'https://work-2-pqlteoebiwavskzp.prod-runtime.all-hands.dev';
-            const { owner, repo } = currentGitInfo;
-            
-            if (owner && repo) {
-                // URL: /{owner}-{repo}/chat01/index.html
-                const previewUrl = `${projectsBaseUrl}/${owner}-${repo}/chat01/index.html`;
-                urlInput.value = previewUrl;
-                frame.src = previewUrl;
-                browserLoaded = true;
-            } else {
-                urlInput.value = 'No hay proyecto seleccionado';
+            // Si no está corriendo, iniciarlo
+            try {
+                urlInput.value = 'Iniciando servidor...';
+                const response = await fetch('/api/app-server/start', { 
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ conversation_id: currentConversationId })
+                });
+                const data = await response.json();
+                console.log('Servidor de app:', data);
+                
+                if (data.status === 'started' || data.status === 'running') {
+                    // Pequeña espera para que inicie
+                    await new Promise(r => setTimeout(r, 500));
+                    const previewUrl = '/api/app-server/app-preview/index.html';
+                    urlInput.value = `http://localhost:${data.port}/index.html`;
+                    frame.src = previewUrl;
+                    browserLoaded = true;
+                } else {
+                    urlInput.value = data.message || 'Error iniciando servidor';
+                }
+            } catch (error) {
+                console.error('Error iniciando servidor de app:', error);
+                urlInput.value = 'Error: ' + error.message;
             }
         }
         
@@ -447,7 +498,31 @@
             loading.innerHTML = '<div class="loading-spinner"></div><p>Cargando VS Code...</p>';
             frame.style.display = 'none';
             
+            // Función para mostrar el iframe cuando cargue
+            const showFrameOnLoad = () => {
+                frame.onload = () => {
+                    // Esperar un poco más para que VS Code renderice completamente
+                    setTimeout(() => {
+                        frame.style.display = 'block';
+                        loading.style.display = 'none';
+                        codeServerLoaded = true;
+                    }, 800);
+                };
+            };
+            
             try {
+                // Primero verificar si ya está corriendo (por el prestart)
+                const statusResp = await fetch('/api/code-server/status');
+                const statusData = await statusResp.json();
+                
+                if (statusData.status === 'running' && statusData.port) {
+                    // Ya está corriendo, cargar iframe
+                    showFrameOnLoad();
+                    frame.src = '/code-server/';
+                    return;
+                }
+                
+                // Si no está corriendo, iniciarlo
                 const response = await fetch('/api/code-server/start', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -462,7 +537,6 @@
                 }
                 
                 if (response.status === 404) {
-                    // Workspace no encontrado - ofrecer clonarlo
                     loading.innerHTML = `
                         <p>📁 El proyecto no está clonado localmente</p>
                         <p style="font-size: 0.9em; color: #8b949e;">Haz Pull para clonar el repositorio</p>
@@ -471,12 +545,8 @@
                 }
                 
                 if (data.status === 'started' || data.status === 'running') {
-                    // Esperar a que code-server inicie
-                    await new Promise(resolve => setTimeout(resolve, 2500));
-                    frame.src = '/code-server/?folder=' + encodeURIComponent(data.path);
-                    frame.style.display = 'block';
-                    loading.style.display = 'none';
-                    codeServerLoaded = true;
+                    showFrameOnLoad();
+                    frame.src = '/code-server/';
                 } else {
                     loading.innerHTML = `<p>❌ ${data.message || data.error || 'No se pudo iniciar el editor'}</p>`;
                 }
