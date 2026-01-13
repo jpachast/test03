@@ -360,24 +360,31 @@
         // === TABS CHAT/CÓDIGO ===
         function switchView(view) {
             currentView = view;
-            const chatView = document.getElementById('chatView');
-            const codeView = document.getElementById('codeView');
+            const appView = document.getElementById('appView');
+            const codeViewRight = document.getElementById('codeViewRight');
             const tabChat = document.getElementById('tabChat');
             const tabCode = document.getElementById('tabCode');
-            const chatInputContainer = document.querySelector('.chat-input-container');
+            const tabApp = document.getElementById('tabApp');
             
-            if (view === 'chat') {
-                chatView.style.display = 'flex';
-                codeView.style.display = 'none';
-                tabChat.classList.add('active');
-                tabCode.classList.remove('active');
-                if (chatInputContainer) chatInputContainer.style.display = 'block';
+            // Resetear todos los tabs
+            tabChat.classList.remove('active');
+            tabCode.classList.remove('active');
+            tabApp.classList.remove('active');
+            
+            if (view === 'chat' || view === 'app') {
+                // Mostrar vista de aplicación en panel derecho
+                appView.style.display = 'block';
+                codeViewRight.style.display = 'none';
+                if (view === 'chat') {
+                    tabChat.classList.add('active');
+                } else {
+                    tabApp.classList.add('active');
+                }
             } else if (view === 'code') {
-                chatView.style.display = 'none';
-                codeView.style.display = 'flex';
-                tabChat.classList.remove('active');
+                // Mostrar código en panel derecho
+                appView.style.display = 'none';
+                codeViewRight.style.display = 'block';
                 tabCode.classList.add('active');
-                if (chatInputContainer) chatInputContainer.style.display = 'none';
                 // Iniciar code-server si no está cargado
                 if (!codeServerLoaded) {
                     startCodeServer();
@@ -386,8 +393,8 @@
         }
         
         async function startCodeServer() {
-            const loading = document.getElementById('codeLoading');
-            const frame = document.getElementById('codeServerFrame');
+            const loading = document.getElementById('codeLoadingRight');
+            const frame = document.getElementById('codeServerFrameRight');
             
             loading.style.display = 'block';
             frame.style.display = 'none';
@@ -426,7 +433,7 @@
             try {
                 await fetch('/api/code-server/stop', { method: 'POST' });
                 codeServerLoaded = false;
-                const frame = document.getElementById('codeServerFrame');
+                const frame = document.getElementById('codeServerFrameRight');
                 if (frame) frame.src = 'about:blank';
             } catch (error) {
                 console.error('Error deteniendo code-server:', error);
