@@ -1,20 +1,35 @@
-{% extends "base.html" %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Configuración - OpenHands Chat</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="/static/css/layout.css">
+    <link rel="stylesheet" href="/static/css/settings.css">
+</head>
+<body>
+    <div class="app-layout single-panel">
+        <div class="left-panel full-width">
+            <header class="app-header">
+                <div class="header-left">
+                    <span class="logo">🤖</span>
+                    <span class="app-title">OpenHands Chat</span>
+                </div>
+                <nav class="header-nav">
+                    <a href="/">Inicio</a>
+                    <a href="/conversations">📋 Conversaciones</a>
+                    <a href="/settings" class="active">⚙️ Configuración</a>
+                </nav>
+            </header>
 
-{% block title %}Configuración - OpenHands Chat{% endblock %}
+            {% if request.query_params.get('saved') %}
+            <div class="alert alert-success">
+                ✅ Configuración guardada correctamente
+            </div>
+            {% endif %}
 
-{% block extra_css %}
-<link rel="stylesheet" href="/static/css/settings.css">
-{% endblock %}
-
-{% block alerts %}
-{% if request.query_params.get('saved') %}
-<div class="alert alert-success">
-    ✅ Configuración guardada correctamente
-</div>
-{% endif %}
-{% endblock %}
-
-{% block left_content %}
+            <div class="left-content">
 <div class="settings-layout">
     <!-- Navegación lateral -->
     <nav class="settings-nav">
@@ -203,8 +218,10 @@
         </div>
     </div>
 </div>
-{% endblock %}
+            </div>
+        </div>
+    </div>
 
-{% block scripts %}
-<script src="/static/js/settings.js"></script>
-{% endblock %}
+    <script src="/static/js/settings.js"></script>
+</body>
+</html>

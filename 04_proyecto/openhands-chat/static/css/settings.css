@@ -122,3 +122,8 @@
                 grid-template-columns: 1fr;
             }
         }
+
+/* Override para página de settings sin panel derecho */
+body {
+    background: #0d1117;
+}
