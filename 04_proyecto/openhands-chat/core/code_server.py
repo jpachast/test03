@@ -14,6 +14,18 @@ CODE_SERVER_PORT = 8080
 CODE_SERVER_PROCESS: Optional[subprocess.Popen] = None
 CURRENT_PROJECT_PATH: Optional[str] = None
 
+def get_code_server_path() -> str:
+    """Obtiene la ruta de code-server"""
+    # Buscar en ~/.local/bin primero
+    local_path = os.path.expanduser("~/.local/bin/code-server")
+    if os.path.exists(local_path):
+        return local_path
+    # Buscar en PATH
+    result = subprocess.run(["which", "code-server"], capture_output=True, text=True)
+    if result.returncode == 0:
+        return result.stdout.strip()
+    return "code-server"  # Intentar nombre simple
+
 
 def start_code_server(project_path: str) -> dict:
     """
@@ -45,8 +57,9 @@ def start_code_server(project_path: str) -> dict:
     
     # Iniciar code-server
     try:
+        code_server_bin = get_code_server_path()
         cmd = [
-            "code-server",
+            code_server_bin,
             "--bind-addr", f"0.0.0.0:{CODE_SERVER_PORT}",
             "--auth", "none",
             "--disable-telemetry",

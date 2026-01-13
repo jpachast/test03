@@ -396,7 +396,8 @@
             const loading = document.getElementById('codeLoadingRight');
             const frame = document.getElementById('codeServerFrameRight');
             
-            loading.style.display = 'block';
+            loading.style.display = 'flex';
+            loading.innerHTML = '<div class="loading-spinner"></div><p>Cargando VS Code...</p>';
             frame.style.display = 'none';
             
             try {
@@ -409,20 +410,28 @@
                 const data = await response.json();
                 
                 if (response.status === 403) {
-                    // Es el proyecto principal
                     loading.innerHTML = '<p>⚠️ El editor de código no está disponible para el proyecto principal (test03)</p>';
                     return;
                 }
                 
+                if (response.status === 404) {
+                    // Workspace no encontrado - ofrecer clonarlo
+                    loading.innerHTML = `
+                        <p>📁 El proyecto no está clonado localmente</p>
+                        <p style="font-size: 0.9em; color: #8b949e;">Haz Pull para clonar el repositorio</p>
+                    `;
+                    return;
+                }
+                
                 if (data.status === 'started' || data.status === 'running') {
-                    // Esperar un poco más para que code-server inicie completamente
-                    await new Promise(resolve => setTimeout(resolve, 2000));
+                    // Esperar a que code-server inicie
+                    await new Promise(resolve => setTimeout(resolve, 2500));
                     frame.src = '/code-server/?folder=' + encodeURIComponent(data.path);
                     frame.style.display = 'block';
                     loading.style.display = 'none';
                     codeServerLoaded = true;
                 } else {
-                    loading.innerHTML = `<p>❌ Error: ${data.message || 'No se pudo iniciar el editor'}</p>`;
+                    loading.innerHTML = `<p>❌ ${data.message || data.error || 'No se pudo iniciar el editor'}</p>`;
                 }
             } catch (error) {
                 loading.innerHTML = `<p>❌ Error: ${error.message}</p>`;
