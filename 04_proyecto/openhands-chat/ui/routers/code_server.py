@@ -7,10 +7,22 @@ import httpx
 import websockets
 
 from config.database import Database
-from core.code_server import start_code_server, stop_code_server, get_code_server_status, is_main_project, CODE_SERVER_PORT
+from core.code_server import (
+    start_code_server, 
+    stop_code_server, 
+    get_code_server_status, 
+    is_main_project,
+    CODE_SERVER_PORT  # Ahora es dinámico, puede ser None
+)
 
 router = APIRouter(tags=["code-server"])
 db = Database()
+
+
+def get_current_port() -> int:
+    """Obtiene el puerto actual de code-server"""
+    from core.code_server import CODE_SERVER_PORT
+    return CODE_SERVER_PORT or 8080
 
 
 @router.post("/api/code-server/start")
@@ -41,11 +53,12 @@ async def api_start_code_server(request: Request):
             "conv_data": conv_data
         }, status_code=404)
     
-    result = start_code_server(workspace_path)
+    result = start_code_server(workspace_path, conversation_id=int(conv_id))
     
     if result.get("status") in ["started", "running"]:
+        port = result.get("port")
         result["url"] = f"/code-server/"
-        result["direct_port"] = CODE_SERVER_PORT
+        result["direct_port"] = port
     
     return JSONResponse(result)
 
@@ -73,7 +86,8 @@ async def proxy_code_server(request: Request, path: str):
             status_code=503
         )
     
-    target_url = f"http://127.0.0.1:{CODE_SERVER_PORT}/{path}"
+    port = status.get("port") or get_current_port()
+    target_url = f"http://127.0.0.1:{port}/{path}"
     if request.query_params:
         target_url += f"?{request.query_params}"
     
@@ -114,7 +128,9 @@ async def websocket_proxy(websocket: WebSocket, path: str):
     """Proxy WebSocket para code-server"""
     await websocket.accept()
     
-    ws_url = f"ws://127.0.0.1:{CODE_SERVER_PORT}/{path}"
+    status = get_code_server_status()
+    port = status.get("port") or get_current_port()
+    ws_url = f"ws://127.0.0.1:{port}/{path}"
     if websocket.query_params:
         ws_url += f"?{websocket.query_params}"
     
