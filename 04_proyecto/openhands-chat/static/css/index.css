@@ -928,9 +928,10 @@
             }
         }
 
-        /* Navegador/Browser view */
+        /* Navegador/Browser view - SCREENSHOTS como OpenHands */
         #browserView {
-            position: relative;
+            display: flex;
+            flex-direction: column;
             background: #1e1e1e;
         }
         
@@ -939,33 +940,54 @@
             align-items: center;
             gap: 8px;
             padding: 8px 12px;
-            background: #2d2d2d;
-            border-bottom: 1px solid #404040;
-            height: 40px;
-            box-sizing: border-box;
+            background: #161b22;
+            border-bottom: 1px solid #30363d;
+            flex-shrink: 0;
         }
         
         .browser-url {
             flex: 1;
             padding: 6px 12px;
-            background: #1e1e1e;
-            border: 1px solid #404040;
+            background: #0d1117;
+            border: 1px solid #30363d;
             border-radius: 4px;
-            color: #aaa;
+            color: #8b949e;
             font-size: 13px;
             font-family: monospace;
         }
         
-        .browser-toolbar button {
-            padding: 4px 8px;
-            background: transparent;
-            border: none;
-            color: #fff;
-            cursor: pointer;
-            font-size: 16px;
+        .browser-content {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: auto;
+            background: #0d0d0d;
         }
         
-        .browser-toolbar button:hover {
-            background: #404040;
-            border-radius: 4px;
+        #browserScreenshot {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+        
+        .browser-empty {
+            text-align: center;
+            color: #484f58;
+        }
+        
+        .browser-empty-icon {
+            margin-bottom: 16px;
+            opacity: 0.5;
+            color: #6e7681;
+        }
+        
+        .browser-empty p {
+            margin: 8px 0;
+            font-size: 14px;
+        }
+        
+        .browser-hint {
+            font-size: 12px !important;
+            color: #6e7681 !important;
         }

@@ -443,66 +443,82 @@
                     startCodeServer();
                 }
             } else if (view === 'browser') {
-                // Navegador - preview del proyecto HTML
-                browserView.style.display = 'block';
+                // Navegador - Screenshots del browser (como OpenHands)
+                browserView.style.display = 'flex';
                 if (tabBrowser) tabBrowser.classList.add('active');
                 if (!browserLoaded) {
-                    loadBrowserPreview();
+                    loadBrowserScreenshot();
                 }
             }
         }
         
-        async function loadBrowserPreview() {
-            const frame = document.getElementById('browserFrame');
-            const urlInput = document.getElementById('browserUrl');
-            
-            // Verificar si el app-server ya está corriendo para ESTA conversación
+        // === NAVEGADOR (Browser Screenshots - como OpenHands) ===
+        let currentBrowserUrl = '';
+        let currentScreenshot = null;
+        
+        async function loadBrowserScreenshot() {
+            // Cargar screenshot del navegador desde la API
             try {
-                const statusResp = await fetch('/api/app-server/status?conversation_id=' + currentConversationId);
-                const statusData = await statusResp.json();
+                const resp = await fetch(`/api/browser/screenshot?conversation_id=${currentConversationId}`);
+                const data = await resp.json();
                 
-                if (statusData.status === 'running' && statusData.port) {
-                    // Ya está corriendo, usar proxy
-                    const previewUrl = `/api/app-server/app-preview/index.html?conversation_id=${currentConversationId}`;
-                    urlInput.value = `http://localhost:${statusData.port}/index.html`;
-                    frame.src = previewUrl;
-                    browserLoaded = true;
-                    return;
+                if (data.screenshot) {
+                    showBrowserScreenshot(data.url, data.screenshot);
+                } else {
+                    showBrowserEmpty();
                 }
             } catch (e) {
-                console.log('Status check failed, iniciando servidor...');
+                console.log('No browser screenshot available');
+                showBrowserEmpty();
             }
+            browserLoaded = true;
+        }
+        
+        function showBrowserScreenshot(url, screenshotBase64) {
+            const urlInput = document.getElementById('browserUrl');
+            const screenshot = document.getElementById('browserScreenshot');
+            const empty = document.getElementById('browserEmpty');
             
-            // Si no está corriendo, iniciarlo
-            try {
-                urlInput.value = 'Iniciando servidor...';
-                const response = await fetch('/api/app-server/start', { 
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ conversation_id: currentConversationId })
-                });
-                const data = await response.json();
-                console.log('Servidor de app:', data);
-                
-                if (data.status === 'started' || data.status === 'running') {
-                    // Pequeña espera para que inicie
-                    await new Promise(r => setTimeout(r, 500));
-                    const previewUrl = `/api/app-server/app-preview/index.html?conversation_id=${currentConversationId}`;
-                    urlInput.value = `http://localhost:${data.port}/index.html`;
-                    frame.src = previewUrl;
-                    browserLoaded = true;
-                } else {
-                    urlInput.value = data.message || 'Error iniciando servidor';
-                }
-            } catch (error) {
-                console.error('Error iniciando servidor de app:', error);
-                urlInput.value = 'Error: ' + error.message;
-            }
+            currentBrowserUrl = url;
+            currentScreenshot = screenshotBase64;
+            
+            urlInput.value = url || '';
+            
+            // Mostrar screenshot
+            const imgSrc = screenshotBase64.startsWith('data:image/')
+                ? screenshotBase64
+                : `data:image/png;base64,${screenshotBase64}`;
+            screenshot.src = imgSrc;
+            screenshot.style.display = 'block';
+            empty.style.display = 'none';
+        }
+        
+        function showBrowserEmpty() {
+            const urlInput = document.getElementById('browserUrl');
+            const screenshot = document.getElementById('browserScreenshot');
+            const empty = document.getElementById('browserEmpty');
+            
+            urlInput.value = '';
+            screenshot.style.display = 'none';
+            empty.style.display = 'flex';
+            empty.style.flexDirection = 'column';
+            empty.style.alignItems = 'center';
+            empty.style.justifyContent = 'center';
+            empty.style.height = '100%';
         }
         
         function refreshBrowser() {
             browserLoaded = false;
-            loadBrowserPreview();
+            loadBrowserScreenshot();
+        }
+        
+        // Función para actualizar screenshot desde el agente (vía WebSocket)
+        function updateBrowserScreenshot(url, screenshot) {
+            currentBrowserUrl = url;
+            currentScreenshot = screenshot;
+            if (currentView === 'browser') {
+                showBrowserScreenshot(url, screenshot);
+            }
         }
         
         // === APLICACIÓN (App Server dinámico) ===

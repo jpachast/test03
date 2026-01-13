@@ -18,7 +18,8 @@ from ui.routers import (
     chat_router,
     git_router,
     code_server_router,
-    projects_server_router
+    projects_server_router,
+    browser_router
 )
 
 # Inicializar
@@ -44,6 +45,7 @@ app.include_router(chat_router)
 app.include_router(git_router)
 app.include_router(code_server_router)
 app.include_router(projects_server_router)
+app.include_router(browser_router)
 
 
 # === RUTAS DE PROYECTOS (legacy) ===
