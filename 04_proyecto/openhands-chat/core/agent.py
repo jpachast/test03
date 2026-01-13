@@ -1,6 +1,8 @@
 """
 Configuración del agente OpenHands
 BASADO 100% EN LA DOCUMENTACIÓN OFICIAL Y PROMPTS DE REFERENCIA
+
+Incluye herramientas de browser para navegación web con screenshots.
 """
 
 from pydantic import SecretStr
@@ -59,10 +61,20 @@ def create_agent(api_key: str, model: str = "gemini/gemini-2.5-pro", base_url: s
         load_public_skills=True,
     )
     
-    # Crear agente (sin tools explícitas, usa las del SDK)
+    # === CARGAR HERRAMIENTAS DE BROWSER ===
+    browser_tools = []
+    try:
+        from core.browser import create_browser_tools
+        browser_tools = create_browser_tools()
+        print(f"  🌐 {len(browser_tools)} herramientas de browser cargadas")
+    except Exception as e:
+        print(f"  ⚠️ No se pudieron cargar herramientas de browser: {e}")
+    
+    # Crear agente con herramientas de browser
     agent = Agent(
         llm=llm,
         agent_context=agent_context,
+        tools=browser_tools if browser_tools else None,
     )
     
     return agent

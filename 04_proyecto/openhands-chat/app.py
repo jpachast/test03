@@ -4,6 +4,11 @@ OpenHands Chat - Punto de entrada principal
 
 ⚠️ IMPORTANTE: Este archivo auto-instala TODAS las dependencias necesarias
    No necesitas ejecutar pip install ni start.sh manualmente
+   
+   Incluye:
+   - Dependencias Python (requirements.txt)
+   - Playwright browsers (para navegación web)
+   - Code-server (VS Code)
 """
 
 import os
@@ -28,6 +33,7 @@ def ensure_dependencies():
         ("cryptography", "cryptography"),
         ("git", "gitpython"),
         ("openhands", "openhands-sdk"),
+        ("playwright", "playwright"),  # Para navegación web
     ]
     
     missing = []
@@ -62,6 +68,41 @@ def ensure_dependencies():
         
         # Reiniciar el proceso para cargar los nuevos módulos
         os.execv(sys.executable, [sys.executable] + sys.argv)
+
+
+def ensure_playwright_browsers():
+    """Instala los browsers de Playwright si no están instalados"""
+    try:
+        from playwright.sync_api import sync_playwright
+        # Verificar si chromium está instalado intentando lanzarlo
+        with sync_playwright() as p:
+            try:
+                browser = p.chromium.launch(headless=True)
+                browser.close()
+                return True  # Ya está instalado
+            except Exception:
+                pass
+    except ImportError:
+        pass
+    
+    print("=" * 60)
+    print("  🌐 INSTALANDO BROWSERS DE PLAYWRIGHT...")
+    print("=" * 60)
+    print()
+    
+    result = subprocess.run(
+        [sys.executable, "-m", "playwright", "install", "chromium"],
+        capture_output=True,
+        text=True
+    )
+    
+    if result.returncode == 0:
+        print("  ✅ Chromium instalado correctamente")
+    else:
+        print(f"  ⚠️ Error instalando Chromium: {result.stderr}")
+    
+    print()
+    return result.returncode == 0
 
 def ensure_code_server():
     """Instala code-server dentro del proyecto para que persista entre sesiones"""
@@ -100,6 +141,7 @@ def ensure_code_server():
 
 # Ejecutar auto-instalación ANTES de cualquier otro import
 ensure_dependencies()
+ensure_playwright_browsers()  # Para navegación web
 ensure_code_server()
 
 # =============================================================================
