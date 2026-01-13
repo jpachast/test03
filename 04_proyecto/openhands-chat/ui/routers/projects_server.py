@@ -104,10 +104,10 @@ async def api_stop_app_server(request: Request):
 
 # Proxy para el servidor de app
 @router.api_route("/app-preview/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD"])
-async def proxy_app_server(request: Request, path: str):
+async def proxy_app_server(request: Request, path: str, conversation_id: int = None):
     """Proxy para el servidor de aplicaciones"""
-    # Obtener el puerto del servidor activo
-    status = get_app_server_status()
+    # Obtener el puerto del servidor para esta conversación específica
+    status = get_app_server_status(conversation_id)
     
     if status.get("status") != "running":
         return HTMLResponse(
@@ -129,8 +129,10 @@ async def proxy_app_server(request: Request, path: str):
     
     port = status.get("port")
     target_url = f"http://127.0.0.1:{port}/{path}"
-    if request.query_params:
-        target_url += f"?{request.query_params}"
+    # Filtrar conversation_id del query string (no enviarlo al servidor de archivos)
+    query_params = {k: v for k, v in request.query_params.items() if k != 'conversation_id'}
+    if query_params:
+        target_url += f"?{'&'.join(f'{k}={v}' for k, v in query_params.items())}"
     
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:

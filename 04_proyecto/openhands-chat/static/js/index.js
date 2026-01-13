@@ -456,14 +456,14 @@
             const frame = document.getElementById('browserFrame');
             const urlInput = document.getElementById('browserUrl');
             
-            // Verificar si el app-server ya está corriendo (por el prestart)
+            // Verificar si el app-server ya está corriendo para ESTA conversación
             try {
-                const statusResp = await fetch('/api/app-server/status');
+                const statusResp = await fetch('/api/app-server/status?conversation_id=' + currentConversationId);
                 const statusData = await statusResp.json();
                 
                 if (statusData.status === 'running' && statusData.port) {
                     // Ya está corriendo, usar proxy
-                    const previewUrl = '/api/app-server/app-preview/index.html';
+                    const previewUrl = `/api/app-server/app-preview/index.html?conversation_id=${currentConversationId}`;
                     urlInput.value = `http://localhost:${statusData.port}/index.html`;
                     frame.src = previewUrl;
                     browserLoaded = true;
@@ -487,7 +487,7 @@
                 if (data.status === 'started' || data.status === 'running') {
                     // Pequeña espera para que inicie
                     await new Promise(r => setTimeout(r, 500));
-                    const previewUrl = '/api/app-server/app-preview/index.html';
+                    const previewUrl = `/api/app-server/app-preview/index.html?conversation_id=${currentConversationId}`;
                     urlInput.value = `http://localhost:${data.port}/index.html`;
                     frame.src = previewUrl;
                     browserLoaded = true;
@@ -532,7 +532,7 @@
             appServerPort = port;
             placeholder.style.display = 'none';
             frame.style.display = 'block';
-            frame.src = '/api/app-server/app-preview/';
+            frame.src = `/api/app-server/app-preview/?conversation_id=${currentConversationId}`;
             urlInput.value = `http://localhost:${port}`;
         }
         
