@@ -13,9 +13,10 @@
         let launchBtn = null;
         
         // === INICIALIZACIÓN ===
-        // Verificar parámetro conv ANTES de mostrar nada
+        // Verificar si estamos en /chat/{id} o si hay ?conv= en URL
+        const pathMatch = window.location.pathname.match(/^\/chat\/(\d+)$/);
         const urlParams = new URLSearchParams(window.location.search);
-        const convIdFromUrl = urlParams.get('conv');
+        const convIdFromUrl = pathMatch ? pathMatch[1] : urlParams.get('conv');
         
         // Si hay conv en URL, ocultar home inmediatamente
         if (convIdFromUrl) {
@@ -255,6 +256,9 @@
             currentProject = projectName;
             currentConversationId = convId;
             document.getElementById('currentConversationId').value = convId;
+            
+            // Actualizar URL a /chat/{id}
+            window.history.pushState({convId: convId}, '', `/chat/${convId}`);
             
             const repoFullName = repoOwner && repoName ? `${repoOwner}/${repoName}` : projectName;
             showChat(projectName, repoFullName, branch);

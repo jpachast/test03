@@ -95,7 +95,7 @@
         });
         
         function openConversation(convId) {
-            window.location.href = `/?conv=${convId}`;
+            window.location.href = `/chat/${convId}`;
         }
         
         // Renombrar

@@ -26,6 +26,21 @@ async def home(request: Request):
         "has_api_key": has_api_key,
         "projects": projects,
         "current_workspace": None,
+        "conversation_id": None,
+    })
+
+
+@router.get("/chat/{conv_id}", response_class=HTMLResponse)
+async def chat_page(request: Request, conv_id: int):
+    """Página de chat con conversación específica"""
+    has_api_key = db.has_api_key()
+    projects = list_projects(settings.projects_dir)
+    return templates.TemplateResponse("index.html", {
+        "request": request,
+        "has_api_key": has_api_key,
+        "projects": projects,
+        "current_workspace": None,
+        "conversation_id": conv_id,
     })
 
 
