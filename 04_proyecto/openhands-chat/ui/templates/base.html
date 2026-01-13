@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}OpenHands Chat{% endblock %}</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="/static/css/layout.css">
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    {% block body %}
+    <div class="app-layout">
+        <!-- Panel Izquierdo -->
+        <div class="left-panel">
+            <!-- Header -->
+            <header class="app-header">
+                <div class="header-left">
+                    <span class="logo">🤖</span>
+                    <span class="app-title">OpenHands Chat</span>
+                </div>
+                <nav class="header-nav">
+                    <a href="/" class="{% if active_page == 'home' %}active{% endif %}">Inicio</a>
+                    <a href="/conversations" class="{% if active_page == 'conversations' %}active{% endif %}">📋 Conversaciones</a>
+                    <a href="/settings" class="{% if active_page == 'settings' %}active{% endif %}">⚙️ Configuración</a>
+                </nav>
+            </header>
+
+            {% block alerts %}{% endblock %}
+            
+            <div class="left-content">
+                {% block left_content %}{% endblock %}
+            </div>
+            
+            {% block left_footer %}{% endblock %}
+        </div>
+        
+        <!-- Panel Derecho -->
+        <div class="right-panel">
+            <div class="right-header">
+                <span>📱 Aplicación</span>
+            </div>
+            <div class="right-content">
+                {% block right_content %}
+                <div class="app-placeholder">
+                    <div class="placeholder-icon">⚙️</div>
+                    <p>Inicia un servidor web para ejecutar la aplicación</p>
+                </div>
+                {% endblock %}
+            </div>
+        </div>
+    </div>
+    {% endblock %}
+    
+    {% block scripts %}{% endblock %}
+</body>
+</html>

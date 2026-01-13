@@ -1,0 +1,841 @@
+        /* ========================================
+           HOME PAGE - Pantalla completa (estilo OpenHands Cloud)
+           ======================================== */
+        .home-fullscreen {
+            display: flex;
+            min-height: 100vh;
+            background: #0d0d0d;
+            color: #c9d1d9;
+        }
+        
+        /* Sidebar izquierdo */
+        .sidebar {
+            width: 60px;
+            background: #0d0d0d;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 16px 0;
+            border-right: 1px solid #21262d;
+        }
+        
+        .sidebar-logo {
+            font-size: 24px;
+            margin-bottom: 24px;
+        }
+        
+        .sidebar-btn {
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #8b949e;
+            text-decoration: none;
+            font-size: 18px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            transition: all 0.15s;
+        }
+        
+        .sidebar-btn:hover {
+            background: #21262d;
+            color: #c9d1d9;
+        }
+        
+        /* Contenido principal */
+        .home-main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            overflow-y: auto;
+            padding: 40px 20px;
+        }
+        
+        .home-content {
+            width: 100%;
+            max-width: 900px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .home-container {
+            width: 100%;
+        }
+        
+        .home-header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        
+        .home-header h1 {
+            font-size: 2.8rem;
+            margin-bottom: 0.5rem;
+            color: #fff;
+            font-weight: 400;
+        }
+        
+        .home-tip {
+            background: #21262d;
+            border: 1px solid #30363d;
+            border-radius: 24px;
+            padding: 10px 20px;
+            display: inline-block;
+            margin-bottom: 24px;
+            font-size: 14px;
+            color: #c9d1d9;
+        }
+        
+        .home-tip a {
+            color: #58a6ff;
+            text-decoration: underline;
+        }
+        
+        .launch-options {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+            margin-bottom: 48px;
+        }
+        
+        .launch-card {
+            background: #161616;
+            border: 1px solid #30363d;
+            border-radius: 12px;
+            padding: 24px;
+        }
+        
+        .launch-card h3 {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 8px;
+            font-size: 16px;
+            font-weight: 500;
+            color: #fff;
+        }
+        
+        .launch-card p {
+            color: #8b949e;
+            font-size: 14px;
+            margin-bottom: 20px;
+            line-height: 1.5;
+        }
+        
+        .launch-card select,
+        .launch-card input {
+            width: 100%;
+            padding: 12px 16px;
+            margin-bottom: 12px;
+            background: #21262d;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            color: #c9d1d9;
+            font-size: 14px;
+        }
+        
+        .launch-card select:focus,
+        .launch-card input:focus {
+            outline: none;
+            border-color: #58a6ff;
+        }
+        
+        .launch-btn {
+            width: 100%;
+            padding: 12px;
+            background: #6b5b00;
+            color: #c9a227;
+            border: none;
+            border-radius: 8px;
+            font-weight: 500;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        
+        .launch-btn:hover:not(:disabled) {
+            background: #7d6a00;
+        }
+        
+        .launch-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .launch-btn.secondary {
+            background: #238636;
+            color: #fff;
+            border: none;
+        }
+        
+        .launch-btn.secondary:hover {
+            background: #2ea043;
+        }
+        
+        .conversations-section {
+            display: grid;
+            grid-template-columns: 1.2fr 1fr;
+            gap: 40px;
+            width: 100%;
+        }
+        
+        .conversations-list h3,
+        .suggested-tasks h3 {
+            margin-bottom: 16px;
+            font-size: 14px;
+            font-weight: 500;
+            color: #8b949e;
+        }
+        
+        .conversation-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            padding: 16px;
+            background: transparent;
+            border-radius: 8px;
+            margin-bottom: 0.75rem;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        
+        .conversation-item:hover {
+            background: #252540;
+        }
+        
+        .conv-status {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #4da6ff;
+            margin-top: 6px;
+        }
+        
+        .conv-status.done {
+            background: #4caf50;
+        }
+        
+        .conv-info {
+            flex: 1;
+        }
+        
+        .conv-title {
+            font-weight: 500;
+            margin-bottom: 0.25rem;
+        }
+        
+        .conv-repo {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.85rem;
+            color: #888;
+        }
+        
+        .conv-repo .github-icon {
+            width: 14px;
+            height: 14px;
+        }
+        
+        .conv-time {
+            font-size: 0.8rem;
+            color: #666;
+        }
+        
+        .conv-menu {
+            color: #666;
+            cursor: pointer;
+        }
+        
+        .view-more {
+            text-align: center;
+            padding: 1rem;
+            color: #4da6ff;
+            cursor: pointer;
+        }
+        
+        .no-conversations {
+            text-align: center;
+            color: #666;
+            padding: 2rem;
+        }
+        
+        .github-not-configured {
+            text-align: center;
+            padding: 2rem;
+            color: #888;
+        }
+        
+        .github-not-configured a {
+            color: #c9a227;
+        }
+        
+        /* ========================================
+           CHAT PAGE - Layout de dos paneles
+           ======================================== */
+        #chatPage {
+            display: none;
+            height: 100vh;
+            background: #0d0d0d;
+        }
+        
+        #chatPage.active {
+            display: flex;
+        }
+        
+        .chat-left-panel {
+            width: 50%;
+            min-width: 500px;
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid #21262d;
+            background: #0d0d0d;
+        }
+        
+        .chat-right-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: #0d0d0d;
+        }
+        
+        .chat-right-panel .right-header {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding: 8px 16px;
+            background: transparent;
+            border-bottom: 1px solid #21262d;
+            color: #8b949e;
+            font-size: 14px;
+        }
+        
+        .header-icons {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        
+        .icon-btn {
+            background: transparent;
+            border: none;
+            color: #8b949e;
+            padding: 6px 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.15s;
+        }
+        
+        .icon-btn:hover {
+            background: #21262d;
+            color: #c9d1d9;
+        }
+        
+        .icon-btn.app-btn {
+            background: #1f6feb;
+            color: #fff;
+            padding: 6px 12px;
+        }
+        
+        .icon-btn.app-btn:hover {
+            background: #388bfd;
+        }
+        
+        .chat-right-panel .right-content {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #0d0d0d;
+        }
+        
+        .app-placeholder {
+            text-align: center;
+            color: #484f58;
+        }
+        
+        .placeholder-icon {
+            font-size: 48px;
+            margin-bottom: 12px;
+            opacity: 0.3;
+        }
+        
+        /* Chat Container */
+        .chat-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        
+        /* Header del Chat - Estilo OpenHands Cloud */
+        .chat-repo-header {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 16px 20px;
+            background: transparent;
+            border-bottom: 1px solid #30363d;
+            margin: 0;
+            border-radius: 0;
+        }
+        
+        .back-btn {
+            background: #21262d;
+            border: 1px solid #30363d;
+            color: #c9d1d9;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.15s;
+        }
+        
+        .back-btn:hover {
+            background: #30363d;
+            border-color: #484f58;
+        }
+        
+        .repo-info {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .repo-icon {
+            font-size: 20px;
+        }
+        
+        .repo-name {
+            font-weight: 600;
+            font-size: 16px;
+            color: #fff;
+        }
+        
+        .repo-branch {
+            color: #8b949e;
+            font-size: 14px;
+        }
+        
+        /* Tabs Chat/Código */
+        .view-tabs {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .view-tab {
+            background: #21262d;
+            border: 1px solid #30363d;
+            color: #8b949e;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.15s;
+        }
+        
+        .view-tab:hover {
+            background: #30363d;
+            color: #c9d1d9;
+        }
+        
+        .view-tab.active {
+            background: #238636;
+            border-color: #238636;
+            color: #fff;
+        }
+        
+        /* Vista de código */
+        #chatView {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        
+        #codeView {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        
+        .code-server-container {
+            flex: 1;
+            background: #1e1e1e;
+            border-radius: 8px;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .code-loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            color: #888;
+        }
+        
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid #333;
+            border-top-color: #4a6cf7;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 24px;
+            background: transparent;
+            border-radius: 0;
+            margin-bottom: 1rem;
+        }
+        
+        .chat-input {
+            display: flex;
+            gap: 0.5rem;
+        }
+        
+        .chat-input input[type="text"] {
+            flex: 1;
+            padding: 1rem;
+            background: #1a1a2e;
+            border: 1px solid #333;
+            border-radius: 8px;
+            color: #fff;
+            font-size: 1rem;
+        }
+        
+        .chat-input button {
+            padding: 1rem 1.5rem;
+            background: #e94560;
+            border: none;
+            border-radius: 8px;
+            color: #fff;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        
+        .chat-input button:hover {
+            background: #ff6b6b;
+        }
+        
+        /* Input container estilo OpenHands Cloud */
+        .chat-input-container {
+            background: #0d0d0d;
+            border-radius: 12px;
+            border: 1px solid #21262d;
+            overflow: hidden;
+            margin: 0 16px 8px 16px;
+        }
+        
+        .chat-input-row {
+            display: flex;
+            align-items: center;
+            padding: 10px 14px;
+            gap: 10px;
+        }
+        
+        .attach-btn {
+            background: transparent;
+            border: none;
+            font-size: 18px;
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 8px;
+            transition: background 0.2s;
+            opacity: 0.6;
+            color: #8b949e;
+        }
+        
+        .attach-btn:hover {
+            background: #30363d;
+            opacity: 1;
+        }
+        
+        .chat-input-row input[type="text"] {
+            flex: 1;
+            padding: 12px 0;
+            background: transparent;
+            border: none;
+            color: #c9d1d9;
+            font-size: 15px;
+            outline: none;
+        }
+        
+        .chat-input-row input[type="text"]::placeholder {
+            color: #6e7681;
+        }
+        
+        .send-btn {
+            width: 36px;
+            height: 36px;
+            background: #238636;
+            border: none;
+            border-radius: 50%;
+            color: #fff;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s;
+        }
+        
+        .send-btn:hover {
+            background: #2ea043;
+        }
+        
+        .send-btn:disabled {
+            background: #21262d;
+            cursor: not-allowed;
+        }
+        
+        .send-icon {
+            font-size: 14px;
+        }
+        
+        /* Toolbar con herramientas y estado */
+        .chat-toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 16px;
+            border-top: 1px solid #21262d;
+            background: transparent;
+        }
+        
+        .tools-btn {
+            background: transparent;
+            border: none;
+            color: #6e7681;
+            font-size: 13px;
+            cursor: pointer;
+            padding: 6px 12px;
+            border-radius: 6px;
+            transition: all 0.2s;
+        }
+        
+        .tools-btn:hover {
+            background: #21262d;
+            color: #c9d1d9;
+        }
+        
+        .task-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #8b949e;
+            font-size: 0.85rem;
+        }
+        
+        .status-text {
+            color: #8b949e;
+        }
+        
+        .status-icon {
+            font-size: 1rem;
+        }
+        
+        /* Estados de la tarea */
+        .task-status.processing .status-text {
+            color: #f0ad4e;
+        }
+        
+        .task-status.processing .status-icon {
+            animation: spin 1s linear infinite;
+        }
+        
+        .task-status.completed .status-text {
+            color: #238636;
+        }
+        
+        .task-status.error .status-text {
+            color: #f85149;
+        }
+        
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        
+        /* Progreso streaming */
+        .streaming-progress {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            border: 1px solid #30363d;
+            border-left: 3px solid #f0ad4e;
+        }
+        
+        .progress-content {
+            font-family: 'Fira Code', monospace;
+            font-size: 0.9rem;
+            color: #c9d1d9;
+        }
+        
+        /* Barra de acciones Git */
+        /* Status Bar - Estilo OpenHands Cloud (fixed bottom) */
+        .git-actions-bar {
+            display: flex;
+            align-items: center;
+            padding: 8px 16px;
+            background: #0d1117;
+            border-top: 1px solid #21262d;
+            height: 44px;
+            box-sizing: border-box;
+            gap: 12px;
+        }
+        
+        .user-avatar {
+            width: 28px;
+            height: 28px;
+            background: #ffc107;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+        }
+        
+        .git-repo-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .git-icon {
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #8b949e;
+        }
+        
+        .git-icon svg {
+            width: 22px;
+            height: 22px;
+            fill: currentColor;
+        }
+        
+        .git-icon svg path {
+            fill: currentColor;
+        }
+        
+        .git-repo {
+            color: #c9d1d9;
+            font-size: 0.9rem;
+            font-weight: 400;
+        }
+        
+        .git-branch-badge {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: #238636;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            color: white;
+            font-weight: 500;
+        }
+        
+        .git-branch-badge svg {
+            width: 14px;
+            height: 14px;
+            fill: currentColor;
+        }
+        
+        .git-buttons {
+            display: flex;
+            gap: 8px;
+            margin-left: auto;
+        }
+        
+        .git-btn {
+            padding: 6px 14px;
+            background: #21262d;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            color: #c9d1d9;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 500;
+            transition: all 0.15s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .git-btn svg {
+            width: 16px;
+            height: 16px;
+        }
+        
+        .git-btn svg path {
+            fill: currentColor;
+        }
+        
+        .git-btn:hover {
+            background: #30363d;
+            border-color: #484f58;
+        }
+        
+        .git-btn-pr {
+            background: #238636;
+            border-color: #238636;
+            color: white;
+        }
+        
+        .git-btn-pr:hover {
+            background: #2ea043;
+            border-color: #2ea043;
+        }
+        
+        .git-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        /* Animación de loading */
+        .git-btn svg.spin {
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        
+        /* Ajustar contenido para no quedar detrás de la barra fija */
+        body {
+            padding-bottom: 50px;
+        }
+        
+        @media (max-width: 768px) {
+            .launch-options,
+            .conversations-section {
+                grid-template-columns: 1fr;
+            }
+            
+            .git-actions-bar {
+                flex-direction: column;
+                gap: 10px;
+            }
+            
+            .git-buttons {
+                width: 100%;
+                justify-content: center;
+            }
+        }
