@@ -256,9 +256,11 @@ html, body {
     display: flex !important;
 }
 
+.app-layout.single-panel .left-panel,
 .app-layout.single-panel .left-panel.full-width {
     width: 100% !important;
     max-width: 100% !important;
     min-width: 100% !important;
+    flex: 1 !important;
     border-right: none !important;
 }

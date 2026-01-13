@@ -1,52 +1,71 @@
-{% extends "base.html" %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Conversaciones - OpenHands Chat</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="/static/css/layout.css">
+    <link rel="stylesheet" href="/static/css/conversations.css">
+</head>
+<body>
+    <div class="app-layout single-panel">
+        <div class="left-panel full-width">
+            <header class="app-header">
+                <div class="header-left">
+                    <span class="logo">🤖</span>
+                    <span class="app-title">OpenHands Chat</span>
+                </div>
+                <nav class="header-nav">
+                    <a href="/">Inicio</a>
+                    <a href="/conversations" class="active">📋 Conversaciones</a>
+                    <a href="/settings">⚙️ Configuración</a>
+                </nav>
+            </header>
 
-{% block title %}Conversaciones - OpenHands Chat{% endblock %}
+            <div class="left-content">
+                <div class="page-header">
+                    <h1 class="page-title">📋 Conversaciones</h1>
+                    <a href="/" class="btn-new">+ Nueva conversación</a>
+                </div>
 
-{% block extra_css %}
-<link rel="stylesheet" href="/static/css/conversations.css">
-{% endblock %}
+                <div id="conversationsList" class="conversations-list">
+                    <div class="empty-state">
+                        <h3>No hay conversaciones</h3>
+                        <p>Inicia una nueva conversación desde el inicio</p>
+                    </div>
+                </div>
 
-{% block content %}
-<div class="page-header">
-    <h1 class="page-title">📋 Conversaciones</h1>
-    <a href="/" class="btn-new">+ Nueva conversación</a>
-</div>
+                <!-- Modal Renombrar -->
+                <div id="renameModal" class="modal-overlay">
+                    <div class="modal">
+                        <h3>✏️ Renombrar conversación</h3>
+                        <input type="text" id="renameInput" placeholder="Nuevo nombre">
+                        <div class="modal-actions">
+                            <button class="btn btn-secondary" onclick="closeRenameModal()">Cancelar</button>
+                            <button class="btn btn-primary" onclick="saveRename()">Guardar</button>
+                        </div>
+                    </div>
+                </div>
 
-<div id="conversationsList" class="conversations-list">
-    <div class="empty-state">
-        <h3>No hay conversaciones</h3>
-        <p>Inicia una nueva conversación desde el inicio</p>
-    </div>
-</div>
-
-<!-- Modal Renombrar -->
-<div id="renameModal" class="modal-overlay">
-    <div class="modal">
-        <h3>✏️ Renombrar conversación</h3>
-        <input type="text" id="renameInput" placeholder="Nuevo nombre">
-        <div class="modal-actions">
-            <button class="btn btn-secondary" onclick="closeRenameModal()">Cancelar</button>
-            <button class="btn btn-primary" onclick="saveRename()">Guardar</button>
+                <!-- Modal Eliminar -->
+                <div id="deleteModal" class="modal-overlay">
+                    <div class="modal">
+                        <h3>🗑️ Eliminar conversación</h3>
+                        <p style="color: #8b949e; margin-bottom: 20px;">
+                            ¿Estás seguro de eliminar esta conversación? Se eliminará también la carpeta del proyecto.
+                        </p>
+                        <p id="deleteConvName" style="color: #f85149; margin-bottom: 20px; font-weight: 500;"></p>
+                        <div class="modal-actions">
+                            <button class="btn btn-secondary" onclick="closeDeleteModal()">Cancelar</button>
+                            <button class="btn btn-danger" onclick="confirmDelete()">Eliminar</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
-</div>
 
-<!-- Modal Eliminar -->
-<div id="deleteModal" class="modal-overlay">
-    <div class="modal">
-        <h3>🗑️ Eliminar conversación</h3>
-        <p style="color: #8b949e; margin-bottom: 20px;">
-            ¿Estás seguro de eliminar esta conversación? Se eliminará también la carpeta del proyecto.
-        </p>
-        <p id="deleteConvName" style="color: #f85149; margin-bottom: 20px; font-weight: 500;"></p>
-        <div class="modal-actions">
-            <button class="btn btn-secondary" onclick="closeDeleteModal()">Cancelar</button>
-            <button class="btn btn-danger" onclick="confirmDelete()">Eliminar</button>
-        </div>
-    </div>
-</div>
-{% endblock %}
-
-{% block scripts %}
-<script src="/static/js/conversations.js"></script>
-{% endblock %}
+    <script src="/static/js/conversations.js"></script>
+</body>
+</html>
