@@ -1,5 +1,43 @@
+# Proyectos generados
 04_proyecto/openhands-chat/projects/
+
+# Python cache
 __pycache__/
 *.pyc
 *.pyo
+*.pyd
+.Python
+
+# Databases
 *.db
+*.sqlite3
+
+# Environment
+.env
+.env.local
+.env.*.local
+.venv/
+venv/
+ENV/
+
+# Logs
+*.log
+logs/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Node (por si acaso)
+node_modules/
+
+# Archivos temporales
+*.tmp
+*.temp
+*.bak
