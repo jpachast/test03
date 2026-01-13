@@ -857,3 +857,45 @@
                 justify-content: center;
             }
         }
+
+        /* Navegador/Browser view */
+        #browserView {
+            position: relative;
+            background: #1e1e1e;
+        }
+        
+        .browser-toolbar {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            background: #2d2d2d;
+            border-bottom: 1px solid #404040;
+            height: 40px;
+            box-sizing: border-box;
+        }
+        
+        .browser-url {
+            flex: 1;
+            padding: 6px 12px;
+            background: #1e1e1e;
+            border: 1px solid #404040;
+            border-radius: 4px;
+            color: #aaa;
+            font-size: 13px;
+            font-family: monospace;
+        }
+        
+        .browser-toolbar button {
+            padding: 4px 8px;
+            background: transparent;
+            border: none;
+            color: #fff;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        
+        .browser-toolbar button:hover {
+            background: #404040;
+            border-radius: 4px;
+        }

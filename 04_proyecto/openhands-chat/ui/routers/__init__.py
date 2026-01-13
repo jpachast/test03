@@ -6,3 +6,4 @@ from .conversations import router as conversations_router
 from .chat import router as chat_router
 from .git import router as git_router
 from .code_server import router as code_server_router
+from .projects_server import router as projects_server_router

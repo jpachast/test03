@@ -266,6 +266,7 @@
             // Mostrar/ocultar tabs de código según el proyecto
             showCodeTabs(repoName || projectName);
             codeServerLoaded = false; // Reset para nuevo proyecto
+            browserLoaded = false; // Reset navegador también
             
             // Actualizar barra de Git
             if (repoOwner && repoName) {
@@ -358,38 +359,84 @@
         }
         
         // === TABS CHAT/CÓDIGO ===
+        let browserLoaded = false;
+        
         function switchView(view) {
             currentView = view;
             const appView = document.getElementById('appView');
             const codeViewRight = document.getElementById('codeViewRight');
+            const browserView = document.getElementById('browserView');
             const tabChat = document.getElementById('tabChat');
             const tabCode = document.getElementById('tabCode');
             const tabApp = document.getElementById('tabApp');
+            const tabBrowser = document.getElementById('tabBrowser');
             
             // Resetear todos los tabs
             tabChat.classList.remove('active');
             tabCode.classList.remove('active');
             tabApp.classList.remove('active');
+            if (tabBrowser) tabBrowser.classList.remove('active');
+            
+            // Ocultar todas las vistas
+            appView.style.display = 'none';
+            codeViewRight.style.display = 'none';
+            if (browserView) browserView.style.display = 'none';
             
             if (view === 'chat' || view === 'app') {
-                // Mostrar vista de aplicación en panel derecho
                 appView.style.display = 'block';
-                codeViewRight.style.display = 'none';
                 if (view === 'chat') {
                     tabChat.classList.add('active');
                 } else {
                     tabApp.classList.add('active');
                 }
             } else if (view === 'code') {
-                // Mostrar código en panel derecho
-                appView.style.display = 'none';
                 codeViewRight.style.display = 'block';
                 tabCode.classList.add('active');
-                // Iniciar code-server si no está cargado
                 if (!codeServerLoaded) {
                     startCodeServer();
                 }
+            } else if (view === 'browser') {
+                browserView.style.display = 'block';
+                if (tabBrowser) tabBrowser.classList.add('active');
+                if (!browserLoaded) {
+                    loadBrowserPreview();
+                }
             }
+        }
+        
+        async function loadBrowserPreview() {
+            const frame = document.getElementById('browserFrame');
+            const urlInput = document.getElementById('browserUrl');
+            
+            // Primero asegurar que el servidor de proyectos está corriendo
+            try {
+                urlInput.value = 'Iniciando servidor...';
+                const response = await fetch('/api/projects-server/ensure', { method: 'POST' });
+                const data = await response.json();
+                console.log('Servidor de proyectos:', data);
+            } catch (error) {
+                console.error('Error iniciando servidor de proyectos:', error);
+            }
+            
+            // Construir URL del proyecto
+            // Estructura: projects/{owner}-{repo}/chat01/index.html
+            const projectsBaseUrl = 'https://work-2-pqlteoebiwavskzp.prod-runtime.all-hands.dev';
+            const { owner, repo } = currentGitInfo;
+            
+            if (owner && repo) {
+                // URL: /{owner}-{repo}/chat01/index.html
+                const previewUrl = `${projectsBaseUrl}/${owner}-${repo}/chat01/index.html`;
+                urlInput.value = previewUrl;
+                frame.src = previewUrl;
+                browserLoaded = true;
+            } else {
+                urlInput.value = 'No hay proyecto seleccionado';
+            }
+        }
+        
+        function refreshBrowser() {
+            browserLoaded = false;
+            loadBrowserPreview();
         }
         
         async function startCodeServer() {

@@ -113,16 +113,23 @@ from config.settings import Settings
 # PID del servidor de proyectos
 projects_server_pid = None
 
+def is_port_in_use(port: int) -> bool:
+    """Verifica si un puerto está en uso"""
+    import socket
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        return s.connect_ex(('localhost', port)) == 0
+
 def start_projects_server(projects_dir: str, port: int = 12001):
-    """Inicia el servidor HTTP para proyectos"""
+    """Inicia el servidor HTTP para proyectos si no está corriendo"""
     global projects_server_pid
     
-    # Matar servidor anterior si existe
-    subprocess.run(
-        f'pkill -f "http.server {port}"',
-        shell=True,
-        stderr=subprocess.DEVNULL
-    )
+    # Verificar si ya hay un servidor corriendo en el puerto
+    if is_port_in_use(port):
+        print(f"  ℹ️  Servidor de proyectos ya está corriendo en puerto {port}")
+        return -1  # Ya corriendo
+    
+    # Asegurar que el directorio existe
+    os.makedirs(projects_dir, exist_ok=True)
     
     # Iniciar nuevo servidor
     process = subprocess.Popen(

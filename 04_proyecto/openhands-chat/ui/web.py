@@ -17,7 +17,8 @@ from ui.routers import (
     conversations_router,
     chat_router,
     git_router,
-    code_server_router
+    code_server_router,
+    projects_server_router
 )
 
 # Inicializar
@@ -42,6 +43,7 @@ app.include_router(conversations_router)
 app.include_router(chat_router)
 app.include_router(git_router)
 app.include_router(code_server_router)
+app.include_router(projects_server_router)
 
 
 # === RUTAS DE PROYECTOS (legacy) ===
