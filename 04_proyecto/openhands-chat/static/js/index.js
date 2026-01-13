@@ -973,6 +973,16 @@
                                     progressDiv.querySelector('.progress-content').innerHTML = 
                                         `❌ Error: ${data.text}`;
                                     setTaskStatus('error', 'Error');
+                                } else if (data.type === 'browser' && data.screenshot) {
+                                    // Screenshot del navegador detectado - actualizar vista
+                                    progressDiv.querySelector('.progress-content').innerHTML = 
+                                        `${data.icon} ${data.text}`;
+                                    setTaskStatus('processing', 'Navegando...');
+                                    // Refrescar screenshot del navegador
+                                    browserLoaded = false;
+                                    if (currentView === 'browser') {
+                                        loadBrowserScreenshot();
+                                    }
                                 } else if (data.type && data.icon && data.text) {
                                     // Actualizar progreso
                                     progressDiv.querySelector('.progress-content').innerHTML = 

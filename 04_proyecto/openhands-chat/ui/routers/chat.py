@@ -7,11 +7,12 @@ from pathlib import Path
 from fastapi import APIRouter, Form, HTTPException
 from fastapi.responses import JSONResponse, StreamingResponse
 
-from openhands.sdk import Conversation
+from openhands.sdk import Conversation, ImageContent
 
 from config.database import Database
 from config.settings import Settings
 from core.agent import create_agent
+from ui.routers.browser import update_screenshot
 
 router = APIRouter(prefix="/api/chat", tags=["chat"])
 db = Database()
@@ -21,6 +22,7 @@ settings = Settings()
 current_conversation = None
 current_workspace = None
 last_agent_response = ""
+current_conversation_id = None  # Para asociar screenshots con la conversación
 
 
 def get_workspace():
@@ -32,10 +34,10 @@ def set_workspace(path):
     current_workspace = path
 
 
-def create_streaming_callback(q):
+def create_streaming_callback(q, conv_id=None):
     """Crea un callback que envía eventos a la cola SSE"""
     def streaming_callback(event):
-        global last_agent_response
+        global last_agent_response, current_conversation_id
         event_type = str(type(event).__name__)
         
         try:
@@ -69,8 +71,38 @@ def create_streaming_callback(q):
                 if hasattr(event, 'observation') and event.observation:
                     obs = event.observation
                     obs_type = str(type(obs).__name__)
+                    tool_name = getattr(event, 'tool_name', '') or ''
                     
-                    if 'Command' in obs_type or 'Bash' in obs_type:
+                    # Detectar screenshots de browser (como OpenHands)
+                    if 'browser' in tool_name.lower() or 'MCP' in obs_type:
+                        if hasattr(obs, 'content') and obs.content:
+                            for item in obs.content:
+                                # Buscar ImageContent con screenshot
+                                if isinstance(item, ImageContent):
+                                    screenshot_data = item.data if hasattr(item, 'data') else None
+                                    if screenshot_data and conv_id:
+                                        # Extraer URL del browser si está disponible
+                                        browser_url = ''
+                                        for text_item in obs.content:
+                                            if hasattr(text_item, 'text') and text_item.text:
+                                                # Buscar URL en el texto
+                                                if 'url' in text_item.text.lower():
+                                                    import re
+                                                    urls = re.findall(r'https?://[^\s"\'<>]+', text_item.text)
+                                                    if urls:
+                                                        browser_url = urls[0]
+                                                        break
+                                        
+                                        # Guardar screenshot
+                                        update_screenshot(conv_id, browser_url, screenshot_data)
+                                        q.put({
+                                            "type": "browser", 
+                                            "icon": "🌐", 
+                                            "text": f"Screenshot: {browser_url[:50] if browser_url else 'capturado'}",
+                                            "screenshot": True
+                                        })
+                    
+                    elif 'Command' in obs_type or 'Bash' in obs_type:
                         output = getattr(obs, 'output', '') or getattr(obs, 'content', '')
                         if output and len(output) > 0:
                             preview = output[:100].replace('\n', ' ')
@@ -217,7 +249,7 @@ async def stream_message(message: str = Form(...), project: str = Form(None)):
         model = db.get_setting("llm_model", settings.default_model)
         agent = create_agent(api_key, model)
         
-        streaming_cb = create_streaming_callback(q)
+        streaming_cb = create_streaming_callback(q, conversation_id)
         conv = Conversation(
             agent=agent,
             workspace=workspace,
