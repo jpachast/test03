@@ -1,0 +1,48 @@
+"""Rutas de páginas HTML"""
+from pathlib import Path
+from fastapi import APIRouter, Request
+from fastapi.responses import HTMLResponse
+from fastapi.templating import Jinja2Templates
+
+from config.database import Database
+from config.settings import Settings
+from core.workspace import list_projects
+
+router = APIRouter(tags=["pages"])
+settings = Settings()
+db = Database()
+
+templates_dir = Path(__file__).parent.parent / "templates"
+templates = Jinja2Templates(directory=str(templates_dir))
+
+
+@router.get("/", response_class=HTMLResponse)
+async def home(request: Request):
+    """Página principal"""
+    has_api_key = db.has_api_key()
+    projects = list_projects(settings.projects_dir)
+    return templates.TemplateResponse("index.html", {
+        "request": request,
+        "has_api_key": has_api_key,
+        "projects": projects,
+        "current_workspace": None,
+    })
+
+
+@router.get("/settings", response_class=HTMLResponse)
+async def settings_page(request: Request):
+    """Página de configuración"""
+    current_settings = db.get_all_settings()
+    has_api_key = db.has_api_key()
+    return templates.TemplateResponse("settings.html", {
+        "request": request,
+        "settings": current_settings,
+        "has_api_key": has_api_key,
+        "default_model": settings.default_model,
+    })
+
+
+@router.get("/conversations", response_class=HTMLResponse)
+async def conversations_page(request: Request):
+    """Página de historial de conversaciones"""
+    return templates.TemplateResponse("conversations.html", {"request": request})
