@@ -363,15 +363,60 @@
             background: #0d0d0d;
         }
         
+        .app-toolbar {
+            display: flex;
+            align-items: center;
+            padding: 8px;
+            background: #161b22;
+            border-bottom: 1px solid #30363d;
+            gap: 8px;
+        }
+        
+        .app-toolbar button {
+            background: transparent;
+            border: none;
+            color: #8b949e;
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 4px;
+        }
+        
+        .app-toolbar button:hover {
+            background: #30363d;
+        }
+        
         .app-placeholder {
             text-align: center;
             color: #484f58;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: calc(100% - 40px);
         }
         
         .placeholder-icon {
-            font-size: 48px;
-            margin-bottom: 12px;
-            opacity: 0.3;
+            margin-bottom: 16px;
+            opacity: 0.5;
+            color: #6e7681;
+        }
+        
+        .app-placeholder p {
+            margin: 8px 0;
+            font-size: 14px;
+        }
+        
+        .app-hint {
+            font-size: 12px !important;
+            color: #6e7681 !important;
+            margin-top: 16px !important;
+        }
+        
+        .app-hint code {
+            background: #21262d;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: monospace;
         }
         
         /* Chat Container */

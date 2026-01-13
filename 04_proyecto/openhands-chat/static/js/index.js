@@ -34,6 +34,9 @@
             
             console.log('DOM cargado, chatMessages:', chatMessages);
             
+            // Iniciar polling para detectar app servers
+            startAppServerPolling();
+            
             // Si hay conv en URL, abrir directamente sin cargar home
             if (convIdFromUrl) {
                 await openConversationById(parseInt(convIdFromUrl));
@@ -194,6 +197,7 @@
                     updateGitBar(selectedRepo.owner, selectedRepo.name, branchSelect.value);
                     codeServerLoaded = false;
                     browserLoaded = false;
+                    appServerPort = null;
                 } else {
                     alert('Error: ' + (data.error || 'No se pudo clonar'));
                 }
@@ -286,6 +290,13 @@
             showCodeTabs(repoName || projectName);
             codeServerLoaded = false; // Reset para nuevo proyecto
             browserLoaded = false; // Reset navegador también
+            appServerPort = null; // Reset app server
+            
+            // Resetear vista de aplicación
+            const appPlaceholder = document.getElementById('appPlaceholder');
+            const appFrame = document.getElementById('appFrame');
+            if (appPlaceholder) appPlaceholder.style.display = 'flex';
+            if (appFrame) appFrame.style.display = 'none';
             
             // PRE-INICIAR code-server y app-server en background (como OpenHands)
             // Así cuando el usuario haga clic en <> o 🌐, ya estarán listos
@@ -415,13 +426,16 @@
             codeViewRight.style.display = 'none';
             if (browserView) browserView.style.display = 'none';
             
-            if (view === 'chat' || view === 'app') {
+            if (view === 'chat') {
+                // Chat - no muestra panel derecho especial
                 appView.style.display = 'block';
-                if (view === 'chat') {
-                    tabChat.classList.add('active');
-                } else {
-                    tabApp.classList.add('active');
-                }
+                tabChat.classList.add('active');
+            } else if (view === 'app') {
+                // Aplicación - para apps dinámicas que el agente inicia
+                appView.style.display = 'block';
+                tabApp.classList.add('active');
+                // Verificar si ya hay un servidor corriendo
+                checkAppServer();
             } else if (view === 'code') {
                 codeViewRight.style.display = 'block';
                 tabCode.classList.add('active');
@@ -429,6 +443,7 @@
                     startCodeServer();
                 }
             } else if (view === 'browser') {
+                // Navegador - preview del proyecto HTML
                 browserView.style.display = 'block';
                 if (tabBrowser) tabBrowser.classList.add('active');
                 if (!browserLoaded) {
@@ -488,6 +503,55 @@
         function refreshBrowser() {
             browserLoaded = false;
             loadBrowserPreview();
+        }
+        
+        // === APLICACIÓN (App Server dinámico) ===
+        let appServerPort = null;
+        
+        async function checkAppServer() {
+            // Verificar si hay un servidor de aplicación corriendo
+            try {
+                const resp = await fetch('/api/app-server/status?conversation_id=' + currentConversationId);
+                const data = await resp.json();
+                
+                if (data.status === 'running' && data.port) {
+                    showAppInIframe(data.port);
+                    return true;
+                }
+            } catch (e) {
+                console.log('No app server running');
+            }
+            return false;
+        }
+        
+        function showAppInIframe(port) {
+            const placeholder = document.getElementById('appPlaceholder');
+            const frame = document.getElementById('appFrame');
+            const urlInput = document.getElementById('appUrl');
+            
+            appServerPort = port;
+            placeholder.style.display = 'none';
+            frame.style.display = 'block';
+            frame.src = '/api/app-server/app-preview/';
+            urlInput.value = `http://localhost:${port}`;
+        }
+        
+        function refreshApp() {
+            const frame = document.getElementById('appFrame');
+            if (appServerPort) {
+                frame.src = frame.src;
+            } else {
+                checkAppServer();
+            }
+        }
+        
+        // Polling para detectar cuando el agente inicia un servidor
+        function startAppServerPolling() {
+            setInterval(async () => {
+                if (currentView === 'app' && !appServerPort) {
+                    await checkAppServer();
+                }
+            }, 3000);
         }
         
         async function startCodeServer() {
