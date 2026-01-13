@@ -1,1 +1,5 @@
 04_proyecto/openhands-chat/projects/
+__pycache__/
+*.pyc
+*.pyo
+*.db
