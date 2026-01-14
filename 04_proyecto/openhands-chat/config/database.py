@@ -22,10 +22,11 @@ class Database:
     
     def _get_cipher(self) -> Fernet:
         """Obtener cipher para encriptar/desencriptar"""
-        # Usar una key derivada del hostname (simple pero efectivo para uso local)
-        salt = b'openhands-chat-salt'
-        password = (os.environ.get('ENCRYPTION_KEY', 'default-key') + 
-                   str(self.db_path)).encode()
+        # Usar una key FIJA para que no cambie entre sesiones
+        # Esto garantiza que los tokens guardados siempre se puedan desencriptar
+        salt = b'openhands-chat-salt-v2'
+        # Key fija basada en el nombre de la app (NO depende de variables de entorno)
+        password = b'openhands-chat-fixed-encryption-key-2024'
         
         kdf = PBKDF2HMAC(
             algorithm=hashes.SHA256(),
