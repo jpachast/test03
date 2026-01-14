@@ -139,6 +139,21 @@ async def proxy_app_server(request: Request, path: str, conversation_id: int = N
     Proxy con Port Forwarding dinámico como OpenHands Cloud.
     Detecta automáticamente el puerto del servidor del agente.
     """
+    # Si no viene conversation_id en query, intentar extraerlo del Referer
+    # Esto es necesario para rutas relativas (css/styles.css sin ?conversation_id)
+    if not conversation_id:
+        import re
+        referer = request.headers.get("referer", "")
+        # Intentar extraer de query param en referer
+        match = re.search(r'conversation_id=(\d+)', referer)
+        if match:
+            conversation_id = int(match.group(1))
+        else:
+            # Intentar extraer de URL /chat/ID
+            match = re.search(r'/chat/(\d+)', referer)
+            if match:
+                conversation_id = int(match.group(1))
+    
     if not conversation_id:
         return HTMLResponse(
             content="""
