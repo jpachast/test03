@@ -159,38 +159,34 @@ async def proxy_app_server(request: Request, path: str, conversation_id: int = N
     
     # Obtener puerto activo (detectado automáticamente)
     port_info = get_active_port(conversation_id)
-    port = port_info.get("port", 3000)
     
-    # Verificar si hay servidor activo
-    if port_info.get("status") == "no_server":
-        # Intentar con servidor de archivos estáticos como fallback
-        static_status = get_app_server_status(conversation_id)
-        if static_status.get("status") == "running":
-            port = static_status.get("port")
-        else:
-            return HTMLResponse(
-                content=f"""
-                <html>
-                <head><style>
-                    body {{ background: #1e1e1e; color: #ccc; font-family: sans-serif; 
-                           display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }}
-                    .msg {{ text-align: center; }}
-                    code {{ background: #333; padding: 2px 8px; border-radius: 4px; }}
-                    .ports {{ margin-top: 20px; font-size: 12px; color: #888; }}
-                </style></head>
-                <body><div class="msg">
-                    <h2>🚀 Esperando servidor...</h2>
-                    <p>El agente debe iniciar un servidor web.</p>
-                    <p>Puertos detectados automáticamente: <code>3000</code>, <code>5000</code>, <code>8000</code>, <code>8080</code></p>
-                    <div class="ports">
-                        Puerto configurado: {port}<br>
-                        Conversación: {conversation_id}
-                    </div>
-                </div></body>
-                </html>
-                """,
-                status_code=503
-            )
+    # Verificar si hay servidor del agente activo
+    # NO usar servidor de archivos estáticos como fallback (evita directory listing)
+    if port_info.get("status") == "no_server" or not port_info.get("port"):
+        return HTMLResponse(
+            content=f"""
+            <html>
+            <head><style>
+                body {{ background: #1e1e1e; color: #ccc; font-family: sans-serif; 
+                       display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }}
+                .msg {{ text-align: center; }}
+                code {{ background: #333; padding: 2px 8px; border-radius: 4px; }}
+                .ports {{ margin-top: 20px; font-size: 12px; color: #888; }}
+            </style></head>
+            <body><div class="msg">
+                <h2>🚀 Esperando servidor...</h2>
+                <p>El agente debe iniciar un servidor web.</p>
+                <p>Puertos detectados automáticamente: <code>3000</code>, <code>5000</code>, <code>8000</code>, <code>8080</code></p>
+                <div class="ports">
+                    Conversación: {conversation_id}
+                </div>
+            </div></body>
+            </html>
+            """,
+            status_code=503
+        )
+    
+    port = port_info.get("port")
     
     target_url = f"http://127.0.0.1:{port}/{path}"
     
