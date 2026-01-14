@@ -760,6 +760,7 @@
             const placeholder = document.getElementById('appPlaceholder');
             const frame = document.getElementById('appFrame');
             const urlInput = document.getElementById('appUrl');
+            const copyBtn = document.getElementById('copyUrlBtn');
             
             // Solo actualizar si el puerto cambió
             if (appServerPort !== port) {
@@ -769,6 +770,8 @@
                 // Agregar timestamp para evitar caché
                 frame.src = `/api/app-server/app-preview/?conversation_id=${currentConversationId}&_t=${Date.now()}`;
                 urlInput.value = `http://localhost:${port}`;
+                // Mostrar botón de copiar URL externa
+                if (copyBtn) copyBtn.style.display = 'inline-block';
                 console.log(`App server detected on port ${port}`);
             }
         }
@@ -782,6 +785,43 @@
             } else {
                 checkAppServer();
             }
+        }
+        
+        // Copiar URL externa para compartir
+        function copyExternalUrl() {
+            if (!currentConversationId) {
+                showNotification('No hay conversación activa', 'error');
+                return;
+            }
+            
+            // Construir URL externa completa
+            const baseUrl = window.location.origin;
+            const externalUrl = `${baseUrl}/api/app-server/app-preview/?conversation_id=${currentConversationId}`;
+            
+            navigator.clipboard.writeText(externalUrl).then(() => {
+                showNotification('✅ URL copiada al portapapeles', 'success');
+                
+                // Feedback visual en el botón
+                const btn = document.getElementById('copyUrlBtn');
+                const originalText = btn.textContent;
+                btn.textContent = '✓';
+                setTimeout(() => { btn.textContent = originalText; }, 1500);
+            }).catch(err => {
+                // Fallback para navegadores sin clipboard API
+                const textArea = document.createElement('textarea');
+                textArea.value = externalUrl;
+                document.body.appendChild(textArea);
+                textArea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textArea);
+                showNotification('✅ URL copiada', 'success');
+            });
+        }
+        
+        // Obtener URL externa para mostrar en chat
+        function getExternalAppUrl() {
+            if (!currentConversationId) return null;
+            return `${window.location.origin}/api/app-server/app-preview/?conversation_id=${currentConversationId}`;
         }
         
         // Polling para detectar cuando el agente inicia un servidor
