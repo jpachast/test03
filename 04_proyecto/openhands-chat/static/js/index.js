@@ -291,6 +291,7 @@
             codeServerLoaded = false; // Reset para nuevo proyecto
             browserLoaded = false; // Reset navegador también
             appServerPort = null; // Reset app server
+            clearTerminal(); // Limpiar terminal para nueva conversación
             
             // Resetear vista de aplicación
             const appPlaceholder = document.getElementById('appPlaceholder');
@@ -402,7 +403,7 @@
             stopCodeServer();
         }
         
-        // === TABS CHAT/CÓDIGO ===
+        // === TABS CHAT/CÓDIGO/TERMINAL ===
         let browserLoaded = false;
         
         function switchView(view) {
@@ -410,21 +411,25 @@
             const appView = document.getElementById('appView');
             const codeViewRight = document.getElementById('codeViewRight');
             const browserView = document.getElementById('browserView');
+            const terminalView = document.getElementById('terminalView');
             const tabChat = document.getElementById('tabChat');
             const tabCode = document.getElementById('tabCode');
             const tabApp = document.getElementById('tabApp');
             const tabBrowser = document.getElementById('tabBrowser');
+            const tabTerminal = document.getElementById('tabTerminal');
             
             // Resetear todos los tabs
             tabChat.classList.remove('active');
             tabCode.classList.remove('active');
             tabApp.classList.remove('active');
             if (tabBrowser) tabBrowser.classList.remove('active');
+            if (tabTerminal) tabTerminal.classList.remove('active');
             
             // Ocultar todas las vistas
             appView.style.display = 'none';
             codeViewRight.style.display = 'none';
             if (browserView) browserView.style.display = 'none';
+            if (terminalView) terminalView.style.display = 'none';
             
             if (view === 'chat') {
                 // Chat - no muestra panel derecho especial
@@ -449,6 +454,64 @@
                 if (!browserLoaded) {
                     loadBrowserScreenshot();
                 }
+            } else if (view === 'terminal') {
+                // Terminal (solo lectura) - como OpenHands
+                if (terminalView) {
+                    terminalView.style.display = 'flex';
+                    tabTerminal.classList.add('active');
+                }
+            }
+        }
+        
+        // === TERMINAL (solo lectura - como OpenHands) ===
+        function addTerminalCommand(command) {
+            const terminalOutput = document.getElementById('terminalOutput');
+            if (!terminalOutput) return;
+            
+            // Limpiar mensaje inicial si existe
+            const emptyMsg = terminalOutput.querySelector('.terminal-empty');
+            if (emptyMsg) emptyMsg.remove();
+            
+            // Agregar comando
+            const cmdLine = document.createElement('div');
+            cmdLine.className = 'terminal-line command';
+            cmdLine.textContent = command;
+            terminalOutput.appendChild(cmdLine);
+            
+            // Scroll al final
+            scrollTerminalToBottom();
+        }
+        
+        function addTerminalOutput(output, isError = false) {
+            const terminalOutput = document.getElementById('terminalOutput');
+            if (!terminalOutput || !output) return;
+            
+            // Agregar output
+            const outLine = document.createElement('div');
+            outLine.className = 'terminal-line ' + (isError ? 'error' : 'output');
+            outLine.textContent = output;
+            terminalOutput.appendChild(outLine);
+            
+            // Scroll al final
+            scrollTerminalToBottom();
+        }
+        
+        function scrollTerminalToBottom() {
+            const terminalContent = document.getElementById('terminalContent');
+            if (terminalContent) {
+                terminalContent.scrollTop = terminalContent.scrollHeight;
+            }
+        }
+        
+        function clearTerminal() {
+            const terminalOutput = document.getElementById('terminalOutput');
+            if (terminalOutput) {
+                terminalOutput.innerHTML = `
+                    <div class="terminal-empty">
+                        <div class="terminal-empty-icon">▷</div>
+                        <p>Los comandos del agente aparecerán aquí</p>
+                    </div>
+                `;
             }
         }
         
@@ -983,6 +1046,14 @@
                                     if (currentView === 'browser') {
                                         loadBrowserScreenshot();
                                     }
+                                } else if (data.type === 'terminal_command') {
+                                    // Comando ejecutado - agregar a terminal
+                                    addTerminalCommand(data.command);
+                                } else if (data.type === 'terminal_output') {
+                                    // Output del comando - agregar a terminal
+                                    const isError = data.exit_code !== 0 || data.stderr;
+                                    const output = data.stderr || data.output;
+                                    addTerminalOutput(output, isError);
                                 } else if (data.type && data.icon && data.text) {
                                     // Actualizar progreso
                                     progressDiv.querySelector('.progress-content').innerHTML = 

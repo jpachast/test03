@@ -65,6 +65,8 @@ def create_streaming_callback(q, conv_id=None):
                         cmd = getattr(action, 'command', '') or getattr(action, 'code', '')
                         if cmd:
                             q.put({"type": "action", "icon": "🔧", "text": f"Ejecutando: {cmd[:100]}"})
+                            # Enviar comando a la terminal (solo lectura)
+                            q.put({"type": "terminal_command", "command": cmd})
                     
                     elif 'File' in action_type or 'Edit' in action_type or 'Create' in action_type:
                         path = getattr(action, 'path', '') or getattr(action, 'file', '')
@@ -171,10 +173,19 @@ def create_streaming_callback(q, conv_id=None):
                                         })
                     
                     if 'Command' in obs_type or 'Bash' in obs_type:
-                        output = getattr(obs, 'output', '') or getattr(obs, 'content', '')
-                        if output and len(output) > 0:
-                            preview = output[:100].replace('\n', ' ')
+                        output = getattr(obs, 'stdout', '') or getattr(obs, 'output', '') or getattr(obs, 'content', '')
+                        stderr = getattr(obs, 'stderr', '')
+                        exit_code = getattr(obs, 'exit_code', 0)
+                        if output and len(str(output)) > 0:
+                            preview = str(output)[:100].replace('\n', ' ')
                             q.put({"type": "output", "icon": "📋", "text": f"Resultado: {preview}"})
+                            # Enviar output a la terminal (solo lectura)
+                            q.put({
+                                "type": "terminal_output", 
+                                "output": str(output)[:2000],  # Limitar output
+                                "stderr": str(stderr)[:500] if stderr else "",
+                                "exit_code": exit_code
+                            })
             
             elif event_type == 'MessageEvent':
                 if hasattr(event, 'llm_message') and event.llm_message:

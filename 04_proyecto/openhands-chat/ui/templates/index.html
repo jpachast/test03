@@ -199,7 +199,7 @@
             <div class="header-icons" id="viewTabs">
                 <button class="icon-btn" id="tabChat" onclick="switchView('chat')" title="Chat">☰</button>
                 <button class="icon-btn" id="tabCode" onclick="switchView('code')" title="Código">&lt;&gt;</button>
-                <button class="icon-btn" title="Terminal">]</button>
+                <button class="icon-btn" id="tabTerminal" onclick="switchView('terminal')" title="Terminal (solo lectura)">]</button>
                 <button class="icon-btn app-btn active" id="tabApp" onclick="switchView('app')" title="Aplicación">📱 Aplicación</button>
                 <button class="icon-btn" id="tabBrowser" onclick="switchView('browser')" title="Navegador">🌐</button>
                 <button class="icon-btn" title="Más">⋮</button>
@@ -259,6 +259,17 @@
                         </div>
                         <p>No hay capturas del navegador</p>
                         <p class="browser-hint">Las capturas aparecerán cuando el agente navegue por la web</p>
+                    </div>
+                </div>
+            </div>
+            <!-- Vista de Terminal (solo lectura - como OpenHands) -->
+            <div id="terminalView" style="display: none; width: 100%; height: 100%; flex-direction: column;">
+                <div class="terminal-header">
+                    <span class="terminal-title">Terminal (solo lectura)</span>
+                </div>
+                <div class="terminal-content" id="terminalContent">
+                    <div class="terminal-output" id="terminalOutput">
+                        <!-- Los comandos del agente aparecerán aquí -->
                     </div>
                 </div>
             </div>
