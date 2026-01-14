@@ -4,6 +4,7 @@ import json
 import queue
 import asyncio
 import threading
+import time
 from pathlib import Path
 from fastapi import APIRouter, Form, HTTPException
 from fastapi.responses import JSONResponse, StreamingResponse
@@ -26,6 +27,28 @@ last_agent_response = ""
 current_conversation_id = None  # Para asociar screenshots con la conversación
 # Almacena la referencia a la Conversation activa para poder pausarla
 active_sdk_conversations = {}  # {conversation_id: Conversation}
+
+# OPTIMIZACIÓN: Cache de agentes por (model, workspace, repo_key)
+# Evita recrear el agente en cada mensaje de la misma conversación
+_agent_cache = {}  # {cache_key: (agent, timestamp)}
+_AGENT_CACHE_TTL = 300  # 5 minutos de vida
+
+
+def _get_cached_agent(api_key: str, model: str, workspace: str, repo_info: dict = None):
+    """Obtiene un agente del cache o crea uno nuevo"""
+    repo_key = f"{repo_info.get('owner', '')}/{repo_info.get('name', '')}" if repo_info else ""
+    cache_key = f"{model}:{workspace}:{repo_key}"
+    
+    now = time.time()
+    if cache_key in _agent_cache:
+        agent, ts = _agent_cache[cache_key]
+        if now - ts < _AGENT_CACHE_TTL:
+            return agent, True  # Cached
+    
+    # Crear nuevo agente
+    agent = create_agent(api_key, model, workspace=workspace, repo_info=repo_info)
+    _agent_cache[cache_key] = (agent, now)
+    return agent, False  # Nuevo
 
 
 def get_workspace():
@@ -402,10 +425,17 @@ async def stream_message(message: str = Form(...), project: str = Form(None), im
         if conversation_id:
             db.add_message(conversation_id, 'user', message)
         
-        yield f"data: {json.dumps({'type': 'start', 'icon': '🚀', 'text': 'Iniciando...'})}\n\n"
+        # OPTIMIZACIÓN UX: Feedback inmediato mientras se prepara el agente
+        yield f"data: {json.dumps({'type': 'status', 'icon': '🔄', 'text': 'Conectando...'})}\n\n"
         
         model = db.get_setting("llm_model", settings.default_model)
-        agent = create_agent(api_key, model, workspace=workspace, repo_info=repo_info)
+        
+        # OPTIMIZACIÓN: Usar cache de agentes para respuestas más rápidas
+        agent, from_cache = _get_cached_agent(api_key, model, workspace, repo_info)
+        if from_cache:
+            yield f"data: {json.dumps({'type': 'status', 'icon': '⚡', 'text': 'Listo!'})}\n\n"
+        else:
+            yield f"data: {json.dumps({'type': 'status', 'icon': '🤖', 'text': 'Preparando agente...'})}\n\n"
         
         # Obtener GITHUB_TOKEN para que el agente pueda usarlo
         github_token = db.get_github_token()
