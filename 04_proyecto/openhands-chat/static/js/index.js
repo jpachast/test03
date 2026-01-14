@@ -34,6 +34,9 @@
             
             console.log('DOM cargado, chatMessages:', chatMessages);
             
+            // Configurar handlers del iframe de app
+            setupAppFrameHandlers();
+            
             // Iniciar polling para detectar app servers
             startAppServerPolling();
             
@@ -713,6 +716,25 @@
             }
         }
         
+        // Configurar handlers del iframe al cargar la página
+        function setupAppFrameHandlers() {
+            const frame = document.getElementById('appFrame');
+            if (!frame) return;
+            
+            // Handler cuando el iframe termina de cargar
+            frame.onload = function() {
+                console.log('App iframe loaded successfully');
+                // Marcar como cargado
+                frame.dataset.loaded = 'true';
+            };
+            
+            // Handler de error - reintentar automáticamente
+            frame.onerror = function() {
+                console.log('App iframe error - will retry on next poll');
+                frame.dataset.loaded = 'false';
+            };
+        }
+        
         function showAppInIframe(port) {
             const placeholder = document.getElementById('appPlaceholder');
             const frame = document.getElementById('appFrame');
@@ -723,7 +745,8 @@
                 appServerPort = port;
                 placeholder.style.display = 'none';
                 frame.style.display = 'block';
-                frame.src = `/api/app-server/app-preview/?conversation_id=${currentConversationId}`;
+                // Agregar timestamp para evitar caché
+                frame.src = `/api/app-server/app-preview/?conversation_id=${currentConversationId}&_t=${Date.now()}`;
                 urlInput.value = `http://localhost:${port}`;
                 console.log(`App server detected on port ${port}`);
             }
@@ -732,7 +755,9 @@
         function refreshApp() {
             const frame = document.getElementById('appFrame');
             if (appServerPort) {
-                frame.src = frame.src;
+                // Forzar recarga con timestamp para evitar caché
+                const baseUrl = `/api/app-server/app-preview/?conversation_id=${currentConversationId}`;
+                frame.src = `${baseUrl}&_t=${Date.now()}`;
             } else {
                 checkAppServer();
             }

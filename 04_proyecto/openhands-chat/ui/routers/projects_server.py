@@ -302,6 +302,11 @@ async def proxy_app_server(request: Request, path: str, conversation_id: int = N
                 )
                 content = content_str.encode("utf-8")
             
+            # Headers anti-caché para evitar problemas de carga
+            response_headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+            response_headers["Pragma"] = "no-cache"
+            response_headers["Expires"] = "0"
+            
             return HTMLResponse(
                 content=content,
                 status_code=response.status_code,
