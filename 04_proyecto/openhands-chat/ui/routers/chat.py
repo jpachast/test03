@@ -91,10 +91,19 @@ def create_streaming_callback(q, conv_id=None):
                     # Detectar screenshots de browser (CLI o MCP)
                     is_browser_tool = 'browser' in tool_name.lower()
                     
-                    # Obtener output del comando
-                    output = getattr(obs, 'output', '') or getattr(obs, 'content', '')
+                    # Obtener output del comando (varios posibles atributos)
+                    output = (
+                        getattr(obs, 'stdout', '') or  # BashObservation usa stdout
+                        getattr(obs, 'output', '') or 
+                        getattr(obs, 'content', '') or
+                        ''
+                    )
                     if isinstance(output, list):
                         output = ' '.join(str(x) for x in output)
+                    
+                    # Debug: log output para verificar
+                    if output and '"screenshot"' in str(output)[:100]:
+                        print(f"[SCREENSHOT DETECTED] Output length: {len(str(output))}")
                     
                     # Buscar JSON con screenshot en la salida (del CLI de browser)
                     if output and '"screenshot"' in output and '"success"' in output:
