@@ -313,11 +313,19 @@ class Database:
         """Obtener proyecto por nombre"""
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
-        cursor.execute('SELECT id, name, path FROM projects WHERE name = ?', (name,))
+        cursor.execute('SELECT id, name, path, git_url, repo_owner, repo_name, branch FROM projects WHERE name = ?', (name,))
         row = cursor.fetchone()
         conn.close()
         if row:
-            return {'id': row[0], 'name': row[1], 'path': row[2]}
+            return {
+                'id': row[0], 
+                'name': row[1], 
+                'path': row[2],
+                'git_url': row[3],
+                'repo_owner': row[4],
+                'repo_name': row[5],
+                'branch': row[6]
+            }
         return None
 
     # === CONVERSACIONES ===

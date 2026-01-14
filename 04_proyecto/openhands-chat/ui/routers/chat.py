@@ -379,11 +379,18 @@ async def stream_message(message: str = Form(...), project: str = Form(None), im
         q = queue.Queue()
         
         conversation_id = None
+        repo_info = None
         if project:
             proj = db.get_project_by_name(project)
             if proj:
                 conv = db.get_conversation(proj['id'])
                 conversation_id = conv['id']
+                # Obtener info del repositorio para pasarla al agente
+                repo_info = {
+                    'owner': proj.get('repo_owner'),
+                    'name': proj.get('repo_name'),
+                    'branch': proj.get('branch', 'main')
+                }
         
         if conversation_id:
             db.add_message(conversation_id, 'user', message)
@@ -391,7 +398,7 @@ async def stream_message(message: str = Form(...), project: str = Form(None), im
         yield f"data: {json.dumps({'type': 'start', 'icon': '🚀', 'text': 'Iniciando...'})}\n\n"
         
         model = db.get_setting("llm_model", settings.default_model)
-        agent = create_agent(api_key, model, workspace=workspace)
+        agent = create_agent(api_key, model, workspace=workspace, repo_info=repo_info)
         
         # Obtener GITHUB_TOKEN para que el agente pueda usarlo
         github_token = db.get_github_token()
@@ -409,17 +416,43 @@ async def stream_message(message: str = Form(...), project: str = Form(None), im
         if conversation_id:
             active_sdk_conversations[conversation_id] = conv
         
+        # Enriquecer mensaje con info del repo si es comando git
+        actual_message = message
+        if repo_info and repo_info.get('owner') and repo_info.get('name'):
+            repo_owner = repo_info['owner']
+            repo_name = repo_info['name']
+            repo_branch = repo_info.get('branch', 'main')
+            
+            # Si es un comando de pull, agregar instrucciones específicas
+            if 'pull' in message.lower():
+                actual_message = f"""{message}
+
+IMPORTANT CONTEXT - You MUST follow these steps:
+The repository is: {repo_owner}/{repo_name} branch {repo_branch}
+Workspace: {workspace}
+
+Execute these commands IN ORDER:
+1. ls {workspace}/.git 2>/dev/null && echo "HAS_GIT" || echo "NO_GIT"
+2. If NO_GIT: git clone https://${{GITHUB_TOKEN}}@github.com/{repo_owner}/{repo_name}.git {workspace} --branch {repo_branch}
+3. If HAS_GIT: cd {workspace} && git remote get-url origin
+4. If remote URL contains "{repo_name}": cd {workspace} && git pull origin {repo_branch}
+5. If remote URL does NOT contain "{repo_name}": rm -rf {workspace}/.git && git clone https://${{GITHUB_TOKEN}}@github.com/{repo_owner}/{repo_name}.git {workspace} --branch {repo_branch}
+
+IMPORTANT: Use ${{GITHUB_TOKEN}} for authentication in git commands.
+Do NOT skip steps. Execute step 1 first and check the output."""
+                print(f"[DEBUG] Enriched pull message with repo info: {repo_owner}/{repo_name}")
+        
         # Enviar mensaje con imágenes si las hay
         if image_contents:
             # Construir Message con texto + imágenes
-            msg_content = [TextContent(text=message)] + image_contents
+            msg_content = [TextContent(text=actual_message)] + image_contents
             user_message = Message(role="user", content=msg_content, vision_enabled=True)
             print(f"[DEBUG] Sending message with {len(image_contents)} image contents, vision_enabled=True")
             print(f"[DEBUG] Message content types: {[type(c).__name__ for c in msg_content]}")
             conv.send_message(user_message)
         else:
             print(f"[DEBUG] Sending text-only message")
-            conv.send_message(message)
+            conv.send_message(actual_message)
         
         def run_agent():
             try:

@@ -860,7 +860,7 @@
         function gitPull() {
             // Prompt EXACTO de OpenHands
             const pullPrompt = "Please pull the latest code from the repository.";
-            messageInput.value = pullPrompt;
+            setMessageInputValue(pullPrompt);
             sendMessage(new Event('submit'));
         }
         
@@ -870,7 +870,7 @@
                 "Check your current branch name first - if it's main, master, deploy, or another common default branch name, " +
                 "create a new branch with a descriptive name related to your changes. " +
                 "Otherwise, use the exact SAME branch name as the one you are currently on.";
-            messageInput.value = pushPrompt;
+            setMessageInputValue(pushPrompt);
             sendMessage(new Event('submit'));
         }
         
@@ -880,7 +880,7 @@
                 "If you're on a default branch (e.g., main, master, deploy), create a new branch with a descriptive name " +
                 "otherwise use the current branch. " +
                 "If a Pull Request template exists in the repository, please follow it when creating the PR description.";
-            messageInput.value = prPrompt;
+            setMessageInputValue(prPrompt);
             sendMessage(new Event('submit'));
         }
         

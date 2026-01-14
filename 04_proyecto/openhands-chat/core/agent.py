@@ -92,7 +92,8 @@ IMPORTANTE: Los screenshots se muestran automáticamente en la pestaña "Navegad
 """
 
 
-def create_agent(api_key: str, model: str = "gemini/gemini-2.5-pro", base_url: str = None, workspace: str = None) -> Agent:
+def create_agent(api_key: str, model: str = "gemini/gemini-2.5-pro", base_url: str = None, 
+                 workspace: str = None, repo_info: dict = None) -> Agent:
     """
     Crea y configura el agente OpenHands
     
@@ -105,6 +106,7 @@ def create_agent(api_key: str, model: str = "gemini/gemini-2.5-pro", base_url: s
         model: Modelo a usar (default: gemini/gemini-2.5-pro)
         base_url: URL base del LLM (opcional)
         workspace: Directorio de trabajo (se agrega al prompt como en additional_info.j2)
+        repo_info: Diccionario con info del repositorio GitHub (owner, name, branch)
     
     Returns:
         Agent configurado con TODAS las tools, reglas y condenser
@@ -141,34 +143,72 @@ The current working directory is {workspace}
 </RUNTIME_INFORMATION>
 """
     
+    # === REPO INFO (información del repositorio GitHub) ===
+    if repo_info and repo_info.get('owner') and repo_info.get('name'):
+        repo_owner = repo_info['owner']
+        repo_name = repo_info['name']
+        repo_branch = repo_info.get('branch', 'main')
+        runtime_info += f"""
+<REPOSITORY_INFORMATION>
+GitHub Repository: {repo_owner}/{repo_name}
+Branch: {repo_branch}
+Clone URL: https://github.com/{repo_owner}/{repo_name}.git
+Workspace: {workspace}
+
+CRITICAL: When asked to pull/clone the repository, execute these commands IN ORDER:
+1. First check if there's a .git directory IN the workspace: ls {workspace}/.git 2>/dev/null && echo "GIT_EXISTS" || echo "NO_GIT"
+2. If NO_GIT: Clone with: rm -rf {workspace}/* {workspace}/.* 2>/dev/null; git clone https://github.com/{repo_owner}/{repo_name}.git {workspace} --branch {repo_branch}
+3. If GIT_EXISTS: Check remote with: cd {workspace} && git remote get-url origin
+4. If remote contains "{repo_name}": Do pull: cd {workspace} && git pull origin {repo_branch}
+5. If remote does NOT contain "{repo_name}": Re-clone: rm -rf {workspace}; git clone https://github.com/{repo_owner}/{repo_name}.git {workspace} --branch {repo_branch}
+
+IMPORTANT: Execute each command and check the output before proceeding to the next step.
+</REPOSITORY_INFORMATION>
+"""
+    
     # === CONTEXT CON TODOS LOS PROMPTS INTEGRADOS ===
     # OpenHands usa prompts largos y completos, el condenser maneja
     # la reducción de contexto cuando es necesario.
+    
+    # Lista de skills - repo_info va PRIMERO para que no se trunque
+    skills_list = []
+    
+    # Si hay repo info, agregarlo como skill prioritario
+    if repo_info and repo_info.get('owner') and repo_info.get('name'):
+        skills_list.append(Skill(
+            name="repository_context",
+            content=runtime_info,  # Contiene RUNTIME_INFORMATION + REPOSITORY_INFORMATION
+            source=None,
+            trigger=None,  # Siempre activo
+        ))
+    
+    # System prompt (puede ser truncado si es muy largo)
+    skills_list.append(Skill(
+        name="system_prompt_completo",
+        content=SYSTEM_PROMPT_COMPLETO,
+        source=None,
+        trigger=None,
+    ))
+    
+    # Ejemplo de aprendizaje
+    skills_list.append(Skill(
+        name="in_context_example", 
+        content=IN_CONTEXT_EXAMPLE,
+        source=None,
+        trigger=None,
+    ))
+    
+    # Reglas de comportamiento
+    skills_list.append(Skill(
+        name="reglas_comportamiento",
+        content=full_rules,
+        source=None,
+        trigger=None,
+    ))
+    
     agent_context = AgentContext(
-        skills=[
-            # System prompt completo (basado en system_prompt.j2)
-            Skill(
-                name="system_prompt_completo",
-                content=SYSTEM_PROMPT_COMPLETO,
-                source=None,
-                trigger=None,  # Siempre activo
-            ),
-            # Ejemplo de aprendizaje en contexto (basado en in_context_learning_example.j2)
-            Skill(
-                name="in_context_example",
-                content=IN_CONTEXT_EXAMPLE,
-                source=None,
-                trigger=None,  # Siempre activo
-            ),
-            # Reglas de comportamiento personalizadas + idioma español + browser
-            Skill(
-                name="reglas_comportamiento",
-                content=full_rules,
-                source=None,
-                trigger=None,  # Siempre activo
-            ),
-        ],
-        system_message_suffix=full_rules + runtime_info,
+        skills=skills_list,
+        system_message_suffix=runtime_info,  # Solo runtime_info (más corto)
         load_public_skills=True,
     )
     
