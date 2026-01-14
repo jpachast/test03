@@ -118,6 +118,28 @@ When asked to pull/clone the repository:
 </ENVIRONMENT_SETUP>
 """)
     
+    # 3.5 FILE_EDITOR RULES - Reglas críticas para evitar errores
+    if workspace:
+        suffix_parts.append(f"""
+<FILE_EDITOR_RULES>
+CRITICAL: Follow these rules to avoid errors with file_editor:
+
+1. ALWAYS USE ABSOLUTE PATHS starting with /
+   - WRONG: file_editor create: public/index.html
+   - CORRECT: file_editor create: {workspace}/public/index.html
+
+2. For str_replace, ALWAYS view the file first to get the EXACT content
+   - Use file_editor view to see the actual content
+   - Copy the old_str EXACTLY as shown (including quotes, spaces, newlines)
+   - Do NOT escape quotes differently than shown in the file
+
+3. NEVER invent paths - always use paths relative to your workspace: {workspace}
+
+4. Before creating files in subdirectories, ensure the directory exists:
+   - mkdir -p {workspace}/public/css {workspace}/public/js
+</FILE_EDITOR_RULES>
+""")
+    
     system_suffix = "\n".join(suffix_parts)
     
     # 4. AgentContext - Solo agrega contexto, NO reemplaza prompts oficiales
