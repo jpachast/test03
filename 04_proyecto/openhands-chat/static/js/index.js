@@ -819,126 +819,32 @@
             loading: '<svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" class="spin"><path d="M8 0a8 8 0 100 16A8 8 0 008 0zm0 1.5a6.5 6.5 0 110 13 6.5 6.5 0 010-13z" opacity="0.3"/><path d="M8 0a8 8 0 018 8h-1.5A6.5 6.5 0 008 1.5V0z"/></svg>'
         };
         
-        async function gitPull() {
-            if (!currentGitInfo.owner || !currentGitInfo.repo) {
-                alert('No hay repositorio seleccionado');
-                return;
-            }
-            
-            const btn = event.target.closest('.git-btn');
-            btn.disabled = true;
-            btn.innerHTML = gitIcons.loading + ' Pulling...';
-            
-            try {
-                const response = await fetch('/api/git/pull', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        project: currentProject,
-                        owner: currentGitInfo.owner,
-                        repo: currentGitInfo.repo,
-                        branch: currentGitInfo.branch
-                    })
-                });
-                
-                const data = await response.json();
-                
-                if (data.success) {
-                    addMessage(`✅ Pull exitoso: ${data.message || 'Cambios actualizados'}`, 'system');
-                } else {
-                    addMessage(`❌ Error en Pull: ${data.error || 'Error desconocido'}`, 'system');
-                }
-            } catch (error) {
-                addMessage(`❌ Error: ${error.message}`, 'system');
-            } finally {
-                btn.disabled = false;
-                btn.innerHTML = gitIcons.pull + ' Pull';
-            }
+        // Git buttons - Como OpenHands: envían mensaje al agente
+        function gitPull() {
+            // Igual que OpenHands: enviar mensaje al agente para que haga pull
+            const pullPrompt = "Por favor, haz pull del código más reciente del repositorio.";
+            messageInput.value = pullPrompt;
+            sendMessage(new Event('submit'));
         }
         
-        async function gitPush() {
-            if (!currentGitInfo.owner || !currentGitInfo.repo) {
-                alert('No hay repositorio seleccionado');
-                return;
-            }
-            
-            const commitMsg = prompt('Mensaje del commit:', 'Actualización desde OpenHands Chat');
-            if (!commitMsg) return;
-            
-            const btn = event.target.closest('.git-btn');
-            btn.disabled = true;
-            btn.innerHTML = gitIcons.loading + ' Pushing...';
-            
-            try {
-                const response = await fetch('/api/git/push', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        project: currentProject,
-                        owner: currentGitInfo.owner,
-                        repo: currentGitInfo.repo,
-                        branch: currentGitInfo.branch,
-                        commit_message: commitMsg
-                    })
-                });
-                
-                const data = await response.json();
-                
-                if (data.success) {
-                    addMessage(`✅ Push exitoso: ${data.message || 'Cambios enviados al repositorio'}`, 'system');
-                } else {
-                    addMessage(`❌ Error en Push: ${data.error || 'Error desconocido'}`, 'system');
-                }
-            } catch (error) {
-                addMessage(`❌ Error: ${error.message}`, 'system');
-            } finally {
-                btn.disabled = false;
-                btn.innerHTML = gitIcons.push + ' Push';
-            }
+        function gitPush() {
+            // Igual que OpenHands: enviar mensaje al agente para que haga push
+            const pushPrompt = "Por favor, haz push de los cambios a una rama remota en GitHub. " +
+                "Primero verifica el nombre de tu rama actual - si es main, master, deploy u otra rama por defecto común, " +
+                "crea una nueva rama con un nombre descriptivo relacionado con los cambios. " +
+                "De lo contrario, usa exactamente la MISMA rama en la que estás.";
+            messageInput.value = pushPrompt;
+            sendMessage(new Event('submit'));
         }
         
-        async function createPR() {
-            if (!currentGitInfo.owner || !currentGitInfo.repo) {
-                alert('No hay repositorio seleccionado');
-                return;
-            }
-            
-            const title = prompt('Título del Pull Request:', 'Cambios desde OpenHands Chat');
-            if (!title) return;
-            
-            const body = prompt('Descripción (opcional):', '');
-            
-            const btn = event.target.closest('.git-btn');
-            btn.disabled = true;
-            btn.innerHTML = gitIcons.loading + ' Creando...';
-            
-            try {
-                const response = await fetch('/api/git/create-pr', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        project: currentProject,
-                        owner: currentGitInfo.owner,
-                        repo: currentGitInfo.repo,
-                        branch: currentGitInfo.branch,
-                        title: title,
-                        body: body || ''
-                    })
-                });
-                
-                const data = await response.json();
-                
-                if (data.success) {
-                    addMessage(`✅ PR creado: <a href="${data.url}" target="_blank">${data.url}</a>`, 'system');
-                } else {
-                    addMessage(`❌ Error creando PR: ${data.error || 'Error desconocido'}`, 'system');
-                }
-            } catch (error) {
-                addMessage(`❌ Error: ${error.message}`, 'system');
-            } finally {
-                btn.disabled = false;
-                btn.innerHTML = gitIcons.pr + ' Solicitud de PR';
-            }
+        function createPR() {
+            // Igual que OpenHands: enviar mensaje al agente para crear PR
+            const prPrompt = "Por favor, haz push de los cambios a GitHub y abre un Pull Request. " +
+                "Si estás en una rama por defecto (ej: main, master, deploy), crea una nueva rama con un nombre descriptivo, " +
+                "de lo contrario usa la rama actual. " +
+                "Si existe una plantilla de PR en el repositorio, síguela al crear la descripción del PR.";
+            messageInput.value = prPrompt;
+            sendMessage(new Event('submit'));
         }
         
         // === MENSAJES ===
