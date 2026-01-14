@@ -24,6 +24,7 @@ current_conversation = None
 current_workspace = None
 last_agent_response = ""
 current_conversation_id = None  # Para asociar screenshots con la conversación
+active_conversations = {}  # {conversation_id: {"thread": thread, "stop_flag": bool}}
 
 
 def get_workspace():
@@ -55,6 +56,8 @@ def create_streaming_callback(q, conv_id=None):
             if hasattr(event, '__dict__'):
                 print(f"[EVENT] ERROR ATTRS: {event.__dict__}")
             q.put({"type": "error", "icon": "❌", "text": str(error_msg)[:200]})
+            # También enviar error a la terminal
+            q.put({"type": "terminal_output", "output": f"ERROR: {error_msg}", "stderr": "", "exit_code": 1})
         
         try:
             if event_type == 'ActionEvent':
@@ -69,11 +72,15 @@ def create_streaming_callback(q, conv_id=None):
                             # Enviar comando a la terminal (solo lectura)
                             q.put({"type": "terminal_command", "command": cmd})
                     
-                    elif 'File' in action_type or 'Edit' in action_type or 'Create' in action_type:
+                    elif 'FileEditor' in action_type or 'File' in action_type or 'Edit' in action_type or 'Create' in action_type:
                         path = getattr(action, 'path', '') or getattr(action, 'file', '')
+                        command = getattr(action, 'command', '')  # view, str_replace, create, insert
                         if path:
                             filename = Path(path).name if path else 'archivo'
                             q.put({"type": "action", "icon": "📄", "text": f"Editando: {filename}"})
+                            # Enviar a terminal también
+                            cmd_text = f"file_editor {command}: {path}"
+                            q.put({"type": "terminal_command", "command": cmd_text})
                     
                     elif 'Finish' in action_type:
                         if hasattr(action, 'message') and action.message:
@@ -199,6 +206,24 @@ def create_streaming_callback(q, conv_id=None):
                                 "output": output[:2000],  # Limitar output
                                 "stderr": str(stderr)[:500] if stderr else "",
                                 "exit_code": exit_code
+                            })
+                    
+                    elif 'FileEditor' in obs_type:
+                        # Obtener contenido del FileEditorObservation
+                        content = getattr(obs, 'content', '') or ''
+                        if isinstance(content, list):
+                            content = '\n'.join(str(c.text if hasattr(c, 'text') else c) for c in content)
+                        
+                        if content:
+                            # Mostrar resumen en output
+                            preview = content[:100].replace('\n', ' ')
+                            q.put({"type": "output", "icon": "✅", "text": f"Archivo modificado: {preview}"})
+                            # Enviar a terminal
+                            q.put({
+                                "type": "terminal_output",
+                                "output": content[:1000],
+                                "stderr": "",
+                                "exit_code": 0
                             })
             
             elif event_type == 'MessageEvent':
