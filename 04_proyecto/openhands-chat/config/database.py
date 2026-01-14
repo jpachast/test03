@@ -420,9 +420,24 @@ class Database:
 
     # === GITHUB ===
     
-    def set_github_token(self, token: str):
-        """Guardar GitHub token encriptado"""
+    def set_github_token(self, token: str, force: bool = False):
+        """Guardar GitHub token encriptado
+        
+        PROTECCIÓN: No sobrescribe un token PAT (ghp_) con un token de GitHub App (ghu_)
+        a menos que force=True
+        """
+        # Verificar si ya hay un token PAT válido
+        if not force:
+            existing_token = self.get_github_token()
+            if existing_token and existing_token.startswith('ghp_'):
+                # Ya hay un PAT, verificar qué tipo de token se quiere guardar
+                if token.startswith('ghu_'):
+                    # NO sobrescribir PAT con GitHub App token
+                    print(f"⚠️  PROTECCIÓN: No se sobrescribe token PAT existente con token de GitHub App")
+                    return False
+        
         self.set_setting('github_token', token, encrypt=True)
+        return True
     
     def get_github_token(self) -> str:
         """Obtener GitHub token"""
@@ -432,6 +447,19 @@ class Database:
         """Verificar si hay GitHub token configurado"""
         token = self.get_github_token()
         return token is not None and len(token) > 0
+    
+    def get_github_token_type(self) -> str:
+        """Obtener el tipo de token de GitHub
+        Returns: 'pat' (Personal Access Token), 'app' (GitHub App), o 'unknown'
+        """
+        token = self.get_github_token()
+        if not token:
+            return 'none'
+        if token.startswith('ghp_'):
+            return 'pat'
+        if token.startswith('ghu_'):
+            return 'app'
+        return 'unknown'
     
     def set_github_username(self, username: str):
         """Guardar GitHub username"""
