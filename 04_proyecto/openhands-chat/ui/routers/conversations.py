@@ -107,18 +107,18 @@ async def get_git_status(conversation_id: int):
     """Obtener estado actual de git del workspace"""
     import subprocess
     
-    conv = db.get_conversation(conversation_id)
+    conv = db.get_conversation(conversation_id, by_conv_id=True)
     if not conv:
         return {"error": "Conversation not found"}
     
-    project_path = conv.get('project_path')
-    if not project_path:
+    workspace_path = conv.get('workspace_path')
+    if not workspace_path:
         return {"branch": None}
     
     try:
         result = subprocess.run(
             ['git', 'rev-parse', '--abbrev-ref', 'HEAD'],
-            cwd=project_path,
+            cwd=workspace_path,
             capture_output=True,
             text=True,
             timeout=5

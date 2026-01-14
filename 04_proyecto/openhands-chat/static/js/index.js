@@ -316,6 +316,8 @@
             // Actualizar barra de Git
             if (repoOwner && repoName) {
                 updateGitBar(repoOwner, repoName, branch);
+                // Actualizar rama real desde el workspace (puede ser diferente a la DB)
+                refreshBranchInfo(convId);
             }
             
             // Cargar mensajes de la conversación
