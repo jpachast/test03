@@ -316,9 +316,10 @@ def is_port_listening(port: int) -> bool:
 def get_active_port(conversation_id: int) -> dict:
     """
     Obtiene el puerto activo para una conversación.
-    PRIORIZA puertos del agente (3000, 5000, etc.) sobre el servidor de archivos estáticos.
+    SOLO detecta servidores del agente (Node.js, Flask, etc.)
+    NO usa el servidor de archivos estáticos como fallback.
     """
-    # 1. PRIMERO buscar en puertos comunes del agente (Node.js, Flask, etc.)
+    # Buscar en puertos comunes del agente (Node.js, Flask, etc.)
     common_ports = [3000, 5000, 8000, 8080, 4200, 5173, 3001]
     for p in common_ports:
         if is_port_listening(p):
@@ -331,21 +332,13 @@ def get_active_port(conversation_id: int) -> dict:
                 "auto_detected": True
             }
     
-    # 2. Si no hay servidor del agente, usar puerto configurado (puede ser el servidor estático)
-    port = get_forwarded_port(conversation_id)
-    if is_port_listening(port):
-        return {
-            "status": "active",
-            "port": port,
-            "conversation_id": conversation_id
-        }
-    
-    # 3. No hay servidor activo
+    # No hay servidor del agente activo - NO usar servidor estático como fallback
+    # El frontend mostrará el placeholder "Inicia un servidor web..."
     return {
         "status": "no_server",
-        "port": DEFAULT_APP_PORT,
+        "port": None,
         "conversation_id": conversation_id,
-        "message": "No hay servidor activo"
+        "message": "No hay servidor del agente activo"
     }
 
 

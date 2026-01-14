@@ -686,11 +686,31 @@
                 if (data.status === 'active' && data.port) {
                     showAppInIframe(data.port);
                     return true;
+                } else {
+                    // No hay servidor - mostrar placeholder
+                    hideAppIframe();
                 }
             } catch (e) {
                 console.log('No app server detected');
+                hideAppIframe();
             }
             return false;
+        }
+        
+        function hideAppIframe() {
+            // Ocultar iframe y mostrar placeholder cuando no hay servidor
+            const placeholder = document.getElementById('appPlaceholder');
+            const frame = document.getElementById('appFrame');
+            const urlInput = document.getElementById('appUrl');
+            
+            if (appServerPort !== null) {
+                appServerPort = null;
+                placeholder.style.display = 'flex';
+                frame.style.display = 'none';
+                frame.src = 'about:blank';
+                urlInput.value = 'http://localhost:PORT';
+                console.log('App server stopped - showing placeholder');
+            }
         }
         
         function showAppInIframe(port) {
