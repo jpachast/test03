@@ -8,6 +8,22 @@ Incluye:
 - Herramientas de browser para navegación web con screenshots
 
 El agente usa el CLI de browser para navegar (python -m core.browser).
+
+⚠️ IMPORTANTE - NO AGREGAR tools= AL AGENTE ⚠️
+================================================================================
+El SDK de OpenHands provee las herramientas AUTOMÁTICAMENTE.
+NO existen: TerminalTool, FileEditorTool, BashTool como tools registrados.
+
+CORRECTO:
+    agent = Agent(llm=llm, agent_context=agent_context, condenser=condenser)
+
+INCORRECTO (causa KeyError):
+    agent = Agent(..., tools=[Tool(name="TerminalTool")])  # NO EXISTE!
+    agent = Agent(..., tools=[Tool(name="FileEditorTool")])  # NO EXISTE!
+
+Las únicas tools built-in son: FinishTool, ThinkTool
+El agente puede ejecutar bash, editar archivos, etc. SIN especificar tools.
+================================================================================
 """
 import os
 
@@ -143,10 +159,13 @@ def create_agent(api_key: str, model: str = "gemini/gemini-2.5-pro", base_url: s
     # - LLM configurado
     # - Condenser para manejar contextos largos
     # - El SDK provee herramientas automáticamente (bash, file edit, etc.)
+    #
+    # ⚠️ NO AGREGAR tools=[] - Ver docstring al inicio del archivo
     agent = Agent(
         llm=llm,
         agent_context=agent_context,
         condenser=condenser,  # <-- Esto es lo que usa OpenHands para prompts largos
+        # NO AGREGAR: tools=[Tool(name="...")] - causa KeyError!
     )
     
     return agent

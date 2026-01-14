@@ -2,6 +2,15 @@
 
 ## ⛔ NUNCA HACER:
 
+### 0. NO AGREGAR tools= AL AGENTE (CRÍTICO!)
+- **NUNCA** agregar `tools=[Tool(name="...")]` en `core/agent.py`
+- **NO EXISTEN**: TerminalTool, FileEditorTool, BashTool como tools registrados
+- El SDK provee las herramientas AUTOMÁTICAMENTE
+- Agregar tools inválidos causa: `KeyError: "ToolDefinition 'X' is not registered"`
+- **CORRECTO**: `Agent(llm=llm, agent_context=agent_context, condenser=condenser)`
+- Las únicas tools built-in son: FinishTool, ThinkTool
+
+
 ### 1. NO TOCAR EL TOKEN DE GITHUB
 - **NUNCA** sobrescribir el token de GitHub en la base de datos
 - **NUNCA** usar `$GITHUB_TOKEN` del entorno para reemplazar el token guardado
