@@ -8,7 +8,7 @@ El agente usa el CLI de browser para navegar (python -m core.browser).
 import os
 
 from pydantic import SecretStr
-from openhands.sdk import LLM, Agent, AgentContext
+from openhands.sdk import LLM, Agent, AgentContext, Tool
 from openhands.sdk.context import Skill
 
 from config.rules import REGLAS_AGENTE, SYSTEM_PROMPT_COMPLETO, IN_CONTEXT_EXAMPLE
@@ -117,10 +117,14 @@ def create_agent(api_key: str, model: str = "gemini/gemini-2.5-pro", base_url: s
         load_public_skills=True,
     )
     
-    # Crear agente (las herramientas de browser se usan via CLI)
+    # Crear agente con herramientas de terminal para poder ejecutar browser CLI
     agent = Agent(
         llm=llm,
         agent_context=agent_context,
+        tools=[
+            Tool(name="TerminalTool"),     # Para ejecutar comandos bash (browser CLI)
+            Tool(name="FileEditorTool"),   # Para editar archivos
+        ],
     )
     
     return agent
