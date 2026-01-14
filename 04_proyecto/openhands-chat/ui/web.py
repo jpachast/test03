@@ -67,7 +67,24 @@ async def clone_project(git_url: str = Form(...)):
     try:
         workspace = setup_workspace(git_url, "git", settings.projects_dir)
         name = Path(workspace).name
-        db.add_project(name, workspace, git_url)
+        
+        # Extraer repo_owner, repo_name, branch de la URL
+        repo_owner = None
+        repo_name = None
+        branch = "main"
+        
+        # Parsear URL de GitHub: https://github.com/owner/repo.git
+        import re
+        match = re.search(r'github\.com[/:]([^/]+)/([^/.]+)', git_url)
+        if match:
+            repo_owner = match.group(1)
+            repo_name = match.group(2)
+        
+        if repo_owner and repo_name:
+            db.add_project_with_repo(name, workspace, repo_owner, repo_name, branch, git_url)
+        else:
+            db.add_project(name, workspace, git_url)
+        
         return RedirectResponse(url=f"/?project={name}", status_code=303)
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
