@@ -1,11 +1,15 @@
 """
 Router para gestionar el servidor de aplicaciones (App Viewer)
 Port Forwarding dinámico como OpenHands Cloud
+Incluye soporte para WebSockets (hot-reload, tiempo real)
 """
 import os
-from fastapi import APIRouter, Request
+import asyncio
+import re
+from fastapi import APIRouter, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse, HTMLResponse
 import httpx
+import websockets
 
 from config.settings import Settings
 from config.database import Database
@@ -236,7 +240,6 @@ async def proxy_app_server(request: Request, path: str, conversation_id: int = N
             # Reescribir rutas en HTML para que pasen por el proxy
             # Esto es similar a cómo Daytona/OpenHands mapea URLs
             if "text/html" in content_type:
-                import re
                 content_str = content.decode("utf-8", errors="ignore")
                 base_path = f"/api/app-server/app-preview"
                 
@@ -271,11 +274,24 @@ async def proxy_app_server(request: Request, path: str, conversation_id: int = N
                         flags=re.IGNORECASE
                     )
                 
+                # 5. Reescribir WebSocket URLs (ws://localhost:PORT -> wss://host/api/app-server/app-preview-ws)
+                # Esto permite hot-reload y tiempo real
+                ws_base = f"/api/app-server/app-preview-ws"
+                content_str = re.sub(
+                    r'(["\'])ws://localhost:\d+(/[^"\']*)?(["\'])',
+                    rf'\1wss://" + window.location.host + "{ws_base}\2?conversation_id={conversation_id}\3',
+                    content_str
+                )
+                content_str = re.sub(
+                    r'(["\'])ws://127\.0\.0\.1:\d+(/[^"\']*)?(["\'])',
+                    rf'\1wss://" + window.location.host + "{ws_base}\2?conversation_id={conversation_id}\3',
+                    content_str
+                )
+                
                 content = content_str.encode("utf-8")
             
             # También reescribir URLs en CSS
             elif "text/css" in content_type:
-                import re
                 content_str = content.decode("utf-8", errors="ignore")
                 base_path = f"/api/app-server/app-preview"
                 
@@ -322,3 +338,93 @@ async def proxy_app_server(request: Request, path: str, conversation_id: int = N
 async def ensure_running(request: Request):
     """Compatibilidad: asegura que hay un servidor corriendo"""
     return await api_start_app_server(request)
+
+
+# ============================================================================
+# WebSocket Proxy - Para hot-reload, tiempo real, etc.
+# ============================================================================
+
+@router.websocket("/app-preview-ws/{path:path}")
+async def websocket_proxy(websocket: WebSocket, path: str):
+    """
+    Proxy WebSocket para apps con tiempo real (hot-reload, chat, etc.)
+    Similar a cómo Daytona/OpenHands maneja WebSockets
+    """
+    await websocket.accept()
+    
+    # Extraer conversation_id de query params
+    conversation_id = websocket.query_params.get("conversation_id")
+    if not conversation_id:
+        await websocket.close(code=4000, reason="conversation_id requerido")
+        return
+    
+    try:
+        conversation_id = int(conversation_id)
+    except ValueError:
+        await websocket.close(code=4001, reason="conversation_id inválido")
+        return
+    
+    # Obtener puerto activo
+    port_info = get_active_port(conversation_id)
+    if port_info.get("status") == "no_server" or not port_info.get("port"):
+        await websocket.close(code=4002, reason="No hay servidor activo")
+        return
+    
+    port = port_info.get("port")
+    
+    # Construir URL del WebSocket del servidor del agente
+    ws_url = f"ws://127.0.0.1:{port}/{path}"
+    query_params = {k: v for k, v in websocket.query_params.items() if k != 'conversation_id'}
+    if query_params:
+        ws_url += f"?{'&'.join(f'{k}={v}' for k, v in query_params.items())}"
+    
+    try:
+        # Conectar al WebSocket del servidor del agente
+        async with websockets.connect(ws_url) as agent_ws:
+            
+            async def forward_to_agent():
+                """Reenviar mensajes del cliente al servidor del agente"""
+                try:
+                    while True:
+                        data = await websocket.receive()
+                        if data["type"] == "websocket.receive":
+                            if "text" in data:
+                                await agent_ws.send(data["text"])
+                            elif "bytes" in data:
+                                await agent_ws.send(data["bytes"])
+                        elif data["type"] == "websocket.disconnect":
+                            break
+                except WebSocketDisconnect:
+                    pass
+                except Exception:
+                    pass
+            
+            async def forward_to_client():
+                """Reenviar mensajes del servidor del agente al cliente"""
+                try:
+                    async for message in agent_ws:
+                        if isinstance(message, str):
+                            await websocket.send_text(message)
+                        else:
+                            await websocket.send_bytes(message)
+                except Exception:
+                    pass
+            
+            # Ejecutar ambas direcciones en paralelo
+            await asyncio.gather(
+                forward_to_agent(),
+                forward_to_client(),
+                return_exceptions=True
+            )
+    
+    except websockets.exceptions.ConnectionClosed:
+        pass
+    except ConnectionRefusedError:
+        await websocket.close(code=4003, reason=f"No se puede conectar al puerto {port}")
+    except Exception as e:
+        await websocket.close(code=4004, reason=str(e)[:100])
+    finally:
+        try:
+            await websocket.close()
+        except Exception:
+            pass
