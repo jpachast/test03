@@ -173,16 +173,29 @@ def create_streaming_callback(q, conv_id=None):
                                         })
                     
                     if 'Command' in obs_type or 'Bash' in obs_type or 'Terminal' in obs_type:
-                        output = getattr(obs, 'stdout', '') or getattr(obs, 'output', '') or getattr(obs, 'content', '')
+                        raw_output = getattr(obs, 'stdout', '') or getattr(obs, 'output', '') or getattr(obs, 'content', '')
                         stderr = getattr(obs, 'stderr', '')
                         exit_code = getattr(obs, 'exit_code', 0)
-                        if output and len(str(output)) > 0:
-                            preview = str(output)[:100].replace('\n', ' ')
+                        
+                        # Extraer texto limpio (puede ser lista de TextContent)
+                        if isinstance(raw_output, list):
+                            output_parts = []
+                            for item in raw_output:
+                                if hasattr(item, 'text'):
+                                    output_parts.append(item.text)
+                                else:
+                                    output_parts.append(str(item))
+                            output = '\n'.join(output_parts)
+                        else:
+                            output = str(raw_output) if raw_output else ''
+                        
+                        if output and len(output) > 0:
+                            preview = output[:100].replace('\n', ' ')
                             q.put({"type": "output", "icon": "📋", "text": f"Resultado: {preview}"})
                             # Enviar output a la terminal (solo lectura)
                             q.put({
                                 "type": "terminal_output", 
-                                "output": str(output)[:2000],  # Limitar output
+                                "output": output[:2000],  # Limitar output
                                 "stderr": str(stderr)[:500] if stderr else "",
                                 "exit_code": exit_code
                             })
