@@ -233,18 +233,56 @@ async def proxy_app_server(request: Request, path: str, conversation_id: int = N
             content = response.content
             content_type = response_headers.get("content-type", "")
             
-            # Reescribir rutas absolutas en HTML para que pasen por el proxy
-            # Esto es similar a cómo Daytona mapea URLs
+            # Reescribir rutas en HTML para que pasen por el proxy
+            # Esto es similar a cómo Daytona/OpenHands mapea URLs
             if "text/html" in content_type:
                 import re
                 content_str = content.decode("utf-8", errors="ignore")
                 base_path = f"/api/app-server/app-preview"
                 
-                # Reescribir src="/..." y href="/..." para que pasen por el proxy
-                # Preserva rutas que ya son absolutas (http://, https://, //)
+                # 1. Reescribir src="/..." y href="/..." (rutas absolutas)
                 content_str = re.sub(
                     r'(src|href)=["\']/((?!/)(?!http)[^"\']+)["\']',
                     rf'\1="{base_path}/\2?conversation_id={conversation_id}"',
+                    content_str
+                )
+                
+                # 2. Reescribir action="/..." en formularios
+                content_str = re.sub(
+                    r'action=["\']/((?!/)(?!http)[^"\']+)["\']',
+                    rf'action="{base_path}/\1?conversation_id={conversation_id}"',
+                    content_str
+                )
+                
+                # 3. Reescribir url("/...") en estilos inline (para backgrounds, fonts)
+                content_str = re.sub(
+                    r'url\(["\']?/((?!/)(?!http)[^"\')\s]+)["\']?\)',
+                    rf'url("{base_path}/\1?conversation_id={conversation_id}")',
+                    content_str
+                )
+                
+                # 4. Agregar <base> tag para rutas relativas si no existe
+                if '<base' not in content_str.lower():
+                    content_str = re.sub(
+                        r'(<head[^>]*>)',
+                        rf'\1<base href="{base_path}/?conversation_id={conversation_id}">',
+                        content_str,
+                        count=1,
+                        flags=re.IGNORECASE
+                    )
+                
+                content = content_str.encode("utf-8")
+            
+            # También reescribir URLs en CSS
+            elif "text/css" in content_type:
+                import re
+                content_str = content.decode("utf-8", errors="ignore")
+                base_path = f"/api/app-server/app-preview"
+                
+                # Reescribir url("/...") y url('/...') y url(/...)
+                content_str = re.sub(
+                    r'url\(["\']?/((?!/)(?!http|data:)[^"\')\s]+)["\']?\)',
+                    rf'url("{base_path}/\1?conversation_id={conversation_id}")',
                     content_str
                 )
                 content = content_str.encode("utf-8")
