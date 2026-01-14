@@ -260,7 +260,7 @@ def cleanup_orphaned_servers():
             with open(PID_FILE, 'r') as f:
                 old_pid = int(f.read().strip())
             os.kill(old_pid, signal.SIGTERM)
-            time.sleep(1)  # Esperar que termine
+            time.sleep(0.3)  # Reducido de 1s a 0.3s
             try:
                 os.kill(old_pid, signal.SIGKILL)  # Forzar si no terminó
             except ProcessLookupError:
@@ -286,7 +286,7 @@ def cleanup_orphaned_servers():
             old_port_pid = int(result.stdout.strip())
             os.kill(old_port_pid, signal.SIGKILL)
             print(f"  ✓ Proceso en puerto 12000 (PID {old_port_pid}) terminado")
-            time.sleep(0.5)
+            time.sleep(0.2)  # Reducido de 0.5s a 0.2s
         except:
             pass
     
@@ -322,7 +322,7 @@ def cleanup_orphaned_servers():
             pass
     
     # Pequeña pausa para que los puertos se liberen
-    time.sleep(0.5)
+    time.sleep(0.2)  # Reducido de 0.5s a 0.2s
     
     print("  ✓ Limpieza completada")
 

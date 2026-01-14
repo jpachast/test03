@@ -169,8 +169,8 @@ def start_code_server(project_path: str, conversation_id: int = 0) -> dict:
         }
         CODE_SERVER_PORT = port
         
-        # Solo esperar 0.5s para verificar que no crasheó inmediatamente
-        time.sleep(0.5)
+        # Verificar rápido que no crasheó inmediatamente
+        time.sleep(0.2)  # Reducido de 0.5s a 0.2s
         
         if process.poll() is not None:
             log_file.close()

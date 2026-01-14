@@ -138,8 +138,8 @@ def start_app_server(workspace_path: str, conversation_id: int) -> dict:
             "log_file": log_file
         }
         
-        # Esperar un momento para verificar que inició
-        time.sleep(0.3)
+        # Verificar rápido que inició
+        time.sleep(0.15)  # Reducido de 0.3s a 0.15s
         
         if process.poll() is not None:
             # Proceso falló

@@ -222,63 +222,39 @@ class Database:
         # La migración real se hace cuando se guarda de nuevo el valor
         pass
     
-    # === SETTINGS ===
+    # === SETTINGS (OPTIMIZADO - usa conexión persistente) ===
     
     def set_setting(self, key: str, value: str, encrypt: bool = False):
         """Guardar configuración"""
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
-        
         stored_value = self._encrypt(value) if encrypt else value
-        
-        cursor.execute('''
+        self._execute('''
             INSERT OR REPLACE INTO settings (key, value, encrypted, updated_at)
             VALUES (?, ?, ?, CURRENT_TIMESTAMP)
         ''', (key, stored_value, 1 if encrypt else 0))
-        
-        conn.commit()
-        conn.close()
     
     def get_setting(self, key: str, default: str = None) -> str:
         """Obtener configuración"""
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
-        
-        cursor.execute('SELECT value, encrypted FROM settings WHERE key = ?', (key,))
-        row = cursor.fetchone()
-        conn.close()
-        
+        row = self._execute(
+            'SELECT value, encrypted FROM settings WHERE key = ?', 
+            (key,), fetch='one'
+        )
         if row is None:
             return default
-        
-        value, encrypted = row
+        value, encrypted = row[0], row[1]
         return self._decrypt(value) if encrypted else value
     
     def get_all_settings(self) -> dict:
         """Obtener todas las configuraciones (sin desencriptar las sensibles)"""
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
-        
-        cursor.execute('SELECT key, value, encrypted FROM settings')
-        rows = cursor.fetchall()
-        conn.close()
-        
+        rows = self._execute('SELECT key, value, encrypted FROM settings', fetch='all')
         settings = {}
-        for key, value, encrypted in rows:
-            if encrypted:
-                settings[key] = "********"  # No mostrar valores encriptados
-            else:
-                settings[key] = value
-        
+        for row in rows:
+            key, value, encrypted = row[0], row[1], row[2]
+            settings[key] = "********" if encrypted else value
         return settings
     
     def delete_setting(self, key: str):
         """Eliminar configuración"""
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
-        cursor.execute('DELETE FROM settings WHERE key = ?', (key,))
-        conn.commit()
-        conn.close()
+        self._execute('DELETE FROM settings WHERE key = ?', (key,))
     
     # === API KEY (métodos específicos) ===
     

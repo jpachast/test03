@@ -714,9 +714,15 @@
         }
         
         // Polling para detectar cuando el agente inicia un servidor
+        // OPTIMIZADO: Solo hace polling si realmente es necesario
+        let appServerPollingActive = false;
         function startAppServerPolling() {
+            if (appServerPollingActive) return; // Evitar duplicados
+            appServerPollingActive = true;
+            
             setInterval(async () => {
-                if (currentView === 'app' && !appServerPort) {
+                // Solo hacer request si estamos en vista app Y no tenemos puerto
+                if (currentView === 'app' && !appServerPort && document.visibilityState === 'visible') {
                     await checkAppServer();
                 }
             }, 3000);
