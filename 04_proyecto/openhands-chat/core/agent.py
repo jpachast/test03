@@ -3,6 +3,7 @@ Configuración del agente OpenHands
 BASADO 100% EN LA DOCUMENTACIÓN OFICIAL Y PROMPTS DE REFERENCIA
 
 Incluye herramientas de browser para navegación web con screenshots.
+El agente usa el CLI de browser para navegar (python -m core.browser).
 """
 
 from pydantic import SecretStr
@@ -10,6 +11,55 @@ from openhands.sdk import LLM, Agent, AgentContext
 from openhands.sdk.context import Skill
 
 from config.rules import REGLAS_AGENTE, SYSTEM_PROMPT_COMPLETO, IN_CONTEXT_EXAMPLE
+
+
+# Instrucciones de browser para el agente
+BROWSER_INSTRUCTIONS = """
+## HERRAMIENTAS DE NAVEGACIÓN WEB
+
+Tienes acceso a un browser headless mediante comandos de terminal.
+Para navegar en la web, usa estos comandos:
+
+### Navegar a una URL:
+```bash
+cd /workspace/project/04_proyecto/openhands-chat && python -m core.browser navigate "https://www.google.com"
+```
+
+### Obtener estado actual (URL, título, elementos):
+```bash
+cd /workspace/project/04_proyecto/openhands-chat && python -m core.browser state
+```
+
+### Hacer clic en un elemento:
+```bash
+cd /workspace/project/04_proyecto/openhands-chat && python -m core.browser click "button.submit"
+```
+
+### Escribir en un campo:
+```bash
+cd /workspace/project/04_proyecto/openhands-chat && python -m core.browser type "input#search" "texto a buscar"
+```
+
+### Hacer scroll:
+```bash
+cd /workspace/project/04_proyecto/openhands-chat && python -m core.browser scroll down
+```
+
+### Obtener contenido de texto:
+```bash
+cd /workspace/project/04_proyecto/openhands-chat && python -m core.browser content
+```
+
+Los comandos retornan JSON con:
+- success: true/false
+- url: URL actual
+- title: título de la página
+- screenshot: imagen en base64 (se muestra automáticamente en la UI)
+- elements: elementos interactivos (para state)
+- content: texto de la página (para content)
+
+IMPORTANTE: Los screenshots se muestran automáticamente en la pestaña "Navegador" de la UI.
+"""
 
 
 def create_agent(api_key: str, model: str = "gemini/gemini-2.5-pro", base_url: str = None) -> Agent:
@@ -32,6 +82,9 @@ def create_agent(api_key: str, model: str = "gemini/gemini-2.5-pro", base_url: s
         base_url=base_url,
     )
     
+    # Combinar reglas con instrucciones de browser
+    full_rules = REGLAS_AGENTE + "\n\n" + BROWSER_INSTRUCTIONS
+    
     # === CONTEXT CON TODOS LOS PROMPTS INTEGRADOS ===
     agent_context = AgentContext(
         skills=[
@@ -49,32 +102,22 @@ def create_agent(api_key: str, model: str = "gemini/gemini-2.5-pro", base_url: s
                 source=None,
                 trigger=None,  # Siempre activo
             ),
-            # Reglas de comportamiento personalizadas + idioma español
+            # Reglas de comportamiento personalizadas + idioma español + browser
             Skill(
                 name="reglas_comportamiento",
-                content=REGLAS_AGENTE,
+                content=full_rules,
                 source=None,
                 trigger=None,  # Siempre activo
             ),
         ],
-        system_message_suffix=REGLAS_AGENTE,
+        system_message_suffix=full_rules,
         load_public_skills=True,
     )
     
-    # === CARGAR HERRAMIENTAS DE BROWSER ===
-    browser_tools = []
-    try:
-        from core.browser import create_browser_tools
-        browser_tools = create_browser_tools()
-        print(f"  🌐 {len(browser_tools)} herramientas de browser cargadas")
-    except Exception as e:
-        print(f"  ⚠️ No se pudieron cargar herramientas de browser: {e}")
-    
-    # Crear agente con herramientas de browser
+    # Crear agente (las herramientas de browser se usan via CLI)
     agent = Agent(
         llm=llm,
         agent_context=agent_context,
-        tools=browser_tools if browser_tools else None,
     )
     
     return agent

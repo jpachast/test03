@@ -73,17 +73,44 @@ def create_streaming_callback(q, conv_id=None):
                     obs_type = str(type(obs).__name__)
                     tool_name = getattr(event, 'tool_name', '') or ''
                     
-                    # Detectar screenshots de browser (herramientas locales o MCP)
+                    # Detectar screenshots de browser (CLI o MCP)
                     is_browser_tool = 'browser' in tool_name.lower()
                     
+                    # Obtener output del comando
+                    output = getattr(obs, 'output', '') or getattr(obs, 'content', '')
+                    if isinstance(output, list):
+                        output = ' '.join(str(x) for x in output)
+                    
+                    # Buscar JSON con screenshot en la salida (del CLI de browser)
+                    if output and 'screenshot' in output.lower():
+                        try:
+                            # El CLI retorna JSON directo
+                            import re
+                            # Buscar JSON en la salida
+                            json_match = re.search(r'\{[^{}]*"screenshot"[^{}]*\}', output, re.DOTALL)
+                            if json_match:
+                                result = json.loads(json_match.group())
+                                if isinstance(result, dict) and result.get('screenshot'):
+                                    screenshot_data = result.get('screenshot', '')
+                                    browser_url = result.get('url', '')
+                                    if screenshot_data and conv_id:
+                                        update_screenshot(conv_id, browser_url, screenshot_data)
+                                        q.put({
+                                            "type": "browser", 
+                                            "icon": "🌐", 
+                                            "text": f"Navegando: {browser_url[:40] if browser_url else 'capturado'}",
+                                            "screenshot": True
+                                        })
+                        except (json.JSONDecodeError, TypeError, AttributeError):
+                            pass
+                    
                     if is_browser_tool:
-                        # Las herramientas de browser locales retornan dict con 'screenshot'
+                        # Las herramientas de browser MCP retornan content con ImageContent
                         if hasattr(obs, 'content') and obs.content:
                             for item in obs.content:
                                 # Buscar texto con resultado JSON de browser tools
                                 if hasattr(item, 'text') and item.text:
                                     try:
-                                        import json
                                         result = json.loads(item.text)
                                         if isinstance(result, dict) and 'screenshot' in result:
                                             screenshot_data = result.get('screenshot', '')
@@ -120,7 +147,7 @@ def create_streaming_callback(q, conv_id=None):
                                             "screenshot": True
                                         })
                     
-                    elif 'Command' in obs_type or 'Bash' in obs_type:
+                    if 'Command' in obs_type or 'Bash' in obs_type:
                         output = getattr(obs, 'output', '') or getattr(obs, 'content', '')
                         if output and len(output) > 0:
                             preview = output[:100].replace('\n', ' ')

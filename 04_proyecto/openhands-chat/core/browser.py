@@ -289,121 +289,74 @@ def browser_get_content() -> dict:
         }
 
 
-# === HERRAMIENTAS REGISTRABLES PARA EL SDK ===
+# === CLI PARA USO DESDE TERMINAL ===
 
-def create_browser_tools():
+def main():
     """
-    Crea las herramientas de browser para registrar en el agente.
-    Retorna una lista de funciones con sus metadatos.
+    Interfaz de línea de comandos para las herramientas de browser.
+    Permite al agente usar el browser mediante comandos bash.
+    
+    Uso:
+        python -m core.browser navigate https://google.com
+        python -m core.browser state
+        python -m core.browser click "button.submit"
+        python -m core.browser type "input#search" "texto a buscar"
+        python -m core.browser scroll down
+        python -m core.browser content
     """
-    from openhands.sdk import Tool, ToolDefinition
+    import sys
+    import json
     
-    tools = []
+    if len(sys.argv) < 2:
+        print(json.dumps({"error": "Uso: python -m core.browser <comando> [args]"}))
+        print("Comandos: navigate, state, click, type, scroll, content")
+        sys.exit(1)
     
-    # Tool: browser_navigate
-    tools.append(Tool(
-        fn=browser_navigate,
-        definition=ToolDefinition(
-            name="browser_navigate",
-            description="Navega a una URL específica y toma un screenshot. Usa esto para visitar páginas web.",
-            parameters={
-                "type": "object",
-                "properties": {
-                    "url": {
-                        "type": "string",
-                        "description": "URL a la que navegar (ej: https://www.google.com)"
-                    }
-                },
-                "required": ["url"]
-            }
-        )
-    ))
+    command = sys.argv[1].lower()
     
-    # Tool: browser_get_state
-    tools.append(Tool(
-        fn=browser_get_state,
-        definition=ToolDefinition(
-            name="browser_get_state",
-            description="Obtiene el estado actual del browser: URL, título, elementos interactivos y screenshot.",
-            parameters={
-                "type": "object",
-                "properties": {}
-            }
-        )
-    ))
-    
-    # Tool: browser_click
-    tools.append(Tool(
-        fn=browser_click,
-        definition=ToolDefinition(
-            name="browser_click",
-            description="Hace clic en un elemento de la página usando un selector CSS.",
-            parameters={
-                "type": "object",
-                "properties": {
-                    "selector": {
-                        "type": "string",
-                        "description": "Selector CSS del elemento (ej: 'button.submit', '#login-btn')"
-                    }
-                },
-                "required": ["selector"]
-            }
-        )
-    ))
-    
-    # Tool: browser_type
-    tools.append(Tool(
-        fn=browser_type,
-        definition=ToolDefinition(
-            name="browser_type",
-            description="Escribe texto en un campo de formulario.",
-            parameters={
-                "type": "object",
-                "properties": {
-                    "selector": {
-                        "type": "string",
-                        "description": "Selector CSS del campo de texto"
-                    },
-                    "text": {
-                        "type": "string",
-                        "description": "Texto a escribir"
-                    }
-                },
-                "required": ["selector", "text"]
-            }
-        )
-    ))
-    
-    # Tool: browser_scroll
-    tools.append(Tool(
-        fn=browser_scroll,
-        definition=ToolDefinition(
-            name="browser_scroll",
-            description="Hace scroll en la página actual.",
-            parameters={
-                "type": "object",
-                "properties": {
-                    "direction": {
-                        "type": "string",
-                        "enum": ["up", "down"],
-                        "description": "Dirección del scroll"
-                    }
-                }
-            }
-        )
-    ))
-    
-    # Tool: browser_get_content
-    tools.append(Tool(
-        fn=browser_get_content,
-        definition=ToolDefinition(
-            name="browser_get_content",
-            description="Obtiene el contenido de texto de la página actual.",
-            parameters={
-                "type": "object",
-                "properties": {}
-            }
-        )
-    ))
-    
-    return tools
+    try:
+        if command == "navigate":
+            if len(sys.argv) < 3:
+                print(json.dumps({"error": "Falta URL. Uso: navigate <url>"}))
+                sys.exit(1)
+            result = browser_navigate(sys.argv[2])
+        
+        elif command == "state":
+            result = browser_get_state()
+        
+        elif command == "click":
+            if len(sys.argv) < 3:
+                print(json.dumps({"error": "Falta selector. Uso: click <selector>"}))
+                sys.exit(1)
+            result = browser_click(sys.argv[2])
+        
+        elif command == "type":
+            if len(sys.argv) < 4:
+                print(json.dumps({"error": "Faltan args. Uso: type <selector> <texto>"}))
+                sys.exit(1)
+            result = browser_type(sys.argv[2], sys.argv[3])
+        
+        elif command == "scroll":
+            direction = sys.argv[2] if len(sys.argv) > 2 else "down"
+            result = browser_scroll(direction)
+        
+        elif command == "content":
+            result = browser_get_content()
+        
+        elif command == "close":
+            close_browser()
+            result = {"success": True, "message": "Browser cerrado"}
+        
+        else:
+            result = {"error": f"Comando desconocido: {command}"}
+        
+        # Imprimir resultado como JSON (el agente puede parsearlo)
+        print(json.dumps(result))
+        
+    except Exception as e:
+        print(json.dumps({"error": str(e)}))
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()
