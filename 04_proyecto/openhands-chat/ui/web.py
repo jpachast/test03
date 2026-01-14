@@ -1,12 +1,17 @@
 """
 Servidor web FastAPI - Punto de entrada principal
 
-OPTIMIZACIÓN: Lazy imports para startup más rápido
+OPTIMIZACIONES:
+- Lazy imports para startup más rápido
+- GzipMiddleware para comprimir respuestas (-70% tamaño)
+- Cache headers para archivos estáticos
 """
 from pathlib import Path
-from fastapi import FastAPI, Form, HTTPException
+from fastapi import FastAPI, Form, HTTPException, Request
 from fastapi.responses import RedirectResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware.gzip import GZipMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
 
 from config.database import Database
 from config.settings import Settings
@@ -23,8 +28,23 @@ from ui.routers.code_server import router as code_server_router
 from ui.routers.projects_server import router as projects_server_router
 from ui.routers.browser import router as browser_router
 
+# OPTIMIZACIÓN: Middleware para cache de archivos estáticos
+class CacheControlMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        # Cache para archivos estáticos (CSS, JS, imágenes)
+        if request.url.path.startswith("/static/"):
+            response.headers["Cache-Control"] = "public, max-age=3600"  # 1 hora
+        return response
+
 # Inicializar
 app = FastAPI(title="OpenHands Chat", version="2.0.0")
+
+# OPTIMIZACIÓN: Comprimir respuestas >500 bytes
+app.add_middleware(GZipMiddleware, minimum_size=500)
+# OPTIMIZACIÓN: Cache headers para estáticos
+app.add_middleware(CacheControlMiddleware)
+
 settings = Settings()
 db = Database()
 

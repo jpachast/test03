@@ -1,4 +1,5 @@
 """Rutas de páginas HTML"""
+import os
 from pathlib import Path
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
@@ -13,7 +14,9 @@ settings = Settings()
 db = Database()
 
 templates_dir = Path(__file__).parent.parent / "templates"
-templates = Jinja2Templates(directory=str(templates_dir))
+# OPTIMIZACIÓN: Desactivar auto_reload en producción (evita verificar cambios en cada request)
+is_production = os.environ.get("ENV", "production") != "development"
+templates = Jinja2Templates(directory=str(templates_dir), auto_reload=not is_production)
 
 
 @router.get("/", response_class=HTMLResponse)
