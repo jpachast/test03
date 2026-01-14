@@ -96,28 +96,42 @@ When asked to pull/clone the repository:
 </REPOSITORY_INFORMATION>
 """)
     
-    # 3.4 WEB NAVIGATION - Usar curl/httpx en lugar de browser (más estable)
+    # 3.4 DEVELOPMENT TOOLS - Frameworks y herramientas disponibles
     suffix_parts.append("""
-<WEB_NAVIGATION>
-Para ver contenido de páginas web, usa el terminal con curl o python httpx:
+<DEVELOPMENT_TOOLS>
+Herramientas de desarrollo disponibles:
 
-Ejemplo con curl (recomendado):
+## Node.js / JavaScript
+- node v22+ y npm 10+ instalados
+- Para proyectos Node.js: npm init -y && npm install <paquetes>
+- Frameworks: React, Vue, Angular, Tailwind, Bootstrap via npm
+
+## Python
+- python3 v3.12+ y pip instalados
+- SIEMPRE usa entorno virtual para proyectos Python:
+  ```bash
+  python3 -m venv venv
+  source venv/bin/activate
+  pip install <paquetes>
+  ```
+
+## .NET / Blazor / C#
+- dotnet SDK 8.0 instalado
+- IMPORTANTE: Antes de usar dotnet, ejecuta:
+  ```bash
+  export PATH="$HOME/.dotnet:$PATH"
+  export DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1
+  ```
+- Crear proyecto Blazor: dotnet new blazorserver -o MiProyecto
+- Crear proyecto Web API: dotnet new webapi -o MiApi
+- Ejecutar: dotnet run
+
+## Navegación Web
+Para ver contenido de páginas web, usa curl:
 ```bash
 curl -sL "https://example.com" | head -200
 ```
-
-Ejemplo con Python httpx (para sitios más complejos):
-```bash
-python3 -c "import httpx; r = httpx.get('https://example.com'); print(r.text[:5000])"
-```
-
-Para APIs JSON:
-```bash
-curl -s "https://api.example.com/data" | python3 -m json.tool
-```
-
-Esto es más confiable que herramientas de browser.
-</WEB_NAVIGATION>
+</DEVELOPMENT_TOOLS>
 """)
     
     system_suffix = "\n".join(suffix_parts)

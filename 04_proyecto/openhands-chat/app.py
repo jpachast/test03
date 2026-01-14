@@ -90,6 +90,36 @@ def ensure_dependencies():
         f.write('installed')
 
 
+def ensure_dotnet():
+    """Instala .NET SDK si no está disponible."""
+    dotnet_path = os.path.expanduser("~/.dotnet/dotnet")
+    
+    if os.path.exists(dotnet_path):
+        return True  # Ya instalado
+    
+    print("=" * 60)
+    print("  🔷 INSTALANDO .NET SDK 8.0...")
+    print("=" * 60)
+    print()
+    
+    # Descargar e instalar .NET
+    result = subprocess.run(
+        "curl -sSL https://dot.net/v1/dotnet-install.sh | bash -s -- --channel 8.0 --install-dir $HOME/.dotnet",
+        shell=True,
+        capture_output=True,
+        timeout=300
+    )
+    
+    if os.path.exists(dotnet_path):
+        print("  ✅ .NET SDK instalado correctamente")
+        print()
+        return True
+    else:
+        print("  ⚠️ .NET SDK no se pudo instalar (opcional)")
+        print()
+        return False
+
+
 def ensure_code_server():
     """Instala code-server dentro del proyecto para que persista entre sesiones"""
     script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -127,6 +157,7 @@ def ensure_code_server():
 
 # Ejecutar auto-instalación ANTES de cualquier otro import
 ensure_dependencies()
+ensure_dotnet()  # .NET SDK para Blazor/C#
 ensure_code_server()
 
 # =============================================================================
