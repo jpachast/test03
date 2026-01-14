@@ -92,7 +92,7 @@ IMPORTANTE: Los screenshots se muestran automáticamente en la pestaña "Navegad
 """
 
 
-def create_agent(api_key: str, model: str = "gemini/gemini-2.5-pro", base_url: str = None) -> Agent:
+def create_agent(api_key: str, model: str = "gemini/gemini-2.5-pro", base_url: str = None, workspace: str = None) -> Agent:
     """
     Crea y configura el agente OpenHands
     
@@ -104,6 +104,7 @@ def create_agent(api_key: str, model: str = "gemini/gemini-2.5-pro", base_url: s
         api_key: API key del LLM
         model: Modelo a usar (default: gemini/gemini-2.5-pro)
         base_url: URL base del LLM (opcional)
+        workspace: Directorio de trabajo (se agrega al prompt como en additional_info.j2)
     
     Returns:
         Agent configurado con TODAS las tools, reglas y condenser
@@ -129,6 +130,16 @@ def create_agent(api_key: str, model: str = "gemini/gemini-2.5-pro", base_url: s
     
     # Combinar reglas con instrucciones de browser
     full_rules = REGLAS_AGENTE + "\n\n" + BROWSER_INSTRUCTIONS
+    
+    # === RUNTIME INFO (como additional_info.j2 de OpenHands) ===
+    # OpenHands agrega el working directory en el prompt via additional_info.j2
+    runtime_info = ""
+    if workspace:
+        runtime_info = f"""
+<RUNTIME_INFORMATION>
+The current working directory is {workspace}
+</RUNTIME_INFORMATION>
+"""
     
     # === CONTEXT CON TODOS LOS PROMPTS INTEGRADOS ===
     # OpenHands usa prompts largos y completos, el condenser maneja
@@ -157,7 +168,7 @@ def create_agent(api_key: str, model: str = "gemini/gemini-2.5-pro", base_url: s
                 trigger=None,  # Siempre activo
             ),
         ],
-        system_message_suffix=full_rules,
+        system_message_suffix=full_rules + runtime_info,
         load_public_skills=True,
     )
     

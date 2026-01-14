@@ -302,7 +302,7 @@ async def send_message(message: str = Form(...), project: str = Form(None)):
             db.add_message(conversation_id, 'user', message)
         
         model = db.get_setting("llm_model", settings.default_model)
-        agent = create_agent(api_key, model)
+        agent = create_agent(api_key, model, workspace=current_workspace)
         
         # Obtener GITHUB_TOKEN para que el agente pueda usarlo
         github_token = db.get_github_token()
@@ -389,7 +389,7 @@ async def stream_message(message: str = Form(...), project: str = Form(None), im
         yield f"data: {json.dumps({'type': 'start', 'icon': '🚀', 'text': 'Iniciando...'})}\n\n"
         
         model = db.get_setting("llm_model", settings.default_model)
-        agent = create_agent(api_key, model)
+        agent = create_agent(api_key, model, workspace=workspace)
         
         # Obtener GITHUB_TOKEN para que el agente pueda usarlo
         github_token = db.get_github_token()
