@@ -13,6 +13,7 @@ from config.database import Database
 from config.settings import Settings
 from core.agent import create_agent
 from ui.routers.browser import update_screenshot
+from ui.routers.conversations import paused_conversations
 
 router = APIRouter(prefix="/api/chat", tags=["chat"])
 db = Database()
@@ -374,6 +375,12 @@ async def stream_message(message: str = Form(...), project: str = Form(None)):
         
         while True:
             try:
+                # Verificar si la conversación está pausada
+                if conversation_id and conversation_id in paused_conversations:
+                    yield f"data: {json.dumps({'type': 'paused', 'icon': '⏸️', 'text': 'Agente pausado'})}\n\n"
+                    await asyncio.sleep(1)
+                    continue
+                
                 event = q.get(timeout=0.5)
                 if event is None:
                     break

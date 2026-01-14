@@ -541,3 +541,59 @@ nav a:hover, nav a.active {
         min-width: auto;
     }
 }
+
+/* Agent Control Button - Como OpenHands */
+.agent-control-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    padding: 4px;
+    border: none;
+    border-radius: 100px;
+    background: #525252;
+    color: white;
+    cursor: pointer;
+    transition: all 0.2s;
+    flex-shrink: 0;
+}
+
+.agent-control-btn:hover {
+    background: #737373;
+}
+
+.agent-control-btn.clickable {
+    cursor: pointer;
+}
+
+.agent-control-btn.clickable:active {
+    transform: scale(0.95);
+}
+
+.agent-icon {
+    width: 16px;
+    height: 16px;
+}
+
+/* Loading spinner */
+.agent-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.loading-spinner {
+    width: 14px;
+    height: 14px;
+    border: 2px solid transparent;
+    border-top-color: #f97316;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}

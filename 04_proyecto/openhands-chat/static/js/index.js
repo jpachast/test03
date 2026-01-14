@@ -935,26 +935,135 @@
         }
         
         // === FUNCIONES DE UI ===
+        
+        // Estado del agente (como OpenHands)
+        let currentAgentState = 'idle'; // idle, running, paused, loading, error
+        
         function setTaskStatus(status, text) {
             const taskStatus = document.getElementById('taskStatus');
             const statusText = document.getElementById('statusText');
-            const statusIcon = document.getElementById('statusIcon');
             
             taskStatus.className = 'task-status ' + status;
             statusText.textContent = text;
             
+            // Mapear status a agent state
             switch(status) {
                 case 'processing':
-                    statusIcon.textContent = '⚙️';
+                    setAgentState('running');
                     break;
                 case 'completed':
-                    statusIcon.textContent = '✅';
+                    setAgentState('idle');
                     break;
                 case 'error':
-                    statusIcon.textContent = '❌';
+                    setAgentState('error');
                     break;
                 default:
-                    statusIcon.textContent = '⏱';
+                    setAgentState('idle');
+            }
+        }
+        
+        // Actualizar el icono según el estado del agente (como OpenHands)
+        function setAgentState(state) {
+            currentAgentState = state;
+            
+            const iconClock = document.getElementById('iconClock');
+            const iconPause = document.getElementById('iconPause');
+            const iconPlay = document.getElementById('iconPlay');
+            const iconLoading = document.getElementById('iconLoading');
+            const btn = document.getElementById('agentControlBtn');
+            
+            // Ocultar todos los iconos
+            iconClock.style.display = 'none';
+            iconPause.style.display = 'none';
+            iconPlay.style.display = 'none';
+            iconLoading.style.display = 'none';
+            
+            // Remover clase clickable por defecto
+            btn.classList.remove('clickable');
+            btn.title = 'Estado del agente';
+            
+            switch(state) {
+                case 'running':
+                    iconPause.style.display = 'block';
+                    btn.classList.add('clickable');
+                    btn.title = 'Pausar agente';
+                    break;
+                case 'paused':
+                case 'stopped':
+                    iconPlay.style.display = 'block';
+                    btn.classList.add('clickable');
+                    btn.title = 'Reanudar agente';
+                    break;
+                case 'loading':
+                    iconLoading.style.display = 'flex';
+                    break;
+                case 'error':
+                    iconClock.style.display = 'block';
+                    break;
+                case 'idle':
+                default:
+                    iconClock.style.display = 'block';
+                    break;
+            }
+        }
+        
+        // Toggle del estado del agente (pause/resume)
+        window.toggleAgentState = function() {
+            if (currentAgentState === 'running') {
+                // Pausar el agente
+                pauseAgent();
+            } else if (currentAgentState === 'paused' || currentAgentState === 'stopped') {
+                // Reanudar el agente
+                resumeAgent();
+            }
+            // Si está en idle, loading o error, no hacer nada
+        };
+        
+        // Pausar el agente
+        async function pauseAgent() {
+            if (!currentConversationId) return;
+            
+            setAgentState('loading');
+            
+            try {
+                const response = await fetch(`/api/conversations/${currentConversationId}/pause`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                if (response.ok) {
+                    setAgentState('paused');
+                    document.getElementById('statusText').textContent = 'Agente pausado.';
+                } else {
+                    setAgentState('running');
+                }
+            } catch (e) {
+                console.error('Error pausando agente:', e);
+                setAgentState('running');
+            }
+        }
+        
+        // Reanudar el agente
+        async function resumeAgent() {
+            if (!currentConversationId) return;
+            
+            setAgentState('loading');
+            
+            try {
+                const response = await fetch(`/api/conversations/${currentConversationId}/resume`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                if (response.ok) {
+                    setAgentState('running');
+                    document.getElementById('statusText').textContent = 'Agente ejecutándose...';
+                } else {
+                    setAgentState('paused');
+                }
+            } catch (e) {
+                console.error('Error reanudando agente:', e);
+                setAgentState('paused');
             }
         }
         

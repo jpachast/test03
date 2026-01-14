@@ -127,3 +127,28 @@ async def get_git_status(conversation_id: int):
         return {"branch": branch}
     except Exception as e:
         return {"branch": None, "error": str(e)}
+
+
+# Estado de pausa por conversación
+paused_conversations = set()
+
+
+@router.post("/{conversation_id}/pause")
+async def pause_conversation(conversation_id: int):
+    """Pausar el agente de una conversación"""
+    paused_conversations.add(conversation_id)
+    return {"success": True, "status": "paused"}
+
+
+@router.post("/{conversation_id}/resume")
+async def resume_conversation(conversation_id: int):
+    """Reanudar el agente de una conversación"""
+    paused_conversations.discard(conversation_id)
+    return {"success": True, "status": "running"}
+
+
+@router.get("/{conversation_id}/agent-status")
+async def get_agent_status(conversation_id: int):
+    """Obtener estado del agente"""
+    is_paused = conversation_id in paused_conversations
+    return {"status": "paused" if is_paused else "idle"}
