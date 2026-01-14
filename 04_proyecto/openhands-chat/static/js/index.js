@@ -913,6 +913,49 @@
         
         function formatMessage(text) {
             if (!text) return '';
+            
+            // Usar marked.js para renderizar markdown completo
+            // Incluye: tablas, listas, código, negritas, links, etc.
+            try {
+                // Configurar marked con highlight.js para syntax highlighting
+                if (typeof marked !== 'undefined') {
+                    marked.setOptions({
+                        breaks: true,  // Convertir \n a <br>
+                        gfm: true,     // GitHub Flavored Markdown (tablas, etc)
+                        highlight: function(code, lang) {
+                            if (typeof hljs !== 'undefined' && lang && hljs.getLanguage(lang)) {
+                                try {
+                                    return hljs.highlight(code, { language: lang }).value;
+                                } catch (e) {}
+                            }
+                            // Auto-detect language
+                            if (typeof hljs !== 'undefined') {
+                                try {
+                                    return hljs.highlightAuto(code).value;
+                                } catch (e) {}
+                            }
+                            return code;
+                        }
+                    });
+                    
+                    const html = marked.parse(text);
+                    
+                    // Aplicar highlight a bloques de código después del render
+                    setTimeout(() => {
+                        document.querySelectorAll('pre code:not(.hljs)').forEach((block) => {
+                            if (typeof hljs !== 'undefined') {
+                                hljs.highlightElement(block);
+                            }
+                        });
+                    }, 0);
+                    
+                    return html;
+                }
+            } catch (e) {
+                console.error('Error rendering markdown:', e);
+            }
+            
+            // Fallback básico si marked no está disponible
             text = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
             text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank">$1</a>');
             text = text.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank">$1</a>');

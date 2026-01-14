@@ -253,3 +253,135 @@
     padding: 2px 4px;
     border-radius: 50%;
 }
+
+/* ========================================
+   MARKDOWN RENDERING - Tablas, código, listas
+   ======================================== */
+
+/* Tablas Markdown */
+.message table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 12px 0;
+    font-size: 13px;
+    background: var(--bg-secondary, #1e1e1e);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.message th {
+    background: var(--bg-tertiary, #252525);
+    color: var(--text-primary, #e0e0e0);
+    font-weight: 600;
+    text-align: left;
+    padding: 10px 12px;
+    border-bottom: 2px solid var(--border-color, #3c3c3c);
+}
+
+.message td {
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border-color, #3c3c3c);
+    color: var(--text-primary, #e0e0e0);
+}
+
+.message tr:last-child td {
+    border-bottom: none;
+}
+
+.message tr:hover td {
+    background: var(--bg-hover, #2a2a2a);
+}
+
+/* Código inline */
+.message code:not(pre code) {
+    background: var(--bg-tertiary, #252525);
+    color: #e06c75;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-size: 0.9em;
+}
+
+/* Bloques de código */
+.message pre {
+    background: #1e1e2e;
+    border: 1px solid var(--border-color, #3c3c3c);
+    border-radius: 8px;
+    padding: 12px;
+    overflow-x: auto;
+    margin: 12px 0;
+}
+
+.message pre code {
+    background: transparent;
+    padding: 0;
+    color: inherit;
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+/* Listas */
+.message ul, .message ol {
+    margin: 10px 0;
+    padding-left: 24px;
+}
+
+.message li {
+    margin: 6px 0;
+    line-height: 1.5;
+}
+
+.message li::marker {
+    color: var(--accent-color, #007acc);
+}
+
+/* Blockquotes */
+.message blockquote {
+    border-left: 4px solid var(--accent-color, #007acc);
+    margin: 12px 0;
+    padding: 8px 16px;
+    background: var(--bg-tertiary, #252525);
+    border-radius: 0 8px 8px 0;
+    color: var(--text-secondary, #aaa);
+}
+
+/* Headers en mensajes */
+.message h1, .message h2, .message h3, .message h4 {
+    color: var(--text-primary, #e0e0e0);
+    margin: 16px 0 8px 0;
+    font-weight: 600;
+}
+
+.message h1 { font-size: 1.5em; }
+.message h2 { font-size: 1.3em; }
+.message h3 { font-size: 1.15em; }
+.message h4 { font-size: 1em; }
+
+/* Links */
+.message a {
+    color: var(--accent-color, #007acc);
+    text-decoration: none;
+}
+
+.message a:hover {
+    text-decoration: underline;
+}
+
+/* Checkboxes en listas (task lists) */
+.message input[type="checkbox"] {
+    margin-right: 8px;
+    accent-color: var(--accent-color, #007acc);
+}
+
+/* Separadores horizontales */
+.message hr {
+    border: none;
+    border-top: 1px solid var(--border-color, #3c3c3c);
+    margin: 16px 0;
+}
+
+/* Emojis destacados */
+.message p:first-child:has(strong:first-child) {
+    font-size: 1.05em;
+}
