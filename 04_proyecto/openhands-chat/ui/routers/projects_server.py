@@ -214,8 +214,27 @@ async def proxy_app_server(request: Request, path: str, conversation_id: int = N
             response_headers.pop("transfer-encoding", None)
             response_headers.pop("content-encoding", None)
             
+            content = response.content
+            content_type = response_headers.get("content-type", "")
+            
+            # Reescribir rutas absolutas en HTML para que pasen por el proxy
+            # Esto es similar a cómo Daytona mapea URLs
+            if "text/html" in content_type:
+                import re
+                content_str = content.decode("utf-8", errors="ignore")
+                base_path = f"/api/app-server/app-preview"
+                
+                # Reescribir src="/..." y href="/..." para que pasen por el proxy
+                # Preserva rutas que ya son absolutas (http://, https://, //)
+                content_str = re.sub(
+                    r'(src|href)=["\']/((?!/)(?!http)[^"\']+)["\']',
+                    rf'\1="{base_path}/\2?conversation_id={conversation_id}"',
+                    content_str
+                )
+                content = content_str.encode("utf-8")
+            
             return HTMLResponse(
-                content=response.content,
+                content=content,
                 status_code=response.status_code,
                 headers=response_headers
             )
