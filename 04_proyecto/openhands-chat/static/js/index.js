@@ -1083,11 +1083,39 @@
                     addMessage(finalMessage, 'assistant');
                     setTaskStatus('completed', 'Tarea completada');
                     setTimeout(() => setTaskStatus('', 'Esperando tarea.'), 3000);
+                    
+                    // Actualizar rama si hubo operaciones git
+                    if (currentConversationId) {
+                        refreshBranchInfo(currentConversationId);
+                    }
                 }
                 
             } catch (error) {
                 progressDiv.remove();
                 addMessage('Error de conexión: ' + error.message, 'error');
                 setTaskStatus('error', 'Error de conexión');
+            }
+        }
+        
+        // Actualizar info de rama desde el workspace real
+        async function refreshBranchInfo(conversationId) {
+            try {
+                const response = await fetch(`/api/conversations/${conversationId}/git-status`);
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.branch) {
+                        const branchLink = document.getElementById('gitBranchLink');
+                        const branchName = document.getElementById('gitBranchName');
+                        if (branchName) {
+                            branchName.textContent = data.branch;
+                        }
+                        if (branchLink && currentGitInfo.owner && currentGitInfo.repo) {
+                            branchLink.href = `https://github.com/${currentGitInfo.owner}/${currentGitInfo.repo}/tree/${data.branch}`;
+                        }
+                        currentGitInfo.branch = data.branch;
+                    }
+                }
+            } catch (e) {
+                console.log('No se pudo actualizar info de rama:', e);
             }
         }

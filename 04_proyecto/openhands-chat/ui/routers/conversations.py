@@ -100,3 +100,30 @@ async def delete_conversation(conv_id: int):
 async def get_project_conversations(project_id: int):
     """Obtener conversaciones de un proyecto"""
     return {"conversations": db.get_conversations_by_project(project_id)}
+
+
+@router.get("/{conversation_id}/git-status")
+async def get_git_status(conversation_id: int):
+    """Obtener estado actual de git del workspace"""
+    import subprocess
+    
+    conv = db.get_conversation(conversation_id)
+    if not conv:
+        return {"error": "Conversation not found"}
+    
+    project_path = conv.get('project_path')
+    if not project_path:
+        return {"branch": None}
+    
+    try:
+        result = subprocess.run(
+            ['git', 'rev-parse', '--abbrev-ref', 'HEAD'],
+            cwd=project_path,
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+        branch = result.stdout.strip() if result.returncode == 0 else None
+        return {"branch": branch}
+    except Exception as e:
+        return {"branch": None, "error": str(e)}
