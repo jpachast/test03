@@ -6,6 +6,41 @@
         let codeServerLoaded = false;
         // isMainProject viene del servidor (template)
         
+        // === URL TRANSFORMATION (OpenHands pattern) ===
+        /**
+         * Transforma URLs localhost al hostname actual
+         * Similar a transformVSCodeUrl de OpenHands
+         * @param {string} url - URL original (puede ser localhost)
+         * @returns {string} URL transformada con el hostname correcto
+         */
+        function transformLocalhostUrl(url) {
+            if (!url) return null;
+            try {
+                const urlObj = new URL(url);
+                // Si la URL apunta a localhost pero no estamos en localhost
+                if (urlObj.hostname === 'localhost' && window.location.hostname !== 'localhost') {
+                    // Reemplazar localhost con el hostname actual
+                    urlObj.hostname = window.location.hostname;
+                    // Para nuestro proxy, usamos la ruta del app-preview
+                    return urlObj.toString();
+                }
+                return url;
+            } catch {
+                return url;
+            }
+        }
+        
+        /**
+         * Obtiene la URL externa completa para un puerto de app
+         * @param {number} port - Puerto del servidor
+         * @returns {string} URL externa accesible
+         */
+        function getExternalAppUrl(port) {
+            if (!currentConversationId) return null;
+            // Construir URL del proxy que es accesible externamente
+            return `${window.location.origin}/api/app-server/app-preview/?conversation_id=${currentConversationId}`;
+        }
+        
         let chatMessages = null;
         let messageInput = null;
         let repoSelect = null;
@@ -769,7 +804,16 @@
                 frame.style.display = 'block';
                 // Agregar timestamp para evitar caché
                 frame.src = `/api/app-server/app-preview/?conversation_id=${currentConversationId}&_t=${Date.now()}`;
-                urlInput.value = `http://localhost:${port}`;
+                
+                // === OpenHands Pattern: Mostrar URL externa transformada ===
+                // Si no estamos en localhost, mostrar la URL del proxy accesible externamente
+                if (window.location.hostname !== 'localhost') {
+                    const externalUrl = `${window.location.origin}/api/app-server/app-preview/?conversation_id=${currentConversationId}`;
+                    urlInput.value = externalUrl;
+                } else {
+                    urlInput.value = `http://localhost:${port}`;
+                }
+                
                 // Mostrar botón de copiar URL externa
                 if (copyBtn) copyBtn.style.display = 'inline-block';
                 console.log(`App server detected on port ${port}`);
@@ -816,12 +860,6 @@
                 document.body.removeChild(textArea);
                 showNotification('✅ URL copiada', 'success');
             });
-        }
-        
-        // Obtener URL externa para mostrar en chat
-        function getExternalAppUrl() {
-            if (!currentConversationId) return null;
-            return `${window.location.origin}/api/app-server/app-preview/?conversation_id=${currentConversationId}`;
         }
         
         // Polling para detectar cuando el agente inicia un servidor
@@ -1022,8 +1060,40 @@
             }
         }
         
+        /**
+         * Transforma URLs localhost en el texto a URLs externas accesibles
+         * Patrón OpenHands: detecta http://localhost:PORT y lo convierte
+         * @param {string} text - Texto con posibles URLs localhost
+         * @returns {string} Texto con URLs transformadas
+         */
+        function transformLocalhostUrlsInText(text) {
+            if (!text) return text;
+            
+            // Regex para encontrar URLs localhost:puerto
+            const localhostRegex = /http:\/\/localhost:(\d+)/g;
+            
+            // Si estamos en localhost, no transformar
+            if (window.location.hostname === 'localhost') {
+                return text;
+            }
+            
+            // Transformar cada URL localhost encontrada
+            return text.replace(localhostRegex, (match, port) => {
+                // Usar el proxy de nuestra app para servir el contenido
+                if (currentConversationId) {
+                    return `${window.location.origin}/api/app-server/app-preview/?conversation_id=${currentConversationId}`;
+                }
+                // Fallback: reemplazar localhost con el hostname actual
+                return `http://${window.location.hostname}:${port}`;
+            });
+        }
+        
         function formatMessage(text) {
             if (!text) return '';
+            
+            // === OpenHands Pattern: Transformar URLs localhost ===
+            // Antes de renderizar markdown, convertir localhost:PORT a URL externa
+            text = transformLocalhostUrlsInText(text);
             
             // Usar marked.js para renderizar markdown completo
             // Incluye: tablas, listas, código, negritas, links, etc.
@@ -1049,6 +1119,16 @@
                         }
                     });
                     
+                    // Configurar renderer para links (OpenHands pattern)
+                    const renderer = new marked.Renderer();
+                    renderer.link = function(href, title, text) {
+                        // Abrir todos los links en nueva pestaña (como OpenHands anchor.tsx)
+                        const titleAttr = title ? ` title="${title}"` : '';
+                        return `<a href="${href}"${titleAttr} target="_blank" rel="noopener noreferrer" class="text-blue-400 hover:underline">${text}</a>`;
+                    };
+                    
+                    marked.setOptions({ renderer });
+                    
                     const html = marked.parse(text);
                     
                     // Aplicar highlight a bloques de código después del render
@@ -1068,8 +1148,8 @@
             
             // Fallback básico si marked no está disponible
             text = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-            text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank">$1</a>');
-            text = text.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank">$1</a>');
+            text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+            text = text.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>');
             text = text.replace(/```(\w*)\n?([\s\S]*?)```/g, '<pre><code class="lang-$1">$2</code></pre>');
             text = text.replace(/`([^`]+)`/g, '<code>$1</code>');
             text = text.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
