@@ -9,10 +9,13 @@ Interfaz web para conversaciones con agentes que pueden ejecutar código, navega
 - ✅ **Integración GitHub** - 9 repos visibles, pull/push desde la UI
 - ✅ **Navegador integrado** - Screenshots automáticos cuando el agente navega
 - ✅ **Code-server** - VS Code en el navegador por conversación
+- ✅ **Terminal de solo lectura** - Muestra comandos y ediciones del agente en tiempo real
+- ✅ **Control del agente** - Botón de pausa/resume (usa SDK real)
 - ✅ **Prompts de OpenHands** - System prompt completo sin reducir
 - ✅ **LLMSummarizingCondenser** - Manejo de contextos largos como OpenHands
 - ✅ **API key encriptada** - Cifrado Fernet con soporte legacy
 - ✅ **Token GitHub persistente** - Se guarda encriptado en BD
+- ✅ **Configuración persistente** - Todo se guarda en `data/config.db`
 
 ## 🚀 Instalación Rápida
 

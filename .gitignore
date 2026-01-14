@@ -8,9 +8,10 @@ __pycache__/
 *.pyd
 .Python
 
-# Databases
+# Databases (excepto config.db que guarda configuración)
 *.db
 *.sqlite3
+!04_proyecto/openhands-chat/data/config.db
 
 # Environment
 .env
