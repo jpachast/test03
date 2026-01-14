@@ -116,11 +116,14 @@ def start_app_server(workspace_path: str, conversation_id: int) -> dict:
         return {"status": "error", "message": "No hay puertos disponibles para el servidor de app"}
     
     try:
-        # Iniciar servidor HTTP
+        # Iniciar servidor HTTP con anti-caché
         log_file = open(f"/tmp/app-server-{conversation_id}.log", "w")
         
+        # Usar nuestro servidor personalizado con headers anti-caché
+        server_script = os.path.join(os.path.dirname(__file__), "simple_http_server.py")
+        
         process = subprocess.Popen(
-            ["python3", "-m", "http.server", str(port), "--bind", "0.0.0.0"],
+            ["python3", server_script, str(port)],
             cwd=workspace_path,
             stdout=log_file,
             stderr=subprocess.STDOUT
