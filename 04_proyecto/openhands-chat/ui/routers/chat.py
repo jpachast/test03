@@ -290,6 +290,9 @@ async def send_message(message: str = Form(...), project: str = Form(None)):
     else:
         current_workspace = str(settings.projects_dir)
     
+    # Crear directorio si no existe
+    os.makedirs(current_workspace, exist_ok=True)
+    
     try:
         conversation_id = None
         if project:
@@ -352,6 +355,9 @@ async def stream_message(message: str = Form(...), project: str = Form(None), im
         workspace = str(settings.projects_dir / project)
     else:
         workspace = str(settings.projects_dir)
+    
+    # Crear directorio si no existe
+    os.makedirs(workspace, exist_ok=True)
     current_workspace = workspace
     
     # Parsear imágenes si las hay
