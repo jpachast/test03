@@ -1,4 +1,11 @@
-"""Rutas de chat con el agente - Con streaming de tokens idéntico a OpenHands"""
+"""
+Rutas de chat con el agente - 100% compatible con OpenHands SDK
+
+Maneja TODOS los tipos de eventos y observations del SDK:
+- ActionEvent, ObservationEvent, MessageEvent, TokenEvent
+- TaskTracker, Browser, Terminal, FileEditor observations
+- Think action display
+"""
 import os
 import json
 import queue
@@ -10,6 +17,10 @@ from fastapi import APIRouter, Form, HTTPException
 from fastapi.responses import JSONResponse, StreamingResponse
 
 from openhands.sdk import Conversation, ImageContent, TextContent, Message, LLMStreamChunk
+
+# Import observations para type checking
+from openhands.tools.task_tracker import TaskTrackerObservation
+from openhands.tools.browser_use import BrowserObservation
 
 from config.database import Database
 from config.settings import Settings
@@ -136,10 +147,39 @@ def create_streaming_callback(q, conv_id=None):
                             last_agent_response = action.message
                             q.put({"type": "finish", "icon": "✅", "text": "Completado"})
                     
-                    elif 'Think' in action_type or 'Message' in action_type:
-                        msg = getattr(action, 'message', '') or getattr(action, 'thought', '')
-                        if msg:
-                            q.put({"type": "thinking", "icon": "💭", "text": msg[:150]})
+                    elif 'Think' in action_type:
+                        # Think action - mostrar pensamiento del agente
+                        thought = getattr(action, 'thought', '') or getattr(action, 'message', '')
+                        if thought:
+                            q.put({"type": "think", "icon": "🧠", "text": thought})
+                            q.put({"type": "terminal_command", "command": f"# Pensando: {thought[:100]}..."})
+                    
+                    elif 'TaskTracker' in action_type:
+                        # TaskTracker action - mostrar actualización de tareas
+                        command = getattr(action, 'command', '')
+                        task_list = getattr(action, 'task_list', [])
+                        if task_list:
+                            q.put({"type": "task_tracker", "command": command, "tasks": task_list})
+                        elif command == 'view':
+                            q.put({"type": "task_tracker", "command": "view", "tasks": []})
+                    
+                    elif 'Browser' in action_type:
+                        # Browser action - navegación web
+                        url = getattr(action, 'url', '')
+                        if url:
+                            q.put({"type": "action", "icon": "🌐", "text": f"Navegando: {url[:60]}"})
+                    
+                    elif 'Glob' in action_type:
+                        pattern = getattr(action, 'pattern', '')
+                        q.put({"type": "action", "icon": "🔍", "text": f"Buscando archivos: {pattern}"})
+                    
+                    elif 'Grep' in action_type:
+                        pattern = getattr(action, 'pattern', '')
+                        q.put({"type": "action", "icon": "🔎", "text": f"Buscando texto: {pattern}"})
+                    
+                    elif 'Delegate' in action_type:
+                        task = getattr(action, 'task', '') or getattr(action, 'message', '')
+                        q.put({"type": "action", "icon": "🤖", "text": f"Delegando: {task[:80]}"})
             
             elif event_type == 'ObservationEvent':
                 if hasattr(event, 'observation') and event.observation:
@@ -271,6 +311,96 @@ def create_streaming_callback(q, conv_id=None):
                             q.put({
                                 "type": "terminal_output",
                                 "output": content[:1000],
+                                "stderr": "",
+                                "exit_code": 0
+                            })
+                    
+                    elif 'TaskTracker' in obs_type:
+                        # TaskTrackerObservation - resultado del task tracker
+                        task_list = getattr(obs, 'task_list', [])
+                        content = getattr(obs, 'content', '')
+                        
+                        # Convertir task_list a formato serializable
+                        tasks_data = []
+                        if task_list:
+                            for task in task_list:
+                                if hasattr(task, 'model_dump'):
+                                    tasks_data.append(task.model_dump())
+                                elif isinstance(task, dict):
+                                    tasks_data.append(task)
+                                else:
+                                    tasks_data.append({
+                                        'title': getattr(task, 'title', str(task)),
+                                        'status': getattr(task, 'status', 'todo'),
+                                        'notes': getattr(task, 'notes', '')
+                                    })
+                        
+                        q.put({
+                            "type": "task_tracker_update", 
+                            "tasks": tasks_data,
+                            "content": str(content) if content else ""
+                        })
+                        
+                        # También enviar a terminal
+                        if tasks_data:
+                            task_text = "\n".join([f"  {'✓' if t.get('status')=='done' else '○'} {t.get('title', '')}" for t in tasks_data[:5]])
+                            q.put({
+                                "type": "terminal_output",
+                                "output": f"Task Tracker:\n{task_text}",
+                                "stderr": "",
+                                "exit_code": 0
+                            })
+                    
+                    elif 'BrowserObservation' in obs_type or isinstance(obs, BrowserObservation):
+                        # BrowserObservation nativo del SDK - tiene screenshot_data
+                        screenshot_data = getattr(obs, 'screenshot_data', None)
+                        content = getattr(obs, 'content', '')
+                        
+                        if screenshot_data and conv_id:
+                            # Extraer URL del contenido si está disponible
+                            import re
+                            browser_url = ''
+                            content_str = str(content) if content else ''
+                            urls = re.findall(r'https?://[^\s"\'<>\]]+', content_str)
+                            if urls:
+                                browser_url = urls[0]
+                            
+                            update_screenshot(conv_id, browser_url, screenshot_data)
+                            q.put({
+                                "type": "browser",
+                                "icon": "🌐",
+                                "text": f"Screenshot: {browser_url[:50] if browser_url else 'capturado'}",
+                                "screenshot": True
+                            })
+                        
+                        # Enviar contenido a terminal
+                        if content:
+                            content_preview = str(content)[:500]
+                            q.put({
+                                "type": "terminal_output",
+                                "output": f"Browser:\n{content_preview}",
+                                "stderr": "",
+                                "exit_code": 0
+                            })
+                    
+                    elif 'Glob' in obs_type:
+                        # GlobObservation - resultado de búsqueda de archivos
+                        content = getattr(obs, 'content', '')
+                        if content:
+                            q.put({
+                                "type": "terminal_output",
+                                "output": f"Archivos encontrados:\n{str(content)[:1000]}",
+                                "stderr": "",
+                                "exit_code": 0
+                            })
+                    
+                    elif 'Grep' in obs_type:
+                        # GrepObservation - resultado de búsqueda de texto
+                        content = getattr(obs, 'content', '')
+                        if content:
+                            q.put({
+                                "type": "terminal_output",
+                                "output": f"Coincidencias:\n{str(content)[:1000]}",
                                 "stderr": "",
                                 "exit_code": 0
                             })

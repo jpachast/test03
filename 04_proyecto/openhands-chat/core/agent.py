@@ -2,10 +2,10 @@
 Agente OpenHands - 100% IDÉNTICO AL SDK OFICIAL
 
 Usa los prompts oficiales de OpenHands SIN modificaciones.
-Solo agrega:
-- Instrucción para responder en español
-- Info del workspace/repositorio
-- Instrucciones del browser CLI (específico de esta app)
+Incluye TODAS las tools oficiales del SDK:
+- terminal, file_editor, task_tracker
+- browser tools (10 herramientas)
+- glob, grep, delegate
 
 Referencia: https://docs.openhands.dev/sdk/getting-started
 """
@@ -14,8 +14,32 @@ import os
 from pydantic import SecretStr
 from openhands.sdk import LLM, Agent, AgentContext, Tool
 from openhands.sdk.context.condenser import LLMSummarizingCondenser
+
+# Core tools
 from openhands.tools.terminal import TerminalTool
 from openhands.tools.file_editor import FileEditorTool
+from openhands.tools.task_tracker import TaskTrackerTool
+
+# Search tools
+from openhands.tools.glob import GlobTool
+from openhands.tools.grep import GrepTool
+
+# Delegate tool (sub-agents)
+from openhands.tools.delegate import DelegateTool
+
+# Browser tools (10 herramientas nativas)
+from openhands.tools.browser_use import (
+    BrowserNavigateTool,
+    BrowserClickTool,
+    BrowserTypeTool,
+    BrowserScrollTool,
+    BrowserGetStateTool,
+    BrowserGetContentTool,
+    BrowserGoBackTool,
+    BrowserListTabsTool,
+    BrowserSwitchTabTool,
+    BrowserCloseTabTool,
+)
 
 # Directorio de la aplicación (para browser CLI)
 APP_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -83,30 +107,8 @@ When asked to pull/clone the repository:
 </REPOSITORY_INFORMATION>
 """)
     
-    # 3.4 BROWSER CLI - Instrucciones para navegar web (específico de esta app)
-    suffix_parts.append(f"""
-<BROWSER_TOOLS>
-You have access to a headless browser via terminal commands:
-
-# Navigate to URL:
-cd {APP_DIR} && python -m core.browser navigate "https://example.com"
-
-# Get current state (URL, title, elements):
-cd {APP_DIR} && python -m core.browser state
-
-# Click element:
-cd {APP_DIR} && python -m core.browser click "button.submit"
-
-# Type in field:
-cd {APP_DIR} && python -m core.browser type "input#search" "search text"
-
-# Scroll:
-cd {APP_DIR} && python -m core.browser scroll down
-
-# Get page content:
-cd {APP_DIR} && python -m core.browser content
-</BROWSER_TOOLS>
-""")
+    # 3.4 BROWSER - Ahora usa las tools nativas del SDK
+    # Ya no necesita CLI manual, el SDK provee browser_navigate, browser_click, etc.
     
     system_suffix = "\n".join(suffix_parts)
     
@@ -116,14 +118,35 @@ cd {APP_DIR} && python -m core.browser content
         load_public_skills=True,  # Carga skills públicos de OpenHands
     )
     
-    # 5. Crear agente con tools oficiales
+    # 5. Crear agente con TODAS las tools oficiales del SDK
     agent = Agent(
         llm=llm,
         condenser=condenser,
         agent_context=agent_context,
         tools=[
-            Tool(name=TerminalTool.name),     # "terminal"
-            Tool(name=FileEditorTool.name),   # "file_editor"
+            # Core tools
+            Tool(name=TerminalTool.name),        # "terminal"
+            Tool(name=FileEditorTool.name),      # "file_editor"
+            Tool(name=TaskTrackerTool.name),     # "task_tracker"
+            
+            # Search tools
+            Tool(name=GlobTool.name),            # "glob"
+            Tool(name=GrepTool.name),            # "grep"
+            
+            # Delegate (sub-agents)
+            Tool(name=DelegateTool.name),        # "delegate"
+            
+            # Browser tools (10 herramientas nativas)
+            Tool(name=BrowserNavigateTool.name),    # "browser_navigate"
+            Tool(name=BrowserClickTool.name),       # "browser_click"
+            Tool(name=BrowserTypeTool.name),        # "browser_type"
+            Tool(name=BrowserScrollTool.name),      # "browser_scroll"
+            Tool(name=BrowserGetStateTool.name),    # "browser_get_state"
+            Tool(name=BrowserGetContentTool.name),  # "browser_get_content"
+            Tool(name=BrowserGoBackTool.name),      # "browser_go_back"
+            Tool(name=BrowserListTabsTool.name),    # "browser_list_tabs"
+            Tool(name=BrowserSwitchTabTool.name),   # "browser_switch_tab"
+            Tool(name=BrowserCloseTabTool.name),    # "browser_close_tab"
         ],
     )
     

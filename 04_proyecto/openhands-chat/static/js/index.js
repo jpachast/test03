@@ -1012,6 +1012,74 @@
             }
         }
         
+        // Task Tracker UI - Mostrar lista de tareas del agente
+        let currentTasks = [];
+        
+        function updateTaskTrackerUI(tasks) {
+            if (!tasks || tasks.length === 0) return;
+            
+            currentTasks = tasks;
+            
+            // Buscar o crear el contenedor de tareas
+            let taskContainer = document.getElementById('taskTrackerContainer');
+            if (!taskContainer) {
+                taskContainer = document.createElement('div');
+                taskContainer.id = 'taskTrackerContainer';
+                taskContainer.className = 'task-tracker-container';
+                
+                // Insertar después del header del chat o al inicio del panel derecho
+                const rightPanel = document.querySelector('.right-panel');
+                if (rightPanel) {
+                    rightPanel.insertBefore(taskContainer, rightPanel.firstChild);
+                }
+            }
+            
+            // Renderizar tareas
+            const taskHTML = tasks.map((task, idx) => {
+                const status = task.status || 'todo';
+                const title = task.title || `Tarea ${idx + 1}`;
+                const notes = task.notes || '';
+                
+                let statusIcon = '○';  // todo
+                let statusClass = 'todo';
+                if (status === 'in_progress') {
+                    statusIcon = '◐';
+                    statusClass = 'in-progress';
+                } else if (status === 'done') {
+                    statusIcon = '✓';
+                    statusClass = 'done';
+                }
+                
+                return `
+                    <div class="task-item ${statusClass}">
+                        <span class="task-status-icon">${statusIcon}</span>
+                        <span class="task-title">${title}</span>
+                        ${notes ? `<span class="task-notes">${notes}</span>` : ''}
+                    </div>
+                `;
+            }).join('');
+            
+            taskContainer.innerHTML = `
+                <div class="task-tracker-header">
+                    <span class="task-tracker-icon">📋</span>
+                    <span class="task-tracker-title">Tareas</span>
+                    <span class="task-count">${tasks.filter(t => t.status === 'done').length}/${tasks.length}</span>
+                </div>
+                <div class="task-tracker-list">
+                    ${taskHTML}
+                </div>
+            `;
+            
+            taskContainer.style.display = 'block';
+        }
+        
+        function hideTaskTracker() {
+            const container = document.getElementById('taskTrackerContainer');
+            if (container) {
+                container.style.display = 'none';
+            }
+        }
+        
         // Actualizar el icono según el estado del agente (como OpenHands)
         function setAgentState(state) {
             currentAgentState = state;
@@ -1407,6 +1475,15 @@
                                     const isError = data.exit_code !== 0 || data.stderr;
                                     const output = data.stderr || data.output;
                                     addTerminalOutput(output, isError);
+                                } else if (data.type === 'task_tracker_update') {
+                                    // Task Tracker - actualizar lista de tareas
+                                    updateTaskTrackerUI(data.tasks);
+                                    setTaskStatus('processing', 'Actualizando tareas...');
+                                } else if (data.type === 'think') {
+                                    // Think action - mostrar pensamiento del agente
+                                    progressDiv.querySelector('.progress-content').innerHTML = 
+                                        `🧠 Pensando: ${data.text.substring(0, 80)}...`;
+                                    setTaskStatus('processing', 'Analizando...');
                                 } else if (data.type && data.icon && data.text) {
                                     // Actualizar progreso
                                     progressDiv.querySelector('.progress-content').innerHTML = 
