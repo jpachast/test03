@@ -96,40 +96,26 @@ When asked to pull/clone the repository:
 </REPOSITORY_INFORMATION>
 """)
     
-    # 3.4 DEVELOPMENT TOOLS - Instalación bajo demanda
+    # 3.4 ENVIRONMENT_SETUP - Exactamente como OpenHands oficial
     suffix_parts.append("""
-<DEVELOPMENT_TOOLS>
-Herramientas de desarrollo (instalar según necesidad del proyecto):
+<ENVIRONMENT_SETUP>
+* When user asks you to run an application, don't stop if the application is not installed. Instead, please install the application and run the command again.
+* If you encounter missing dependencies:
+  1. First, look around in the repository for existing dependency files (requirements.txt, pyproject.toml, package.json, Gemfile, etc.)
+  2. If dependency files exist, use them to install all dependencies at once (e.g., `pip install -r requirements.txt`, `npm install`, etc.)
+  3. Only install individual packages directly if no dependency files are found or if only specific packages are needed
+* Similarly, if you encounter missing dependencies for essential tools requested by the user, install them when possible.
 
-## Node.js / JavaScript (ya instalado)
-- node v22+ y npm disponibles
-- Para proyectos: npm init -y && npm install <paquetes>
-- Frameworks: React, Vue, Angular, Tailwind, Bootstrap
+## Available base tools:
+- Python 3.12+ with pip, pipenv, poetry
+- Node.js 22+ with npm, yarn, corepack
+- git, curl, wget
 
-## Python (ya instalado)
-- python3 v3.12+ disponible
-- SIEMPRE usa entorno virtual:
-  ```bash
-  python3 -m venv venv && source venv/bin/activate && pip install <paquetes>
-  ```
-
-## .NET / Blazor / C# (instalar si el proyecto lo requiere)
-Si el usuario pide un proyecto .NET/Blazor/C#, primero instala el SDK:
-```bash
-curl -sSL https://dot.net/v1/dotnet-install.sh | bash -s -- --channel 8.0 --install-dir $HOME/.dotnet
-export PATH="$HOME/.dotnet:$PATH"
-export DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1
-```
-Luego crea el proyecto:
-- Blazor Server: dotnet new blazorserver -o MiProyecto
-- Web API: dotnet new webapi -o MiApi  
-- Console: dotnet new console -o MiApp
-
-## Navegación Web
-```bash
-curl -sL "https://example.com" | head -200
-```
-</DEVELOPMENT_TOOLS>
+## On-demand installation examples:
+- .NET/Blazor: curl -sSL https://dot.net/v1/dotnet-install.sh | bash -s -- --channel 8.0 --install-dir $HOME/.dotnet && export PATH="$HOME/.dotnet:$PATH" && export DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1
+- Ruby: apt-get update && apt-get install -y ruby-full
+- Go: wget https://go.dev/dl/go1.21.0.linux-amd64.tar.gz && tar -C /usr/local -xzf go1.21.0.linux-amd64.tar.gz && export PATH=$PATH:/usr/local/go/bin
+</ENVIRONMENT_SETUP>
 """)
     
     system_suffix = "\n".join(suffix_parts)
