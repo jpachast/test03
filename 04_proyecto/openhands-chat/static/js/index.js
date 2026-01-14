@@ -1337,6 +1337,10 @@
                 const decoder = new TextDecoder();
                 let finalMessage = '';
                 
+                // STREAMING DE TOKENS - Variables para acumular respuesta en tiempo real
+                let streamingText = '';
+                let streamingDiv = null;  // Elemento donde se muestra el texto en tiempo real
+                
                 while (true) {
                     const { done, value } = await reader.read();
                     if (done) break;
@@ -1353,8 +1357,34 @@
                                     continue;
                                 }
                                 
+                                // STREAMING DE TOKENS - Mostrar texto en tiempo real
+                                if (data.type === 'token' && data.content) {
+                                    streamingText += data.content;
+                                    
+                                    // Crear elemento de streaming si no existe
+                                    if (!streamingDiv) {
+                                        streamingDiv = document.createElement('div');
+                                        streamingDiv.className = 'message assistant streaming';
+                                        streamingDiv.innerHTML = '<div class="message-content"></div>';
+                                        chatMessages.appendChild(streamingDiv);
+                                    }
+                                    
+                                    // Actualizar contenido con el texto acumulado
+                                    const contentEl = streamingDiv.querySelector('.message-content');
+                                    contentEl.innerHTML = marked.parse(streamingText);
+                                    chatMessages.scrollTop = chatMessages.scrollHeight;
+                                    
+                                    // Actualizar status
+                                    setTaskStatus('processing', 'Escribiendo...');
+                                    continue;
+                                }
+                                
                                 if (data.type === 'done') {
                                     finalMessage = data.message;
+                                    // Si hay streaming activo, usar ese texto
+                                    if (streamingText && !finalMessage) {
+                                        finalMessage = streamingText;
+                                    }
                                 } else if (data.type === 'error') {
                                     progressDiv.querySelector('.progress-content').innerHTML = 
                                         `❌ Error: ${data.text}`;
@@ -1389,6 +1419,11 @@
                             }
                         }
                     }
+                }
+                
+                // Limpiar div de streaming si existe (se reemplazará por el mensaje final)
+                if (streamingDiv) {
+                    streamingDiv.remove();
                 }
                 
                 // Remover progreso y mostrar mensaje final

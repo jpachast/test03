@@ -1,4 +1,4 @@
-"""Rutas de chat con el agente"""
+"""Rutas de chat con el agente - Con streaming de tokens idéntico a OpenHands"""
 import os
 import json
 import queue
@@ -9,7 +9,7 @@ from pathlib import Path
 from fastapi import APIRouter, Form, HTTPException
 from fastapi.responses import JSONResponse, StreamingResponse
 
-from openhands.sdk import Conversation, ImageContent, TextContent, Message
+from openhands.sdk import Conversation, ImageContent, TextContent, Message, LLMStreamChunk
 
 from config.database import Database
 from config.settings import Settings
@@ -32,6 +32,31 @@ active_sdk_conversations = {}  # {conversation_id: Conversation}
 # Evita recrear el agente en cada mensaje de la misma conversación
 _agent_cache = {}  # {cache_key: (agent, timestamp)}
 _AGENT_CACHE_TTL = 300  # 5 minutos de vida
+
+
+def create_token_callback(q):
+    """
+    Crea callback para streaming de tokens - IDÉNTICO A OPENHANDS
+    
+    Recibe LLMStreamChunk con estructura:
+    - choices[0].delta.content = texto parcial
+    
+    Envía tokens al frontend para mostrar respuesta en tiempo real.
+    """
+    def token_callback(chunk: LLMStreamChunk):
+        try:
+            # Extraer contenido del delta (formato OpenAI streaming)
+            if chunk.choices and len(chunk.choices) > 0:
+                delta = chunk.choices[0].delta
+                if delta:
+                    # delta.content tiene el texto parcial
+                    content = getattr(delta, 'content', None)
+                    if content:
+                        q.put({"type": "token", "content": content})
+        except Exception as e:
+            print(f"[TOKEN ERROR] {e}")
+    
+    return token_callback
 
 
 def _get_cached_agent(api_key: str, model: str, workspace: str, repo_info: dict = None):
@@ -441,11 +466,15 @@ async def stream_message(message: str = Form(...), project: str = Form(None), im
         github_token = db.get_github_token()
         secrets = {"GITHUB_TOKEN": github_token} if github_token else None
         
+        # Callbacks para eventos y tokens (streaming)
         streaming_cb = create_streaming_callback(q, conversation_id)
+        token_cb = create_token_callback(q)  # NUEVO: Token streaming
+        
         conv = Conversation(
             agent=agent,
             workspace=workspace,
             callbacks=[streaming_cb, capture_response],
+            token_callbacks=[token_cb],  # STREAMING DE TOKENS - Igual que OpenHands
             secrets=secrets
         )
         

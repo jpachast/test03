@@ -87,3 +87,19 @@
     background: rgba(78, 201, 176, 0.2);
     color: #4ec9b0;
 }
+
+/* STREAMING DE TOKENS - Estilo como OpenHands/ChatGPT */
+.message.streaming {
+    position: relative;
+}
+
+.message.streaming .message-content::after {
+    content: '▋';
+    animation: blink 1s step-end infinite;
+    margin-left: 2px;
+    color: #888;
+}
+
+@keyframes blink {
+    50% { opacity: 0; }
+}
