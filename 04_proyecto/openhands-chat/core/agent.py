@@ -118,6 +118,42 @@ When asked to pull/clone the repository:
 </ENVIRONMENT_SETUP>
 """)
     
+    # 3.4.1 WEB_DEVELOPMENT_GUIDELINES - Para que las apps funcionen correctamente en el preview
+    suffix_parts.append("""
+<WEB_DEVELOPMENT_GUIDELINES>
+## CSS/JS Libraries - ALWAYS use CDN
+When creating web applications, ALWAYS use CDN links for external libraries instead of local files.
+This ensures the app works correctly in the preview panel.
+
+### Bootstrap (ALWAYS use this pattern):
+```html
+<!-- CSS -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<!-- JS (at end of body) -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+```
+
+### Other common CDNs:
+- Tailwind CSS: `<script src="https://cdn.tailwindcss.com"></script>`
+- Font Awesome: `<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">`
+- Google Fonts: `<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">`
+- Alpine.js: `<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>`
+- HTMX: `<script src="https://unpkg.com/htmx.org@1.9.10"></script>`
+
+## Local CSS/JS files
+For custom styles, use relative paths WITHOUT leading slash:
+- CORRECT: `<link href="css/styles.css" rel="stylesheet">`
+- WRONG: `<link href="/css/styles.css" rel="stylesheet">`
+
+## Server Setup
+When creating web servers, always serve static files from a 'public' or 'static' directory:
+```javascript
+// Express.js example
+app.use(express.static('public'));
+```
+</WEB_DEVELOPMENT_GUIDELINES>
+""")
+    
     # 3.5 FILE_SYSTEM_GUIDELINES - Exactamente como OpenHands oficial
     suffix_parts.append("""
 <FILE_SYSTEM_GUIDELINES>
