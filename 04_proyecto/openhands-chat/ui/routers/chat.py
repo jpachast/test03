@@ -1,4 +1,5 @@
 """Rutas de chat con el agente"""
+import os
 import json
 import queue
 import asyncio
