@@ -698,11 +698,15 @@
             const frame = document.getElementById('appFrame');
             const urlInput = document.getElementById('appUrl');
             
-            appServerPort = port;
-            placeholder.style.display = 'none';
-            frame.style.display = 'block';
-            frame.src = `/api/app-server/app-preview/?conversation_id=${currentConversationId}`;
-            urlInput.value = `http://localhost:${port}`;
+            // Solo actualizar si el puerto cambió
+            if (appServerPort !== port) {
+                appServerPort = port;
+                placeholder.style.display = 'none';
+                frame.style.display = 'block';
+                frame.src = `/api/app-server/app-preview/?conversation_id=${currentConversationId}`;
+                urlInput.value = `http://localhost:${port}`;
+                console.log(`App server detected on port ${port}`);
+            }
         }
         
         function refreshApp() {
@@ -715,15 +719,15 @@
         }
         
         // Polling para detectar cuando el agente inicia un servidor
-        // OPTIMIZADO: Solo hace polling si realmente es necesario
+        // Siempre verifica por si el agente inicia un servidor nuevo
         let appServerPollingActive = false;
         function startAppServerPolling() {
             if (appServerPollingActive) return; // Evitar duplicados
             appServerPollingActive = true;
             
             setInterval(async () => {
-                // Solo hacer request si estamos en vista app Y no tenemos puerto
-                if (currentView === 'app' && !appServerPort && document.visibilityState === 'visible') {
+                // Siempre verificar cuando estamos en vista app
+                if (currentView === 'app' && document.visibilityState === 'visible') {
                     await checkAppServer();
                 }
             }, 3000);
