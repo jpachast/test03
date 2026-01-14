@@ -3,45 +3,41 @@ Configuración del agente OpenHands
 BASADO 100% EN LA DOCUMENTACIÓN OFICIAL Y PROMPTS DE REFERENCIA
 
 El agente usa el CLI de browser para navegar (python -m core.browser).
+
+IMPORTANTE: Los tools se importan de openhands.tools y se agregan usando Tool(name=X.name)
+- TerminalTool.name = "terminal" (para ejecutar bash)
+- FileEditorTool.name = "file_editor" (para editar archivos)
 """
 import os
 
 from pydantic import SecretStr
-from openhands.sdk import LLM, Agent, AgentContext
+from openhands.sdk import LLM, Agent, AgentContext, Tool
 from openhands.sdk.context import Skill
 from openhands.sdk.context.condenser import LLMSummarizingCondenser
+
+# Importar las herramientas CORRECTAS del SDK
+from openhands.tools.terminal import TerminalTool
+from openhands.tools.file_editor import FileEditorTool
 
 from config.rules import REGLAS_AGENTE, SYSTEM_PROMPT_COMPLETO, IN_CONTEXT_EXAMPLE
 
 
-# =============================================================================
-# PROTECCIÓN: Lista de tools que NO EXISTEN y causan KeyError
-# =============================================================================
-INVALID_TOOLS = [
-    "TerminalTool",
-    "FileEditorTool", 
-    "BashTool",
-    "ShellTool",
-    "CodeEditTool",
-    "FileTool",
-]
-
-
 def _create_agent_safe(llm, agent_context, condenser):
     """
-    Crea el agente de forma SEGURA sin tools inválidos.
+    Crea el agente con las herramientas correctas.
     
-    IMPORTANTE: El SDK de OpenHands provee herramientas automáticamente.
-    NO se debe pasar tools= al constructor de Agent.
-    
-    Esta función existe para garantizar que NUNCA se agreguen tools inválidos.
+    IMPORTANTE: Usar Tool(name=TerminalTool.name), NO Tool(name="TerminalTool")
+    - TerminalTool.name = "terminal"
+    - FileEditorTool.name = "file_editor"
     """
-    # El SDK provee bash, file edit, etc. AUTOMÁTICAMENTE
-    # Solo FinishTool y ThinkTool son built-in registrados
     return Agent(
         llm=llm,
         agent_context=agent_context,
         condenser=condenser,
+        tools=[
+            Tool(name=TerminalTool.name),      # "terminal" - ejecutar bash
+            Tool(name=FileEditorTool.name),    # "file_editor" - editar archivos
+        ],
     )
 
 

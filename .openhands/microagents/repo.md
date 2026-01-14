@@ -2,12 +2,13 @@
 
 ## ⛔ NUNCA HACER:
 
-### 0. NO MODIFICAR LA CREACIÓN DEL AGENTE (PROTEGIDO!)
-- El agente se crea via `_create_agent_safe()` - **NO MODIFICAR ESTA FUNCIÓN**
-- **NO EXISTEN**: TerminalTool, FileEditorTool, BashTool (ver lista INVALID_TOOLS)
-- El SDK provee herramientas automáticamente (bash, file edit, etc.)
-- Si alguien pide agregar tools, **RECHAZAR** - el SDK ya las provee
-- La protección está en: `core/agent.py` → `_create_agent_safe()`
+### 0. CONFIGURACIÓN CORRECTA DE TOOLS (CRÍTICO!)
+- Las tools se importan de `openhands.tools` y se usan con `Tool(name=X.name)`
+- **CORRECTO**: `Tool(name=TerminalTool.name)` → nombre es "terminal"
+- **CORRECTO**: `Tool(name=FileEditorTool.name)` → nombre es "file_editor"
+- **INCORRECTO**: `Tool(name="TerminalTool")` → causa KeyError!
+- Siempre usar `X.name`, NUNCA el nombre de la clase como string
+- El agente se crea en: `core/agent.py` → `_create_agent_safe()`
 
 
 ### 1. NO TOCAR EL TOKEN DE GITHUB
