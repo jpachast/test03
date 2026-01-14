@@ -91,50 +91,89 @@ def ensure_dependencies():
 
 
 def ensure_playwright_browsers():
-    """Instala los browsers de Playwright si no están instalados.
+    """Instala los browsers de Playwright automáticamente.
     
-    Usa subprocess para verificar, evitando conflictos con asyncio loop.
+    100% AUTOMÁTICO - Sin intervención manual necesaria.
+    Reintenta múltiples veces e instala dependencias si es necesario.
     """
-    # Verificar si chromium ya está instalado usando subprocess
-    # (evita conflictos con asyncio loop de uvicorn)
-    check_script = """
+    
+    def check_browser_works():
+        """Verifica si el browser funciona."""
+        check_script = """
 import sys
 try:
     from playwright.sync_api import sync_playwright
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
         browser.close()
-        sys.exit(0)  # Instalado
-except Exception:
-    sys.exit(1)  # No instalado
+        sys.exit(0)
+except Exception as e:
+    print(str(e), file=sys.stderr)
+    sys.exit(1)
 """
-    result = subprocess.run(
-        [sys.executable, "-c", check_script],
-        capture_output=True,
-        timeout=30
-    )
+        try:
+            result = subprocess.run(
+                [sys.executable, "-c", check_script],
+                capture_output=True,
+                timeout=60
+            )
+            return result.returncode == 0
+        except Exception:
+            return False
     
-    if result.returncode == 0:
-        return True  # Ya está instalado
+    # Verificar si ya funciona
+    if check_browser_works():
+        return True
     
     print("=" * 60)
-    print("  🌐 INSTALANDO BROWSERS DE PLAYWRIGHT...")
+    print("  🌐 CONFIGURANDO BROWSER AUTOMÁTICAMENTE...")
     print("=" * 60)
     print()
     
-    result = subprocess.run(
+    # Paso 1: Instalar el browser
+    print("  📥 Paso 1/3: Descargando Chromium...")
+    subprocess.run(
         [sys.executable, "-m", "playwright", "install", "chromium"],
         capture_output=True,
-        text=True
+        timeout=300  # 5 minutos para descarga
     )
     
-    if result.returncode == 0:
-        print("  ✅ Chromium instalado correctamente")
-    else:
-        print(f"  ⚠️ Error instalando Chromium: {result.stderr}")
+    if check_browser_works():
+        print("  ✅ Browser configurado correctamente")
+        print()
+        return True
     
+    # Paso 2: Instalar dependencias del sistema (si falla)
+    print("  📦 Paso 2/3: Instalando dependencias del sistema...")
+    subprocess.run(
+        [sys.executable, "-m", "playwright", "install-deps", "chromium"],
+        capture_output=True,
+        timeout=300
+    )
+    
+    if check_browser_works():
+        print("  ✅ Browser configurado correctamente")
+        print()
+        return True
+    
+    # Paso 3: Reinstalar completamente
+    print("  🔄 Paso 3/3: Reinstalando browser...")
+    subprocess.run(
+        [sys.executable, "-m", "playwright", "install", "--force", "chromium"],
+        capture_output=True,
+        timeout=300
+    )
+    
+    if check_browser_works():
+        print("  ✅ Browser configurado correctamente")
+        print()
+        return True
+    
+    # Si aún falla, la app sigue funcionando (las otras tools funcionan)
+    print("  ⚠️ Browser no disponible - Las demás herramientas funcionan normalmente")
+    print("  ℹ️ El agente usará alternativas cuando necesite navegar web")
     print()
-    return result.returncode == 0
+    return False
 
 def ensure_code_server():
     """Instala code-server dentro del proyecto para que persista entre sesiones"""
