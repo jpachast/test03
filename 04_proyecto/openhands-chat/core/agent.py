@@ -27,8 +27,8 @@ from openhands.tools.grep import GrepTool
 # Delegate tool (sub-agents)
 from openhands.tools.delegate import DelegateTool
 
-# Browser tools - Se registran como un conjunto (browser_tool_set)
-from openhands.tools.browser_use import BrowserToolSet
+# WebFetch tool - Alternativa confiable al browser (sin bugs del SDK)
+# El browser_tool_set del SDK tiene bugs, usamos httpx directamente
 
 # Directorio de la aplicación (para browser CLI)
 APP_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -96,8 +96,29 @@ When asked to pull/clone the repository:
 </REPOSITORY_INFORMATION>
 """)
     
-    # 3.4 BROWSER - Ahora usa las tools nativas del SDK
-    # Ya no necesita CLI manual, el SDK provee browser_navigate, browser_click, etc.
+    # 3.4 WEB NAVIGATION - Usar curl/httpx en lugar de browser (más estable)
+    suffix_parts.append("""
+<WEB_NAVIGATION>
+Para ver contenido de páginas web, usa el terminal con curl o python httpx:
+
+Ejemplo con curl (recomendado):
+```bash
+curl -sL "https://example.com" | head -200
+```
+
+Ejemplo con Python httpx (para sitios más complejos):
+```bash
+python3 -c "import httpx; r = httpx.get('https://example.com'); print(r.text[:5000])"
+```
+
+Para APIs JSON:
+```bash
+curl -s "https://api.example.com/data" | python3 -m json.tool
+```
+
+Esto es más confiable que herramientas de browser.
+</WEB_NAVIGATION>
+""")
     
     system_suffix = "\n".join(suffix_parts)
     
@@ -107,7 +128,9 @@ When asked to pull/clone the repository:
         load_public_skills=True,  # Carga skills públicos de OpenHands
     )
     
-    # 5. Crear agente con TODAS las tools oficiales del SDK
+    # 5. Crear agente con tools estables del SDK
+    # NOTA: browser_tool_set tiene bugs en el SDK, el agente puede usar
+    # terminal con curl/wget para obtener contenido web
     agent = Agent(
         llm=llm,
         condenser=condenser,
@@ -125,8 +148,8 @@ When asked to pull/clone the repository:
             # Delegate (sub-agents)
             Tool(name=DelegateTool.name),        # "delegate"
             
-            # Browser tools (conjunto que incluye navigate, click, type, scroll, etc.)
-            Tool(name=BrowserToolSet.name),      # "browser_tool_set"
+            # Para navegación web: usar terminal con curl/httpx
+            # Ejemplo: curl -s https://example.com | head -100
         ],
     )
     
