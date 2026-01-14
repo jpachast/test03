@@ -1,3 +1,3 @@
 from .database import Database
 from .settings import Settings
-from .rules import REGLAS_AGENTE
+# rules.py ya no exporta nada - el agente usa los prompts oficiales de OpenHands
