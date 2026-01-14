@@ -7,7 +7,7 @@ from pathlib import Path
 from fastapi import APIRouter, Form, HTTPException
 from fastapi.responses import JSONResponse, StreamingResponse
 
-from openhands.sdk import Conversation, ImageContent
+from openhands.sdk import Conversation, ImageContent, TextContent, Message
 
 from config.database import Database
 from config.settings import Settings
@@ -408,7 +408,10 @@ async def stream_message(message: str = Form(...), project: str = Form(None), im
         
         # Enviar mensaje con imágenes si las hay
         if image_contents:
-            conv.send_message(message, image_contents=image_contents)
+            # Construir Message con texto + imágenes
+            msg_content = [TextContent(text=message)] + image_contents
+            user_message = Message(role="user", content=msg_content, vision_enabled=True)
+            conv.send_message(user_message)
         else:
             conv.send_message(message)
         
