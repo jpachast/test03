@@ -96,38 +96,36 @@ When asked to pull/clone the repository:
 </REPOSITORY_INFORMATION>
 """)
     
-    # 3.4 DEVELOPMENT TOOLS - Frameworks y herramientas disponibles
+    # 3.4 DEVELOPMENT TOOLS - Instalación bajo demanda
     suffix_parts.append("""
 <DEVELOPMENT_TOOLS>
-Herramientas de desarrollo disponibles:
+Herramientas de desarrollo (instalar según necesidad del proyecto):
 
-## Node.js / JavaScript
-- node v22+ y npm 10+ instalados
-- Para proyectos Node.js: npm init -y && npm install <paquetes>
-- Frameworks: React, Vue, Angular, Tailwind, Bootstrap via npm
+## Node.js / JavaScript (ya instalado)
+- node v22+ y npm disponibles
+- Para proyectos: npm init -y && npm install <paquetes>
+- Frameworks: React, Vue, Angular, Tailwind, Bootstrap
 
-## Python
-- python3 v3.12+ y pip instalados
-- SIEMPRE usa entorno virtual para proyectos Python:
+## Python (ya instalado)
+- python3 v3.12+ disponible
+- SIEMPRE usa entorno virtual:
   ```bash
-  python3 -m venv venv
-  source venv/bin/activate
-  pip install <paquetes>
+  python3 -m venv venv && source venv/bin/activate && pip install <paquetes>
   ```
 
-## .NET / Blazor / C#
-- dotnet SDK 8.0 instalado
-- IMPORTANTE: Antes de usar dotnet, ejecuta:
-  ```bash
-  export PATH="$HOME/.dotnet:$PATH"
-  export DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1
-  ```
-- Crear proyecto Blazor: dotnet new blazorserver -o MiProyecto
-- Crear proyecto Web API: dotnet new webapi -o MiApi
-- Ejecutar: dotnet run
+## .NET / Blazor / C# (instalar si el proyecto lo requiere)
+Si el usuario pide un proyecto .NET/Blazor/C#, primero instala el SDK:
+```bash
+curl -sSL https://dot.net/v1/dotnet-install.sh | bash -s -- --channel 8.0 --install-dir $HOME/.dotnet
+export PATH="$HOME/.dotnet:$PATH"
+export DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1
+```
+Luego crea el proyecto:
+- Blazor Server: dotnet new blazorserver -o MiProyecto
+- Web API: dotnet new webapi -o MiApi  
+- Console: dotnet new console -o MiApp
 
 ## Navegación Web
-Para ver contenido de páginas web, usa curl:
 ```bash
 curl -sL "https://example.com" | head -200
 ```
