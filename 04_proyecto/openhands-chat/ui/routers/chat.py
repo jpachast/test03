@@ -61,7 +61,7 @@ def create_streaming_callback(q, conv_id=None):
                     action = event.action
                     action_type = str(type(action).__name__)
                     
-                    if 'Command' in action_type or 'Bash' in action_type:
+                    if 'Command' in action_type or 'Bash' in action_type or 'Terminal' in action_type:
                         cmd = getattr(action, 'command', '') or getattr(action, 'code', '')
                         if cmd:
                             q.put({"type": "action", "icon": "🔧", "text": f"Ejecutando: {cmd[:100]}"})
@@ -172,7 +172,7 @@ def create_streaming_callback(q, conv_id=None):
                                             "screenshot": True
                                         })
                     
-                    if 'Command' in obs_type or 'Bash' in obs_type:
+                    if 'Command' in obs_type or 'Bash' in obs_type or 'Terminal' in obs_type:
                         output = getattr(obs, 'stdout', '') or getattr(obs, 'output', '') or getattr(obs, 'content', '')
                         stderr = getattr(obs, 'stderr', '')
                         exit_code = getattr(obs, 'exit_code', 0)
