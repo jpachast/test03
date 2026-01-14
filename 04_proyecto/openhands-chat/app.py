@@ -16,12 +16,24 @@ import sys
 import subprocess
 
 # =============================================================================
-# AUTO-INSTALACIÓN DE DEPENDENCIAS (se ejecuta ANTES de cualquier import)
+# AUTO-INSTALACIÓN DE DEPENDENCIAS (OPTIMIZADO - usa cache)
 # =============================================================================
 def ensure_dependencies():
-    """Instala automáticamente todas las dependencias necesarias"""
+    """Instala automáticamente todas las dependencias necesarias.
+    
+    OPTIMIZACIÓN: Usa un archivo de cache para evitar verificar en cada inicio.
+    Solo verifica si el cache no existe o si requirements.txt cambió.
+    """
     script_dir = os.path.dirname(os.path.abspath(__file__))
     requirements_file = os.path.join(script_dir, "requirements.txt")
+    cache_file = os.path.join(script_dir, "data", ".deps_installed")
+    
+    # Verificar si ya están instaladas (cache)
+    if os.path.exists(cache_file) and os.path.exists(requirements_file):
+        cache_mtime = os.path.getmtime(cache_file)
+        req_mtime = os.path.getmtime(requirements_file)
+        if cache_mtime >= req_mtime:
+            return  # Ya instaladas y cache vigente
     
     # Lista de módulos críticos para verificar
     critical_modules = [
@@ -33,7 +45,7 @@ def ensure_dependencies():
         ("cryptography", "cryptography"),
         ("git", "gitpython"),
         ("openhands", "openhands-sdk"),
-        ("playwright", "playwright"),  # Para navegación web
+        ("playwright", "playwright"),
     ]
     
     missing = []
@@ -50,14 +62,12 @@ def ensure_dependencies():
         print(f"  Módulos: {', '.join(missing)}")
         print()
         
-        # Instalar desde requirements.txt si existe
         if os.path.exists(requirements_file):
             subprocess.check_call([
                 sys.executable, "-m", "pip", "install", "-q", 
                 "-r", requirements_file
             ])
         else:
-            # Instalar módulos faltantes directamente
             subprocess.check_call([
                 sys.executable, "-m", "pip", "install", "-q"
             ] + missing)
@@ -65,9 +75,12 @@ def ensure_dependencies():
         print("  ✅ Dependencias instaladas correctamente")
         print("  🔄 Reiniciando aplicación...")
         print()
-        
-        # Reiniciar el proceso para cargar los nuevos módulos
         os.execv(sys.executable, [sys.executable] + sys.argv)
+    
+    # Crear cache de instalación
+    os.makedirs(os.path.dirname(cache_file), exist_ok=True)
+    with open(cache_file, 'w') as f:
+        f.write('installed')
 
 
 def ensure_playwright_browsers():

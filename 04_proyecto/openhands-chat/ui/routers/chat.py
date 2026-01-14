@@ -475,16 +475,19 @@ Do NOT skip steps. Execute step 1 first and check the output."""
         thread = threading.Thread(target=run_agent)
         thread.start()
         
+        # OPTIMIZACIÓN: Reducir timeout de 0.5s a 0.1s para menor latencia
         while True:
             try:
-                event = q.get(timeout=0.5)
+                event = q.get(timeout=0.1)
                 if event is None:
                     break
                 yield f"data: {json.dumps(event)}\n\n"
             except queue.Empty:
+                if not thread.is_alive():
+                    break
                 yield f"data: {json.dumps({'type': 'heartbeat'})}\n\n"
         
-        thread.join(timeout=5)
+        thread.join(timeout=3)
         
         agent_response = last_agent_response
         if not agent_response:

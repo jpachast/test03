@@ -1,5 +1,7 @@
 """
 Servidor web FastAPI - Punto de entrada principal
+
+OPTIMIZACIÓN: Lazy imports para startup más rápido
 """
 from pathlib import Path
 from fastapi import FastAPI, Form, HTTPException
@@ -10,17 +12,16 @@ from config.database import Database
 from config.settings import Settings
 from core.workspace import setup_workspace, get_project_info
 
-from ui.routers import (
-    pages_router,
-    settings_router,
-    github_router,
-    conversations_router,
-    chat_router,
-    git_router,
-    code_server_router,
-    projects_server_router,
-    browser_router
-)
+# OPTIMIZACIÓN: Import routers de forma individual (evita cargar todos al inicio)
+from ui.routers.pages import router as pages_router
+from ui.routers.settings import router as settings_router
+from ui.routers.github import router as github_router
+from ui.routers.conversations import router as conversations_router
+from ui.routers.chat import router as chat_router
+from ui.routers.git import router as git_router
+from ui.routers.code_server import router as code_server_router
+from ui.routers.projects_server import router as projects_server_router
+from ui.routers.browser import router as browser_router
 
 # Inicializar
 app = FastAPI(title="OpenHands Chat", version="2.0.0")

@@ -1,48 +1,103 @@
 """
 Base de datos SQLite para configuración
+
+OPTIMIZACIONES:
+- Connection pool con conexión persistente (singleton)
+- Cache de cipher Fernet (evita PBKDF2 en cada uso)
+- Índices en tablas para búsquedas rápidas
 """
 
 import os
 import sqlite3
 import base64
+import threading
 from pathlib import Path
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
+# Cache global de cipher para evitar recalcular PBKDF2
+_cipher_cache = {}
+_cipher_lock = threading.Lock()
+
 
 class Database:
+    # Singleton para conexión persistente
+    _instances = {}
+    _lock = threading.Lock()
+    
+    def __new__(cls, db_path: str = None):
+        if db_path is None:
+            db_path = str(Path(__file__).parent.parent / "data" / "config.db")
+        
+        with cls._lock:
+            if db_path not in cls._instances:
+                instance = super().__new__(cls)
+                instance._initialized = False
+                cls._instances[db_path] = instance
+            return cls._instances[db_path]
+    
     def __init__(self, db_path: str = None):
+        if getattr(self, '_initialized', False):
+            return  # Ya inicializado (singleton)
+        
         if db_path is None:
             db_path = Path(__file__).parent.parent / "data" / "config.db"
         self.db_path = Path(db_path)
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
+        
+        # Conexión persistente con check_same_thread=False para threading
+        self._conn = sqlite3.connect(str(self.db_path), check_same_thread=False)
+        self._conn.row_factory = sqlite3.Row
+        self._db_lock = threading.Lock()
+        
         self._init_db()
         self._cipher = self._get_cipher()
+        self._initialized = True
+    
+    def _get_connection(self):
+        """Obtener conexión (reutiliza la persistente)"""
+        return self._conn
+    
+    def _execute(self, query, params=(), fetch=None):
+        """Ejecutar query de forma thread-safe"""
+        with self._db_lock:
+            cursor = self._conn.cursor()
+            cursor.execute(query, params)
+            if fetch == 'one':
+                result = cursor.fetchone()
+            elif fetch == 'all':
+                result = cursor.fetchall()
+            else:
+                result = cursor.lastrowid
+                self._conn.commit()
+            return result
     
     def _get_cipher(self, use_legacy: bool = False) -> Fernet:
-        """Obtener cipher para encriptar/desencriptar
+        """Obtener cipher para encriptar/desencriptar (CACHED)"""
+        cache_key = f"{self.db_path}_{use_legacy}"
         
-        Args:
-            use_legacy: Si True, usa el cifrado antiguo para intentar desencriptar tokens viejos
-        """
-        if use_legacy:
-            # Cifrado ANTIGUO (antes de v2)
-            salt = b'openhands-chat-salt'
-            password = (os.environ.get('ENCRYPTION_KEY', 'default-key') + str(self.db_path)).encode()
-        else:
-            # Cifrado NUEVO (v2) - usar por defecto
-            salt = b'openhands-chat-salt-v2'
-            password = b'openhands-chat-fixed-encryption-key-2024'
-        
-        kdf = PBKDF2HMAC(
-            algorithm=hashes.SHA256(),
-            length=32,
-            salt=salt,
-            iterations=100000,
-        )
-        key = base64.urlsafe_b64encode(kdf.derive(password))
-        return Fernet(key)
+        with _cipher_lock:
+            if cache_key in _cipher_cache:
+                return _cipher_cache[cache_key]
+            
+            if use_legacy:
+                salt = b'openhands-chat-salt'
+                password = (os.environ.get('ENCRYPTION_KEY', 'default-key') + str(self.db_path)).encode()
+            else:
+                salt = b'openhands-chat-salt-v2'
+                password = b'openhands-chat-fixed-encryption-key-2024'
+            
+            kdf = PBKDF2HMAC(
+                algorithm=hashes.SHA256(),
+                length=32,
+                salt=salt,
+                iterations=100000,
+            )
+            key = base64.urlsafe_b64encode(kdf.derive(password))
+            cipher = Fernet(key)
+            _cipher_cache[cache_key] = cipher
+            return cipher
     
     def _init_db(self):
         """Inicializar tablas"""
@@ -102,6 +157,14 @@ class Database:
         
         # Migrar tablas existentes si es necesario
         self._migrate_tables(cursor)
+        
+        # OPTIMIZACIÓN: Crear índices para búsquedas rápidas
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_projects_name ON projects(name)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_projects_repo ON projects(repo_owner, repo_name)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_conversations_project ON conversations(project_id)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_conversations_status ON conversations(status)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_messages_conversation ON messages(conversation_id)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_messages_created ON messages(created_at)')
         
         conn.commit()
         conn.close()
