@@ -146,7 +146,6 @@ async def proxy_app_server(request: Request, path: str, conversation_id: int = N
     # Si no viene conversation_id en query, intentar extraerlo del Referer
     # Esto es necesario para rutas relativas (css/styles.css sin ?conversation_id)
     if not conversation_id:
-        import re
         referer = request.headers.get("referer", "")
         # Intentar extraer de query param en referer
         match = re.search(r'conversation_id=(\d+)', referer)
