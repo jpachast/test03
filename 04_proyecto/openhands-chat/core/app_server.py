@@ -316,23 +316,13 @@ def is_port_listening(port: int) -> bool:
 def get_active_port(conversation_id: int) -> dict:
     """
     Obtiene el puerto activo para una conversación.
-    Verifica que realmente haya un servidor escuchando.
+    PRIORIZA puertos del agente (3000, 5000, etc.) sobre el servidor de archivos estáticos.
     """
-    port = get_forwarded_port(conversation_id)
-    
-    # Verificar si el puerto está activo
-    if is_port_listening(port):
-        return {
-            "status": "active",
-            "port": port,
-            "conversation_id": conversation_id
-        }
-    
-    # Intentar puertos comunes si el configurado no está activo
+    # 1. PRIMERO buscar en puertos comunes del agente (Node.js, Flask, etc.)
     common_ports = [3000, 5000, 8000, 8080, 4200, 5173, 3001]
     for p in common_ports:
-        if p != port and is_port_listening(p):
-            # Actualizar el puerto detectado
+        if is_port_listening(p):
+            # Encontró servidor del agente - actualizar y devolver
             CONVERSATION_PORTS[conversation_id] = p
             return {
                 "status": "active",
@@ -341,11 +331,21 @@ def get_active_port(conversation_id: int) -> dict:
                 "auto_detected": True
             }
     
+    # 2. Si no hay servidor del agente, usar puerto configurado (puede ser el servidor estático)
+    port = get_forwarded_port(conversation_id)
+    if is_port_listening(port):
+        return {
+            "status": "active",
+            "port": port,
+            "conversation_id": conversation_id
+        }
+    
+    # 3. No hay servidor activo
     return {
         "status": "no_server",
-        "port": port,
+        "port": DEFAULT_APP_PORT,
         "conversation_id": conversation_id,
-        "message": "No hay servidor activo en el puerto configurado"
+        "message": "No hay servidor activo"
     }
 
 
