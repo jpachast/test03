@@ -13,7 +13,6 @@ from config.database import Database
 from config.settings import Settings
 from core.agent import create_agent
 from ui.routers.browser import update_screenshot
-from ui.routers.conversations import paused_conversations
 
 router = APIRouter(prefix="/api/chat", tags=["chat"])
 db = Database()
@@ -24,7 +23,8 @@ current_conversation = None
 current_workspace = None
 last_agent_response = ""
 current_conversation_id = None  # Para asociar screenshots con la conversación
-active_conversations = {}  # {conversation_id: {"thread": thread, "stop_flag": bool}}
+# Almacena la referencia a la Conversation activa para poder pausarla
+active_sdk_conversations = {}  # {conversation_id: Conversation}
 
 
 def get_workspace():
@@ -385,6 +385,10 @@ async def stream_message(message: str = Form(...), project: str = Form(None)):
             secrets=secrets
         )
         
+        # Guardar referencia para poder pausar/reanudar
+        if conversation_id:
+            active_sdk_conversations[conversation_id] = conv
+        
         conv.send_message(message)
         
         def run_agent():
@@ -394,18 +398,15 @@ async def stream_message(message: str = Form(...), project: str = Form(None)):
                 q.put({"type": "error", "icon": "❌", "text": str(e)})
             finally:
                 q.put(None)
+                # Limpiar referencia cuando termine
+                if conversation_id and conversation_id in active_sdk_conversations:
+                    del active_sdk_conversations[conversation_id]
         
         thread = threading.Thread(target=run_agent)
         thread.start()
         
         while True:
             try:
-                # Verificar si la conversación está pausada
-                if conversation_id and conversation_id in paused_conversations:
-                    yield f"data: {json.dumps({'type': 'paused', 'icon': '⏸️', 'text': 'Agente pausado'})}\n\n"
-                    await asyncio.sleep(1)
-                    continue
-                
                 event = q.get(timeout=0.5)
                 if event is None:
                     break

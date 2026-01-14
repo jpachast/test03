@@ -129,26 +129,64 @@ async def get_git_status(conversation_id: int):
         return {"branch": None, "error": str(e)}
 
 
-# Estado de pausa por conversación
-paused_conversations = set()
+def get_active_sdk_conversations():
+    """Obtener referencia a las conversaciones activas (evita import circular)"""
+    from ui.routers.chat import active_sdk_conversations
+    return active_sdk_conversations
 
 
 @router.post("/{conversation_id}/pause")
 async def pause_conversation(conversation_id: int):
-    """Pausar el agente de una conversación"""
-    paused_conversations.add(conversation_id)
-    return {"success": True, "status": "paused"}
+    """Pausar el agente de una conversación usando el método del SDK"""
+    conv = get_active_sdk_conversations().get(conversation_id)
+    if conv:
+        try:
+            conv.pause()  # Método real del SDK
+            return {"success": True, "status": "paused"}
+        except Exception as e:
+            return {"success": False, "status": "error", "message": str(e)}
+    return {"success": False, "status": "not_running", "message": "No hay agente activo"}
 
 
 @router.post("/{conversation_id}/resume")
 async def resume_conversation(conversation_id: int):
     """Reanudar el agente de una conversación"""
-    paused_conversations.discard(conversation_id)
-    return {"success": True, "status": "running"}
+    conv = get_active_sdk_conversations().get(conversation_id)
+    if conv:
+        try:
+            # El SDK reanuda llamando run() de nuevo
+            import threading
+            def resume_run():
+                try:
+                    conv.run()
+                except Exception as e:
+                    print(f"Error resuming: {e}")
+            
+            thread = threading.Thread(target=resume_run)
+            thread.start()
+            return {"success": True, "status": "running"}
+        except Exception as e:
+            return {"success": False, "status": "error", "message": str(e)}
+    return {"success": False, "status": "not_running", "message": "No hay agente activo"}
 
 
 @router.get("/{conversation_id}/agent-status")
 async def get_agent_status(conversation_id: int):
     """Obtener estado del agente"""
-    is_paused = conversation_id in paused_conversations
-    return {"status": "paused" if is_paused else "idle"}
+    conv = get_active_sdk_conversations().get(conversation_id)
+    if conv:
+        # Verificar estado real del SDK
+        try:
+            from openhands.sdk.conversation import ConversationExecutionStatus
+            status = conv.state.execution_status
+            if status == ConversationExecutionStatus.RUNNING:
+                return {"status": "running"}
+            elif status == ConversationExecutionStatus.PAUSED:
+                return {"status": "paused"}
+            elif status == ConversationExecutionStatus.FINISHED:
+                return {"status": "finished"}
+            else:
+                return {"status": str(status.value) if hasattr(status, 'value') else str(status)}
+        except Exception as e:
+            return {"status": "running"}  # Asumir running si hay conversación activa
+    return {"status": "idle"}
