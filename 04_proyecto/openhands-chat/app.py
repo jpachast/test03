@@ -5,10 +5,11 @@ OpenHands Chat - Punto de entrada principal
 ⚠️ IMPORTANTE: Este archivo auto-instala TODAS las dependencias necesarias
    No necesitas ejecutar pip install ni start.sh manualmente
    
-   Incluye:
+   Solo ejecuta: python app.py
+   
+   Auto-instala:
    - Dependencias Python (requirements.txt)
-   - Playwright browsers (para navegación web)
-   - Code-server (VS Code)
+   - Code-server (VS Code en navegador)
 """
 
 import os
@@ -52,7 +53,6 @@ def ensure_dependencies():
         ("cryptography", "cryptography"),
         ("git", "gitpython"),
         ("openhands", "openhands-sdk"),
-        ("playwright", "playwright"),
     ]
     
     missing = []
@@ -89,91 +89,6 @@ def ensure_dependencies():
     with open(cache_file, 'w') as f:
         f.write('installed')
 
-
-def ensure_playwright_browsers():
-    """Instala los browsers de Playwright automáticamente.
-    
-    100% AUTOMÁTICO - Sin intervención manual necesaria.
-    Reintenta múltiples veces e instala dependencias si es necesario.
-    """
-    
-    def check_browser_works():
-        """Verifica si el browser funciona."""
-        check_script = """
-import sys
-try:
-    from playwright.sync_api import sync_playwright
-    with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
-        browser.close()
-        sys.exit(0)
-except Exception as e:
-    print(str(e), file=sys.stderr)
-    sys.exit(1)
-"""
-        try:
-            result = subprocess.run(
-                [sys.executable, "-c", check_script],
-                capture_output=True,
-                timeout=60
-            )
-            return result.returncode == 0
-        except Exception:
-            return False
-    
-    # Verificar si ya funciona
-    if check_browser_works():
-        return True
-    
-    print("=" * 60)
-    print("  🌐 CONFIGURANDO BROWSER AUTOMÁTICAMENTE...")
-    print("=" * 60)
-    print()
-    
-    # Paso 1: Instalar el browser
-    print("  📥 Paso 1/3: Descargando Chromium...")
-    subprocess.run(
-        [sys.executable, "-m", "playwright", "install", "chromium"],
-        capture_output=True,
-        timeout=300  # 5 minutos para descarga
-    )
-    
-    if check_browser_works():
-        print("  ✅ Browser configurado correctamente")
-        print()
-        return True
-    
-    # Paso 2: Instalar dependencias del sistema (si falla)
-    print("  📦 Paso 2/3: Instalando dependencias del sistema...")
-    subprocess.run(
-        [sys.executable, "-m", "playwright", "install-deps", "chromium"],
-        capture_output=True,
-        timeout=300
-    )
-    
-    if check_browser_works():
-        print("  ✅ Browser configurado correctamente")
-        print()
-        return True
-    
-    # Paso 3: Reinstalar completamente
-    print("  🔄 Paso 3/3: Reinstalando browser...")
-    subprocess.run(
-        [sys.executable, "-m", "playwright", "install", "--force", "chromium"],
-        capture_output=True,
-        timeout=300
-    )
-    
-    if check_browser_works():
-        print("  ✅ Browser configurado correctamente")
-        print()
-        return True
-    
-    # Si aún falla, la app sigue funcionando (las otras tools funcionan)
-    print("  ⚠️ Browser no disponible - Las demás herramientas funcionan normalmente")
-    print("  ℹ️ El agente usará alternativas cuando necesite navegar web")
-    print()
-    return False
 
 def ensure_code_server():
     """Instala code-server dentro del proyecto para que persista entre sesiones"""
@@ -212,7 +127,6 @@ def ensure_code_server():
 
 # Ejecutar auto-instalación ANTES de cualquier otro import
 ensure_dependencies()
-ensure_playwright_browsers()  # Para navegación web
 ensure_code_server()
 
 # =============================================================================

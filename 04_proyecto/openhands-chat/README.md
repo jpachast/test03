@@ -6,16 +6,16 @@ Interfaz web para conversaciones con agentes que pueden ejecutar código, navega
 ## ✨ Características
 
 - ✅ **Crear proyectos** desde cero o clonar repos Git
-- ✅ **Integración GitHub** - 9 repos visibles, pull/push desde la UI
-- ✅ **Navegador integrado** - Screenshots automáticos cuando el agente navega
+- ✅ **Integración GitHub** - Pull/push desde la UI
+- ✅ **Navegación web** - El agente puede ver páginas web (curl/httpx)
 - ✅ **Code-server** - VS Code en el navegador por conversación
-- ✅ **Terminal de solo lectura** - Muestra comandos y ediciones del agente en tiempo real
-- ✅ **Control del agente** - Botón de pausa/resume (usa SDK real)
-- ✅ **Prompts de OpenHands** - System prompt completo sin reducir
-- ✅ **LLMSummarizingCondenser** - Manejo de contextos largos como OpenHands
-- ✅ **API key encriptada** - Cifrado Fernet con soporte legacy
-- ✅ **Token GitHub persistente** - Se guarda encriptado en BD
-- ✅ **Configuración persistente** - Todo se guarda en `data/config.db`
+- ✅ **Terminal de solo lectura** - Muestra comandos del agente en tiempo real
+- ✅ **Task Tracker** - Lista de tareas visual como OpenHands
+- ✅ **Markdown completo** - Tablas, código, listas renderizadas
+- ✅ **Prompts de OpenHands** - System prompt completo del SDK
+- ✅ **LLMSummarizingCondenser** - Manejo de contextos largos
+- ✅ **API key encriptada** - Cifrado Fernet
+- ✅ **100% Auto-instalación** - Solo ejecuta `python app.py`
 
 ## 🚀 Instalación Rápida
 
@@ -24,16 +24,16 @@ Interfaz web para conversaciones con agentes que pueden ejecutar código, navega
 git clone https://github.com/jpachast/test03.git
 cd test03/04_proyecto/openhands-chat
 
-# Ejecutar script de instalación (instala todo automáticamente)
-chmod +x start.sh
-./start.sh
+# ¡Solo esto! La app auto-instala todo
+python app.py
 ```
 
-El script `start.sh` hace todo automáticamente:
-1. Instala dependencias de Python (`requirements.txt`)
-2. Instala navegador Playwright (para screenshots)
-3. Instala code-server (VS Code en navegador)
-4. Inicia el servidor en puerto 12000
+**¡Eso es todo!** La app auto-instala:
+1. ✅ Dependencias Python (requirements.txt)
+2. ✅ Code-server (VS Code en navegador)
+3. ✅ Inicia el servidor en puerto 12000
+
+**No necesitas** ejecutar pip install, ./start.sh, ni nada más.
 
 ## ⚙️ Configuración
 
@@ -97,13 +97,11 @@ condenser = LLMSummarizingCondenser(
 )
 ```
 
-### Browser CLI
-El agente puede navegar la web usando comandos bash:
+### Navegación Web
+El agente usa curl para ver páginas web (más estable que Playwright):
 ```bash
-python -m core.browser navigate "https://www.google.com"
-python -m core.browser state      # Ver elementos interactivos
-python -m core.browser click "button.submit"
-python -m core.browser type "input#search" "texto"
+# El agente ejecuta automáticamente:
+curl -sL "https://example.com" | head -200
 ```
 
 ### Dual-Cipher Encryption

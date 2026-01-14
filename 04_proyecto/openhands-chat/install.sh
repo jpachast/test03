@@ -3,24 +3,20 @@
 # Ejecutar: ./install.sh
 
 echo "🚀 Instalando OpenHands Chat..."
+echo ""
 
 # Instalar dependencias de Python
 echo "📦 Instalando dependencias Python..."
-pip install -r requirements.txt
-
-# Instalar Playwright browsers (necesario para browser tools)
-echo "🌐 Instalando navegadores Playwright..."
-python -m playwright install chromium || echo "⚠️ No se pudo instalar chromium automáticamente"
-
-# Instalar dependencias del sistema para Playwright (si es posible)
-echo "📦 Instalando dependencias del sistema..."
-python -m playwright install-deps chromium 2>/dev/null || echo "⚠️ Instala dependencias manualmente si el browser falla"
+pip install -q -r requirements.txt
 
 echo ""
 echo "✅ Instalación completada!"
 echo ""
 echo "Para iniciar la aplicación:"
+echo "  python app.py"
+echo ""
+echo "O con el script:"
 echo "  ./start.sh"
 echo ""
-echo "O manualmente:"
-echo "  python app.py"
+echo "NOTA: La app auto-instala todo lo necesario al iniciar."
+echo "      Solo ejecuta 'python app.py' y listo."
