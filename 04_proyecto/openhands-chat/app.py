@@ -29,11 +29,18 @@ def ensure_dependencies():
     cache_file = os.path.join(script_dir, "data", ".deps_installed")
     
     # Verificar si ya están instaladas (cache)
+    # PERO siempre hacer una verificación rápida del módulo más crítico
     if os.path.exists(cache_file) and os.path.exists(requirements_file):
         cache_mtime = os.path.getmtime(cache_file)
         req_mtime = os.path.getmtime(requirements_file)
         if cache_mtime >= req_mtime:
-            return  # Ya instaladas y cache vigente
+            # Verificación de seguridad: probar que openhands-sdk existe
+            try:
+                __import__("openhands")
+                __import__("fastapi")
+                return  # Cache válido Y dependencias existen
+            except ImportError:
+                pass  # Cache inválido, continuar con verificación completa
     
     # Lista de módulos críticos para verificar
     critical_modules = [
