@@ -300,6 +300,7 @@
             display: flex;
             flex-direction: column;
             background: #0d0d0d;
+            overflow: hidden;
         }
         
         .chat-right-panel .right-header {
@@ -307,10 +308,13 @@
             align-items: center;
             justify-content: flex-end;
             padding: 8px 16px;
-            background: transparent;
+            background: #0d0d0d;
             border-bottom: 1px solid #21262d;
             color: #8b949e;
             font-size: 14px;
+            position: relative;
+            z-index: 100;
+            flex-shrink: 0;
         }
         
         .header-icons {
@@ -379,6 +383,9 @@
             border-bottom: 1px solid #30363d;
             gap: 8px;
             flex-shrink: 0;
+            position: sticky;
+            top: 0;
+            z-index: 50;
         }
         
         .app-toolbar .browser-url {

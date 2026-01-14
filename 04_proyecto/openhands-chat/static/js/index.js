@@ -733,6 +733,27 @@
                 console.log('App iframe error - will retry on next poll');
                 frame.dataset.loaded = 'false';
             };
+            
+            // Prevenir que clics en el iframe causen scroll en la página padre
+            // Interceptar cambios de hash en la ventana principal
+            window.addEventListener('hashchange', (e) => {
+                // Si el hash cambió, resetear scroll
+                window.scrollTo(0, 0);
+                document.documentElement.scrollTop = 0;
+                document.body.scrollTop = 0;
+            });
+            
+            // También escuchar scroll en window y resetearlo
+            let scrollLocked = false;
+            window.addEventListener('scroll', (e) => {
+                if (!scrollLocked && (window.scrollY > 0 || document.documentElement.scrollTop > 0)) {
+                    scrollLocked = true;
+                    window.scrollTo(0, 0);
+                    document.documentElement.scrollTop = 0;
+                    document.body.scrollTop = 0;
+                    setTimeout(() => { scrollLocked = false; }, 100);
+                }
+            });
         }
         
         function showAppInIframe(port) {

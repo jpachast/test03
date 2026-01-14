@@ -287,6 +287,47 @@ async def proxy_app_server(request: Request, path: str, conversation_id: int = N
                     content_str
                 )
                 
+                # 6. Inyectar script para prevenir scroll en parent cuando se clickean enlaces con href="#"
+                # Este script intercepta los clics y previene que el navegador haga scroll hacia el hash
+                scroll_fix_script = '''
+<script>
+(function() {
+    // Interceptar clics en enlaces con href="#" para evitar scroll en el padre
+    document.addEventListener('click', function(e) {
+        var target = e.target;
+        while (target && target.tagName !== 'A') {
+            target = target.parentElement;
+        }
+        if (target && target.tagName === 'A') {
+            var href = target.getAttribute('href');
+            if (href === '#' || (href && href.startsWith('#'))) {
+                e.preventDefault();
+                // Si tiene un hash específico, hacer scroll interno
+                if (href.length > 1) {
+                    var el = document.getElementById(href.substring(1));
+                    if (el) el.scrollIntoView({behavior: 'smooth'});
+                }
+            }
+        }
+    }, true);
+    // Prevenir cambios de hash que afecten al padre
+    window.addEventListener('hashchange', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }, true);
+})();
+</script>
+'''
+                # Insertar el script antes de </body>
+                if '</body>' in content_str.lower():
+                    content_str = re.sub(
+                        r'(</body>)',
+                        scroll_fix_script + r'\1',
+                        content_str,
+                        count=1,
+                        flags=re.IGNORECASE
+                    )
+                
                 content = content_str.encode("utf-8")
             
             # También reescribir URLs en CSS

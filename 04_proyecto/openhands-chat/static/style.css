@@ -20,11 +20,13 @@
     --border: #2d3748;
 }
 
-body {
+html, body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     background-color: var(--bg-primary);
     color: var(--text-primary);
     min-height: 100vh;
+    overflow: hidden;
+    height: 100vh;
 }
 
 .container {
