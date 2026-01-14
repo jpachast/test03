@@ -1,20 +1,27 @@
 """
-App Server Manager - Servidor de aplicaciones por conversación
-Implementación idéntica a OpenHands con puertos dinámicos y file-based locking
+App Server Manager - Port Forwarding dinámico como OpenHands Cloud
+Hace proxy a cualquier puerto que el agente inicie (Node.js, Flask, etc.)
 """
 import os
 import subprocess
 import socket
 import fcntl
 import time
+import re
 from typing import Dict, Optional, Tuple
 
-# Rangos de puertos como OpenHands
-APP_PORT_RANGE_1 = (50000, 50099)  # Primer puerto de app
-APP_PORT_RANGE_2 = (50100, 50199)  # Segundo puerto de app (backup)
+# Puerto por defecto para proxy (si el agente no especifica)
+DEFAULT_APP_PORT = 3000
 
-# Instancias de servidores por conversación
+# Puertos configurados por conversación (el agente puede cambiarlos)
+CONVERSATION_PORTS: Dict[int, int] = {}
+
+# Instancias de servidores de archivos estáticos (fallback)
 APP_SERVER_INSTANCES: Dict[int, dict] = {}
+
+# Rangos de puertos para servidor de archivos estáticos (fallback)
+APP_PORT_RANGE_1 = (50000, 50099)
+APP_PORT_RANGE_2 = (50100, 50199)
 
 # Directorio para locks
 LOCK_DIR = "/tmp/openhands_app_locks"
@@ -227,6 +234,119 @@ def get_app_url(conversation_id: int) -> Optional[str]:
         if instance["process"] and instance["process"].poll() is None:
             return f"http://localhost:{instance['port']}"
     return None
+
+
+# ============================================================
+# PORT FORWARDING - Como OpenHands Cloud
+# ============================================================
+
+def set_forwarded_port(conversation_id: int, port: int) -> dict:
+    """
+    Configura el puerto al que hacer forward para una conversación.
+    El agente puede llamar esto cuando inicia un servidor.
+    """
+    if port < 1 or port > 65535:
+        return {"status": "error", "message": "Puerto inválido"}
+    
+    CONVERSATION_PORTS[conversation_id] = port
+    return {
+        "status": "ok",
+        "conversation_id": conversation_id,
+        "port": port,
+        "message": f"Port forwarding configurado al puerto {port}"
+    }
+
+
+def get_forwarded_port(conversation_id: int) -> int:
+    """
+    Obtiene el puerto configurado para forward.
+    Si no hay puerto configurado, intenta detectar automáticamente.
+    """
+    # 1. Puerto explícitamente configurado
+    if conversation_id in CONVERSATION_PORTS:
+        return CONVERSATION_PORTS[conversation_id]
+    
+    # 2. Detectar puerto del servidor de archivos estáticos
+    if conversation_id in APP_SERVER_INSTANCES:
+        instance = APP_SERVER_INSTANCES[conversation_id]
+        if instance["process"] and instance["process"].poll() is None:
+            return instance["port"]
+    
+    # 3. Puerto por defecto
+    return DEFAULT_APP_PORT
+
+
+def detect_port_from_output(output: str) -> Optional[int]:
+    """
+    Detecta el puerto de un servidor a partir del output de terminal.
+    Busca patrones como:
+    - "listening on port 3000"
+    - "Server running on http://localhost:8080"
+    - "Servidor corriendo en http://localhost:3000"
+    """
+    patterns = [
+        r'(?:listening|running|started|corriendo|iniciado).*?(?:port|puerto)?\s*[:=]?\s*(\d{2,5})',
+        r'localhost:(\d{2,5})',
+        r'127\.0\.0\.1:(\d{2,5})',
+        r'0\.0\.0\.0:(\d{2,5})',
+        r':(\d{4,5})\b',  # Puerto de 4-5 dígitos
+    ]
+    
+    for pattern in patterns:
+        match = re.search(pattern, output, re.IGNORECASE)
+        if match:
+            port = int(match.group(1))
+            if 1024 <= port <= 65535:  # Puertos válidos de usuario
+                return port
+    
+    return None
+
+
+def is_port_listening(port: int) -> bool:
+    """Verifica si hay un servidor escuchando en un puerto"""
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.settimeout(0.5)
+            result = s.connect_ex(('127.0.0.1', port))
+            return result == 0
+    except:
+        return False
+
+
+def get_active_port(conversation_id: int) -> dict:
+    """
+    Obtiene el puerto activo para una conversación.
+    Verifica que realmente haya un servidor escuchando.
+    """
+    port = get_forwarded_port(conversation_id)
+    
+    # Verificar si el puerto está activo
+    if is_port_listening(port):
+        return {
+            "status": "active",
+            "port": port,
+            "conversation_id": conversation_id
+        }
+    
+    # Intentar puertos comunes si el configurado no está activo
+    common_ports = [3000, 5000, 8000, 8080, 4200, 5173, 3001]
+    for p in common_ports:
+        if p != port and is_port_listening(p):
+            # Actualizar el puerto detectado
+            CONVERSATION_PORTS[conversation_id] = p
+            return {
+                "status": "active",
+                "port": p,
+                "conversation_id": conversation_id,
+                "auto_detected": True
+            }
+    
+    return {
+        "status": "no_server",
+        "port": port,
+        "conversation_id": conversation_id,
+        "message": "No hay servidor activo en el puerto configurado"
+    }
 
 
 def cleanup_all_servers():

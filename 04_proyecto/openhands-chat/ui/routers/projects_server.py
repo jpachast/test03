@@ -1,6 +1,6 @@
 """
 Router para gestionar el servidor de aplicaciones (App Viewer)
-Implementación idéntica a OpenHands con puertos dinámicos por conversación
+Port Forwarding dinámico como OpenHands Cloud
 """
 import os
 from fastapi import APIRouter, Request
@@ -13,7 +13,11 @@ from core.app_server import (
     start_app_server,
     stop_app_server,
     get_app_server_status,
-    APP_SERVER_INSTANCES
+    get_active_port,
+    set_forwarded_port,
+    is_port_listening,
+    APP_SERVER_INSTANCES,
+    CONVERSATION_PORTS
 )
 
 router = APIRouter(prefix="/api/app-server", tags=["app-server"])
@@ -102,14 +106,40 @@ async def api_stop_app_server(request: Request):
     return JSONResponse(result)
 
 
-# Proxy para el servidor de app
+# Endpoint para configurar puerto manualmente
+@router.post("/set-port")
+async def api_set_port(request: Request):
+    """Configura el puerto para port forwarding"""
+    data = await request.json()
+    conv_id = data.get("conversation_id")
+    port = data.get("port")
+    
+    if not conv_id or not port:
+        return JSONResponse({"status": "error", "message": "conversation_id y port requeridos"}, status_code=400)
+    
+    result = set_forwarded_port(int(conv_id), int(port))
+    return JSONResponse(result)
+
+
+# Endpoint para obtener puerto activo
+@router.get("/active-port")
+async def api_get_active_port(conversation_id: int = None):
+    """Obtiene el puerto activo detectado automáticamente"""
+    if not conversation_id:
+        return JSONResponse({"status": "error", "message": "conversation_id requerido"}, status_code=400)
+    
+    result = get_active_port(conversation_id)
+    return JSONResponse(result)
+
+
+# Proxy con Port Forwarding dinámico
 @router.api_route("/app-preview/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD"])
 async def proxy_app_server(request: Request, path: str, conversation_id: int = None):
-    """Proxy para el servidor de aplicaciones"""
-    # Obtener el puerto del servidor para esta conversación específica
-    status = get_app_server_status(conversation_id)
-    
-    if status.get("status") != "running":
+    """
+    Proxy con Port Forwarding dinámico como OpenHands Cloud.
+    Detecta automáticamente el puerto del servidor del agente.
+    """
+    if not conversation_id:
         return HTMLResponse(
             content="""
             <html>
@@ -119,17 +149,52 @@ async def proxy_app_server(request: Request, path: str, conversation_id: int = N
                 .msg { text-align: center; }
             </style></head>
             <body><div class="msg">
-                <h2>🌐 Servidor no iniciado</h2>
-                <p>El servidor de aplicaciones se iniciará automáticamente cuando abras un proyecto.</p>
+                <h2>🌐 Selecciona una conversación</h2>
+                <p>Abre un chat para ver la aplicación.</p>
             </div></body>
             </html>
             """,
-            status_code=503
+            status_code=400
         )
     
-    port = status.get("port")
+    # Obtener puerto activo (detectado automáticamente)
+    port_info = get_active_port(conversation_id)
+    port = port_info.get("port", 3000)
+    
+    # Verificar si hay servidor activo
+    if port_info.get("status") == "no_server":
+        # Intentar con servidor de archivos estáticos como fallback
+        static_status = get_app_server_status(conversation_id)
+        if static_status.get("status") == "running":
+            port = static_status.get("port")
+        else:
+            return HTMLResponse(
+                content=f"""
+                <html>
+                <head><style>
+                    body {{ background: #1e1e1e; color: #ccc; font-family: sans-serif; 
+                           display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }}
+                    .msg {{ text-align: center; }}
+                    code {{ background: #333; padding: 2px 8px; border-radius: 4px; }}
+                    .ports {{ margin-top: 20px; font-size: 12px; color: #888; }}
+                </style></head>
+                <body><div class="msg">
+                    <h2>🚀 Esperando servidor...</h2>
+                    <p>El agente debe iniciar un servidor web.</p>
+                    <p>Puertos detectados automáticamente: <code>3000</code>, <code>5000</code>, <code>8000</code>, <code>8080</code></p>
+                    <div class="ports">
+                        Puerto configurado: {port}<br>
+                        Conversación: {conversation_id}
+                    </div>
+                </div></body>
+                </html>
+                """,
+                status_code=503
+            )
+    
     target_url = f"http://127.0.0.1:{port}/{path}"
-    # Filtrar conversation_id del query string (no enviarlo al servidor de archivos)
+    
+    # Filtrar conversation_id del query string
     query_params = {k: v for k, v in request.query_params.items() if k != 'conversation_id'}
     if query_params:
         target_url += f"?{'&'.join(f'{k}={v}' for k, v in query_params.items())}"
@@ -158,9 +223,27 @@ async def proxy_app_server(request: Request, path: str, conversation_id: int = N
                 status_code=response.status_code,
                 headers=response_headers
             )
+    except httpx.ConnectError:
+        return HTMLResponse(
+            content=f"""
+            <html>
+            <head><style>
+                body {{ background: #1e1e1e; color: #ccc; font-family: sans-serif; 
+                       display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }}
+                .msg {{ text-align: center; }}
+                code {{ background: #333; padding: 2px 8px; border-radius: 4px; }}
+            </style></head>
+            <body><div class="msg">
+                <h2>⏳ Conectando al puerto {port}...</h2>
+                <p>El servidor está iniciando. Recarga en unos segundos.</p>
+            </div></body>
+            </html>
+            """,
+            status_code=503
+        )
     except Exception as e:
         return HTMLResponse(
-            content=f"<h1>Error de conexión</h1><p>{str(e)}</p>",
+            content=f"<h1>Error de conexión</h1><p>{str(e)}</p><p>Puerto: {port}</p>",
             status_code=502
         )
 
