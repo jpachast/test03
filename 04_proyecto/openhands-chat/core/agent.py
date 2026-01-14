@@ -12,7 +12,7 @@ El agente usa el CLI de browser para navegar (python -m core.browser).
 import os
 
 from pydantic import SecretStr
-from openhands.sdk import LLM, Agent, AgentContext, Tool
+from openhands.sdk import LLM, Agent, AgentContext
 from openhands.sdk.context import Skill
 from openhands.sdk.context.condenser import LLMSummarizingCondenser
 
@@ -142,15 +142,11 @@ def create_agent(api_key: str, model: str = "gemini/gemini-2.5-pro", base_url: s
     # Crear agente con:
     # - LLM configurado
     # - Condenser para manejar contextos largos
-    # - Herramientas de terminal y edición de archivos
+    # - El SDK provee herramientas automáticamente (bash, file edit, etc.)
     agent = Agent(
         llm=llm,
         agent_context=agent_context,
         condenser=condenser,  # <-- Esto es lo que usa OpenHands para prompts largos
-        tools=[
-            Tool(name="TerminalTool"),     # Para ejecutar comandos bash (browser CLI)
-            Tool(name="FileEditorTool"),   # Para editar archivos
-        ],
     )
     
     return agent
