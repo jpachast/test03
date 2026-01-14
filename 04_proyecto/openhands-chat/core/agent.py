@@ -27,19 +27,8 @@ from openhands.tools.grep import GrepTool
 # Delegate tool (sub-agents)
 from openhands.tools.delegate import DelegateTool
 
-# Browser tools (10 herramientas nativas)
-from openhands.tools.browser_use import (
-    BrowserNavigateTool,
-    BrowserClickTool,
-    BrowserTypeTool,
-    BrowserScrollTool,
-    BrowserGetStateTool,
-    BrowserGetContentTool,
-    BrowserGoBackTool,
-    BrowserListTabsTool,
-    BrowserSwitchTabTool,
-    BrowserCloseTabTool,
-)
+# Browser tools - Se registran como un conjunto (browser_tool_set)
+from openhands.tools.browser_use import BrowserToolSet
 
 # Directorio de la aplicación (para browser CLI)
 APP_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -136,17 +125,8 @@ When asked to pull/clone the repository:
             # Delegate (sub-agents)
             Tool(name=DelegateTool.name),        # "delegate"
             
-            # Browser tools (10 herramientas nativas)
-            Tool(name=BrowserNavigateTool.name),    # "browser_navigate"
-            Tool(name=BrowserClickTool.name),       # "browser_click"
-            Tool(name=BrowserTypeTool.name),        # "browser_type"
-            Tool(name=BrowserScrollTool.name),      # "browser_scroll"
-            Tool(name=BrowserGetStateTool.name),    # "browser_get_state"
-            Tool(name=BrowserGetContentTool.name),  # "browser_get_content"
-            Tool(name=BrowserGoBackTool.name),      # "browser_go_back"
-            Tool(name=BrowserListTabsTool.name),    # "browser_list_tabs"
-            Tool(name=BrowserSwitchTabTool.name),   # "browser_switch_tab"
-            Tool(name=BrowserCloseTabTool.name),    # "browser_close_tab"
+            # Browser tools (conjunto que incluye navigate, click, type, scroll, etc.)
+            Tool(name=BrowserToolSet.name),      # "browser_tool_set"
         ],
     )
     
