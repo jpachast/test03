@@ -245,11 +245,11 @@ async def send_message(message: str = Form(...), project: str = Form(None)):
     if not api_key:
         raise HTTPException(status_code=400, detail="API key no configurada")
     
-    if current_workspace is None:
-        if project:
-            current_workspace = str(settings.projects_dir / project)
-        else:
-            current_workspace = str(settings.projects_dir)
+    # SIEMPRE actualizar workspace según el proyecto actual
+    if project:
+        current_workspace = str(settings.projects_dir / project)
+    else:
+        current_workspace = str(settings.projects_dir)
     
     try:
         conversation_id = None
