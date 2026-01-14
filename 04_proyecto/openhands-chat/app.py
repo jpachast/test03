@@ -71,19 +71,31 @@ def ensure_dependencies():
 
 
 def ensure_playwright_browsers():
-    """Instala los browsers de Playwright si no están instalados"""
-    try:
-        from playwright.sync_api import sync_playwright
-        # Verificar si chromium está instalado intentando lanzarlo
-        with sync_playwright() as p:
-            try:
-                browser = p.chromium.launch(headless=True)
-                browser.close()
-                return True  # Ya está instalado
-            except Exception:
-                pass
-    except ImportError:
-        pass
+    """Instala los browsers de Playwright si no están instalados.
+    
+    Usa subprocess para verificar, evitando conflictos con asyncio loop.
+    """
+    # Verificar si chromium ya está instalado usando subprocess
+    # (evita conflictos con asyncio loop de uvicorn)
+    check_script = """
+import sys
+try:
+    from playwright.sync_api import sync_playwright
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True)
+        browser.close()
+        sys.exit(0)  # Instalado
+except Exception:
+    sys.exit(1)  # No instalado
+"""
+    result = subprocess.run(
+        [sys.executable, "-c", check_script],
+        capture_output=True,
+        timeout=30
+    )
+    
+    if result.returncode == 0:
+        return True  # Ya está instalado
     
     print("=" * 60)
     print("  🌐 INSTALANDO BROWSERS DE PLAYWRIGHT...")

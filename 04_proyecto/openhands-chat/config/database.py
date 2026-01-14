@@ -20,13 +20,20 @@ class Database:
         self._init_db()
         self._cipher = self._get_cipher()
     
-    def _get_cipher(self) -> Fernet:
-        """Obtener cipher para encriptar/desencriptar"""
-        # Usar una key FIJA para que no cambie entre sesiones
-        # Esto garantiza que los tokens guardados siempre se puedan desencriptar
-        salt = b'openhands-chat-salt-v2'
-        # Key fija basada en el nombre de la app (NO depende de variables de entorno)
-        password = b'openhands-chat-fixed-encryption-key-2024'
+    def _get_cipher(self, use_legacy: bool = False) -> Fernet:
+        """Obtener cipher para encriptar/desencriptar
+        
+        Args:
+            use_legacy: Si True, usa el cifrado antiguo para intentar desencriptar tokens viejos
+        """
+        if use_legacy:
+            # Cifrado ANTIGUO (antes de v2)
+            salt = b'openhands-chat-salt'
+            password = (os.environ.get('ENCRYPTION_KEY', 'default-key') + str(self.db_path)).encode()
+        else:
+            # Cifrado NUEVO (v2) - usar por defecto
+            salt = b'openhands-chat-salt-v2'
+            password = b'openhands-chat-fixed-encryption-key-2024'
         
         kdf = PBKDF2HMAC(
             algorithm=hashes.SHA256(),
@@ -123,15 +130,34 @@ class Database:
             cursor.execute('ALTER TABLE conversations ADD COLUMN updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP')
     
     def _encrypt(self, value: str) -> str:
-        """Encriptar valor"""
+        """Encriptar valor con cifrado nuevo (v2)"""
         return self._cipher.encrypt(value.encode()).decode()
     
     def _decrypt(self, value: str) -> str:
-        """Desencriptar valor"""
+        """Desencriptar valor - intenta con cifrado nuevo y luego legacy"""
+        # Primero intentar con el cifrado nuevo (v2)
         try:
             return self._cipher.decrypt(value.encode()).decode()
-        except:
-            return value
+        except Exception:
+            pass
+        
+        # Si falla, intentar con el cifrado legacy
+        try:
+            legacy_cipher = self._get_cipher(use_legacy=True)
+            decrypted = legacy_cipher.decrypt(value.encode()).decode()
+            # Si funciona, re-encriptar con el nuevo cifrado para migrar
+            self._migrate_encrypted_value(value, decrypted)
+            return decrypted
+        except Exception:
+            pass
+        
+        # Si todo falla, devolver el valor tal cual (puede no estar encriptado)
+        return value
+    
+    def _migrate_encrypted_value(self, old_encrypted: str, decrypted_value: str):
+        """Migrar un valor del cifrado legacy al nuevo (se hace en set_setting)"""
+        # La migración real se hace cuando se guarda de nuevo el valor
+        pass
     
     # === SETTINGS ===
     

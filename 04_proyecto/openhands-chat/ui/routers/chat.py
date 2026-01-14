@@ -40,6 +40,21 @@ def create_streaming_callback(q, conv_id=None):
         global last_agent_response, current_conversation_id
         event_type = str(type(event).__name__)
         
+        # Log de eventos para debug
+        print(f"[EVENT] Type: {event_type}")
+        if hasattr(event, 'action'):
+            print(f"[EVENT] Action: {type(event.action).__name__}")
+        if hasattr(event, 'observation'):
+            print(f"[EVENT] Observation: {type(event.observation).__name__}")
+        
+        # Capturar errores de conversación
+        if 'Error' in event_type:
+            error_msg = getattr(event, 'error', None) or getattr(event, 'message', None) or str(event)
+            print(f"[EVENT] ERROR: {error_msg}")
+            if hasattr(event, '__dict__'):
+                print(f"[EVENT] ERROR ATTRS: {event.__dict__}")
+            q.put({"type": "error", "icon": "❌", "text": str(error_msg)[:200]})
+        
         try:
             if event_type == 'ActionEvent':
                 if hasattr(event, 'action') and event.action:
