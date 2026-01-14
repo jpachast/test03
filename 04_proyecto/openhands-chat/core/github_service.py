@@ -1,5 +1,9 @@
 """
 Servicio de GitHub para interactuar con la API
+
+OPTIMIZACIONES:
+- Session persistente con connection pooling (keep-alive)
+- Timeout de 10s en todas las llamadas
 """
 
 import os
@@ -7,16 +11,33 @@ import subprocess
 import requests
 from pathlib import Path
 from typing import Optional, List, Dict
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 
 class GitHubService:
     """Servicio para interactuar con GitHub"""
     
     API_BASE = "https://api.github.com"
+    TIMEOUT = 10  # segundos
+    
+    # Session compartida para connection pooling
+    _session = None
     
     def __init__(self, token: str = None):
         self.token = token
         self._user_cache = None
+    
+    @classmethod
+    def _get_session(cls) -> requests.Session:
+        """Obtener session con connection pooling (singleton)"""
+        if cls._session is None:
+            cls._session = requests.Session()
+            # Configurar retry y pool
+            retry = Retry(total=2, backoff_factor=0.3, status_forcelist=[500, 502, 503])
+            adapter = HTTPAdapter(pool_connections=5, pool_maxsize=10, max_retries=retry)
+            cls._session.mount("https://", adapter)
+        return cls._session
     
     def set_token(self, token: str):
         """Establecer token"""
@@ -39,10 +60,10 @@ class GitHubService:
             return {"valid": False, "error": "No token provided"}
         
         try:
-            response = requests.get(
+            response = self._get_session().get(
                 f"{self.API_BASE}/user",
                 headers=self._headers(),
-                timeout=10
+                timeout=self.TIMEOUT
             )
             
             if response.status_code == 200:
@@ -70,7 +91,7 @@ class GitHubService:
             return {"success": False, "error": "No token configured"}
         
         try:
-            response = requests.get(
+            response = self._get_session().get(
                 f"{self.API_BASE}/user/repos",
                 headers=self._headers(),
                 params={
@@ -79,7 +100,7 @@ class GitHubService:
                     "sort": sort,
                     "affiliation": "owner,collaborator,organization_member"
                 },
-                timeout=15
+                timeout=self.TIMEOUT
             )
             
             if response.status_code == 200:
@@ -113,11 +134,11 @@ class GitHubService:
             return {"success": False, "error": "No token configured"}
         
         try:
-            response = requests.get(
+            response = self._get_session().get(
                 f"{self.API_BASE}/repos/{owner}/{repo}/branches",
                 headers=self._headers(),
                 params={"per_page": 100},
-                timeout=10
+                timeout=self.TIMEOUT
             )
             
             if response.status_code == 200:
@@ -145,10 +166,10 @@ class GitHubService:
             return {"success": False, "error": "No token configured"}
         
         try:
-            response = requests.get(
+            response = self._get_session().get(
                 f"{self.API_BASE}/repos/{owner}/{repo}",
                 headers=self._headers(),
-                timeout=10
+                timeout=self.TIMEOUT
             )
             
             if response.status_code == 200:
@@ -269,7 +290,7 @@ class GitHubService:
         
         try:
             # Buscar en repos del usuario primero
-            response = requests.get(
+            response = self._get_session().get(
                 f"{self.API_BASE}/search/repositories",
                 headers=self._headers(),
                 params={
@@ -278,7 +299,7 @@ class GitHubService:
                     "per_page": 20,
                     "sort": "updated"
                 },
-                timeout=10
+                timeout=self.TIMEOUT
             )
             
             if response.status_code == 200:

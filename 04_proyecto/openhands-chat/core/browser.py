@@ -18,10 +18,17 @@ _browser_instance = None
 _browser_context = None
 _current_page = None
 _playwright_instance = None
+_playwright_verified = False  # OPTIMIZACIÓN: Solo verificar instalación una vez
 
 
 def _ensure_playwright_installed():
-    """Asegura que Playwright y sus browsers estén instalados"""
+    """Asegura que Playwright y sus browsers estén instalados (solo primera vez)"""
+    global _playwright_verified
+    
+    # OPTIMIZACIÓN: Skip si ya verificamos
+    if _playwright_verified:
+        return True
+    
     try:
         from playwright.sync_api import sync_playwright
         # Verificar si chromium está instalado
@@ -29,6 +36,7 @@ def _ensure_playwright_installed():
             try:
                 browser = p.chromium.launch(headless=True)
                 browser.close()
+                _playwright_verified = True
                 return True
             except Exception:
                 print("  📦 Instalando browsers de Playwright...")
@@ -36,6 +44,7 @@ def _ensure_playwright_installed():
                     ["python3", "-m", "playwright", "install", "chromium"],
                     capture_output=True
                 )
+                _playwright_verified = True
                 return True
     except ImportError:
         print("  ⚠️ Playwright no instalado, instalando...")
@@ -47,6 +56,7 @@ def _ensure_playwright_installed():
             ["python3", "-m", "playwright", "install", "chromium"],
             capture_output=True
         )
+        _playwright_verified = True
         return True
 
 
