@@ -5,6 +5,7 @@ BASADO 100% EN LA DOCUMENTACIÓN OFICIAL Y PROMPTS DE REFERENCIA
 Incluye herramientas de browser para navegación web con screenshots.
 El agente usa el CLI de browser para navegar (python -m core.browser).
 """
+import os
 
 from pydantic import SecretStr
 from openhands.sdk import LLM, Agent, AgentContext
@@ -13,8 +14,10 @@ from openhands.sdk.context import Skill
 from config.rules import REGLAS_AGENTE, SYSTEM_PROMPT_COMPLETO, IN_CONTEXT_EXAMPLE
 
 
-# Instrucciones de browser para el agente
-BROWSER_INSTRUCTIONS = """
+# Directorio de la aplicación (para browser CLI)
+APP_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+BROWSER_INSTRUCTIONS = f"""
 ## HERRAMIENTAS DE NAVEGACIÓN WEB
 
 Tienes acceso a un browser headless mediante comandos de terminal.
@@ -22,32 +25,32 @@ Para navegar en la web, usa estos comandos:
 
 ### Navegar a una URL:
 ```bash
-cd /workspace/project/04_proyecto/openhands-chat && python -m core.browser navigate "https://www.google.com"
+cd {APP_DIR} && python -m core.browser navigate "https://www.google.com"
 ```
 
 ### Obtener estado actual (URL, título, elementos):
 ```bash
-cd /workspace/project/04_proyecto/openhands-chat && python -m core.browser state
+cd {APP_DIR} && python -m core.browser state
 ```
 
 ### Hacer clic en un elemento:
 ```bash
-cd /workspace/project/04_proyecto/openhands-chat && python -m core.browser click "button.submit"
+cd {APP_DIR} && python -m core.browser click "button.submit"
 ```
 
 ### Escribir en un campo:
 ```bash
-cd /workspace/project/04_proyecto/openhands-chat && python -m core.browser type "input#search" "texto a buscar"
+cd {APP_DIR} && python -m core.browser type "input#search" "texto a buscar"
 ```
 
 ### Hacer scroll:
 ```bash
-cd /workspace/project/04_proyecto/openhands-chat && python -m core.browser scroll down
+cd {APP_DIR} && python -m core.browser scroll down
 ```
 
 ### Obtener contenido de texto:
 ```bash
-cd /workspace/project/04_proyecto/openhands-chat && python -m core.browser content
+cd {APP_DIR} && python -m core.browser content
 ```
 
 Los comandos retornan JSON con:
