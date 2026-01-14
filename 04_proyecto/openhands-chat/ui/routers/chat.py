@@ -359,15 +359,18 @@ async def stream_message(message: str = Form(...), project: str = Form(None), im
     if images:
         try:
             images_data = json.loads(images)
+            print(f"[DEBUG] Received {len(images_data)} images")
             image_urls = []
             for img in images_data:
                 # img tiene {name, dataUrl} donde dataUrl es data:image/...;base64,...
                 data_url = img.get('dataUrl', '')
                 if data_url.startswith('data:image/'):
                     image_urls.append(data_url)
+                    print(f"[DEBUG] Added image URL: {data_url[:80]}...")
             if image_urls:
                 # ImageContent espera image_urls (lista de URLs o data URLs)
                 image_contents.append(ImageContent(image_urls=image_urls))
+                print(f"[DEBUG] Created ImageContent with {len(image_urls)} images")
         except Exception as e:
             print(f"Error parsing images: {e}")
     
@@ -411,8 +414,11 @@ async def stream_message(message: str = Form(...), project: str = Form(None), im
             # Construir Message con texto + imágenes
             msg_content = [TextContent(text=message)] + image_contents
             user_message = Message(role="user", content=msg_content, vision_enabled=True)
+            print(f"[DEBUG] Sending message with {len(image_contents)} image contents, vision_enabled=True")
+            print(f"[DEBUG] Message content types: {[type(c).__name__ for c in msg_content]}")
             conv.send_message(user_message)
         else:
+            print(f"[DEBUG] Sending text-only message")
             conv.send_message(message)
         
         def run_agent():
