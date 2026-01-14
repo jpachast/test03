@@ -486,11 +486,16 @@
             const terminalOutput = document.getElementById('terminalOutput');
             if (!terminalOutput || !output) return;
             
-            // Agregar output
-            const outLine = document.createElement('div');
-            outLine.className = 'terminal-line ' + (isError ? 'error' : 'output');
-            outLine.textContent = output;
-            terminalOutput.appendChild(outLine);
+            // Dividir output en líneas (como OpenHands)
+            const lines = output.split('\n');
+            lines.forEach(line => {
+                if (line.trim()) {  // Solo agregar líneas no vacías
+                    const outLine = document.createElement('div');
+                    outLine.className = 'terminal-line ' + (isError ? 'error' : 'output');
+                    outLine.textContent = line;
+                    terminalOutput.appendChild(outLine);
+                }
+            });
             
             // Scroll al final
             scrollTerminalToBottom();
