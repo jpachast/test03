@@ -2,28 +2,7 @@
 Configuración del agente OpenHands
 BASADO 100% EN LA DOCUMENTACIÓN OFICIAL Y PROMPTS DE REFERENCIA
 
-Incluye:
-- Prompts completos de OpenHands (SYSTEM_PROMPT_COMPLETO, IN_CONTEXT_EXAMPLE, REGLAS_AGENTE)
-- Condenser LLM para manejar contextos largos (como OpenHands)
-- Herramientas de browser para navegación web con screenshots
-
 El agente usa el CLI de browser para navegar (python -m core.browser).
-
-⚠️ IMPORTANTE - NO AGREGAR tools= AL AGENTE ⚠️
-================================================================================
-El SDK de OpenHands provee las herramientas AUTOMÁTICAMENTE.
-NO existen: TerminalTool, FileEditorTool, BashTool como tools registrados.
-
-CORRECTO:
-    agent = Agent(llm=llm, agent_context=agent_context, condenser=condenser)
-
-INCORRECTO (causa KeyError):
-    agent = Agent(..., tools=[Tool(name="TerminalTool")])  # NO EXISTE!
-    agent = Agent(..., tools=[Tool(name="FileEditorTool")])  # NO EXISTE!
-
-Las únicas tools built-in son: FinishTool, ThinkTool
-El agente puede ejecutar bash, editar archivos, etc. SIN especificar tools.
-================================================================================
 """
 import os
 
@@ -33,6 +12,37 @@ from openhands.sdk.context import Skill
 from openhands.sdk.context.condenser import LLMSummarizingCondenser
 
 from config.rules import REGLAS_AGENTE, SYSTEM_PROMPT_COMPLETO, IN_CONTEXT_EXAMPLE
+
+
+# =============================================================================
+# PROTECCIÓN: Lista de tools que NO EXISTEN y causan KeyError
+# =============================================================================
+INVALID_TOOLS = [
+    "TerminalTool",
+    "FileEditorTool", 
+    "BashTool",
+    "ShellTool",
+    "CodeEditTool",
+    "FileTool",
+]
+
+
+def _create_agent_safe(llm, agent_context, condenser):
+    """
+    Crea el agente de forma SEGURA sin tools inválidos.
+    
+    IMPORTANTE: El SDK de OpenHands provee herramientas automáticamente.
+    NO se debe pasar tools= al constructor de Agent.
+    
+    Esta función existe para garantizar que NUNCA se agreguen tools inválidos.
+    """
+    # El SDK provee bash, file edit, etc. AUTOMÁTICAMENTE
+    # Solo FinishTool y ThinkTool son built-in registrados
+    return Agent(
+        llm=llm,
+        agent_context=agent_context,
+        condenser=condenser,
+    )
 
 
 # Directorio de la aplicación (para browser CLI)
@@ -155,17 +165,7 @@ def create_agent(api_key: str, model: str = "gemini/gemini-2.5-pro", base_url: s
         load_public_skills=True,
     )
     
-    # Crear agente con:
-    # - LLM configurado
-    # - Condenser para manejar contextos largos
-    # - El SDK provee herramientas automáticamente (bash, file edit, etc.)
-    #
-    # ⚠️ NO AGREGAR tools=[] - Ver docstring al inicio del archivo
-    agent = Agent(
-        llm=llm,
-        agent_context=agent_context,
-        condenser=condenser,  # <-- Esto es lo que usa OpenHands para prompts largos
-        # NO AGREGAR: tools=[Tool(name="...")] - causa KeyError!
-    )
+    # Crear agente usando función segura (NUNCA agregar tools= manualmente)
+    agent = _create_agent_safe(llm, agent_context, condenser)
     
     return agent
