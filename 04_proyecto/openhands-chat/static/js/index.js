@@ -854,30 +854,30 @@
             loading: '<svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" class="spin"><path d="M8 0a8 8 0 100 16A8 8 0 008 0zm0 1.5a6.5 6.5 0 110 13 6.5 6.5 0 010-13z" opacity="0.3"/><path d="M8 0a8 8 0 018 8h-1.5A6.5 6.5 0 008 1.5V0z"/></svg>'
         };
         
-        // Git buttons - Como OpenHands: envían mensaje al agente
+        // Git buttons - EXACTAMENTE como OpenHands
         function gitPull() {
-            // Igual que OpenHands: enviar mensaje al agente para que haga pull
-            const pullPrompt = "Por favor, haz pull del código más reciente del repositorio.";
+            // Prompt EXACTO de OpenHands
+            const pullPrompt = "Please pull the latest code from the repository.";
             messageInput.value = pullPrompt;
             sendMessage(new Event('submit'));
         }
         
         function gitPush() {
-            // Igual que OpenHands: enviar mensaje al agente para que haga push
-            const pushPrompt = "Por favor, haz push de los cambios a una rama remota en GitHub. " +
-                "Primero verifica el nombre de tu rama actual - si es main, master, deploy u otra rama por defecto común, " +
-                "crea una nueva rama con un nombre descriptivo relacionado con los cambios. " +
-                "De lo contrario, usa exactamente la MISMA rama en la que estás.";
+            // Prompt EXACTO de OpenHands
+            const pushPrompt = "Please push the changes to a remote branch on GitHub, but do NOT create a Pull Request. " +
+                "Check your current branch name first - if it's main, master, deploy, or another common default branch name, " +
+                "create a new branch with a descriptive name related to your changes. " +
+                "Otherwise, use the exact SAME branch name as the one you are currently on.";
             messageInput.value = pushPrompt;
             sendMessage(new Event('submit'));
         }
         
         function createPR() {
-            // Igual que OpenHands: enviar mensaje al agente para crear PR
-            const prPrompt = "Por favor, haz push de los cambios a GitHub y abre un Pull Request. " +
-                "Si estás en una rama por defecto (ej: main, master, deploy), crea una nueva rama con un nombre descriptivo, " +
-                "de lo contrario usa la rama actual. " +
-                "Si existe una plantilla de PR en el repositorio, síguela al crear la descripción del PR.";
+            // Prompt EXACTO de OpenHands
+            const prPrompt = "Please push the changes to GitHub and open a Pull Request. " +
+                "If you're on a default branch (e.g., main, master, deploy), create a new branch with a descriptive name " +
+                "otherwise use the current branch. " +
+                "If a Pull Request template exists in the repository, please follow it when creating the PR description.";
             messageInput.value = prPrompt;
             sendMessage(new Event('submit'));
         }
