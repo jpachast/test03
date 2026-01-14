@@ -118,26 +118,42 @@ When asked to pull/clone the repository:
 </ENVIRONMENT_SETUP>
 """)
     
-    # 3.5 FILE_EDITOR RULES - Reglas críticas para evitar errores
-    if workspace:
-        suffix_parts.append(f"""
-<FILE_EDITOR_RULES>
-CRITICAL: Follow these rules to avoid errors with file_editor:
+    # 3.5 FILE_SYSTEM_GUIDELINES - Exactamente como OpenHands oficial
+    suffix_parts.append("""
+<FILE_SYSTEM_GUIDELINES>
+* When a user provides a file path, do NOT assume it's relative to the current working directory. First explore the file system to locate the file before working on it.
+* If asked to edit a file, edit the file directly, rather than creating a new file with a different filename.
+* For global search-and-replace operations, consider using `sed` instead of opening file editors multiple times.
+* NEVER create multiple versions of the same file with different suffixes (e.g., file_test.py, file_fix.py, file_simple.py). Instead:
+  - Always modify the original file directly when making changes
+  - If you need to create a temporary file for testing, delete it once you've confirmed your solution works
+  - If you decide a file you created is no longer useful, delete it instead of creating a new version
+* Do NOT include documentation files explaining your changes in version control unless the user explicitly requests it
+* When reproducing bugs or implementing fixes, use a single file rather than creating multiple files with different versions
+</FILE_SYSTEM_GUIDELINES>
+""")
 
-1. ALWAYS USE ABSOLUTE PATHS starting with /
-   - WRONG: file_editor create: public/index.html
-   - CORRECT: file_editor create: {workspace}/public/index.html
+    # 3.6 CODE_QUALITY - Exactamente como OpenHands oficial
+    suffix_parts.append("""
+<CODE_QUALITY>
+* Write clean, efficient code with minimal comments. Avoid redundancy in comments: Do not repeat information that can be easily inferred from the code itself.
+* When implementing solutions, focus on making the minimal changes needed to solve the problem.
+* Before implementing any changes, first thoroughly understand the codebase through exploration.
+* If you are adding a lot of code to a function or file, consider splitting the function or file into smaller pieces when appropriate.
+* Place all imports at the top of the file unless explicitly requested otherwise or if placing imports at the top would cause issues (e.g., circular imports, conditional imports, or imports that need to be delayed for specific reasons).
+</CODE_QUALITY>
+""")
 
-2. For str_replace, ALWAYS view the file first to get the EXACT content
-   - Use file_editor view to see the actual content
-   - Copy the old_str EXACTLY as shown (including quotes, spaces, newlines)
-   - Do NOT escape quotes differently than shown in the file
-
-3. NEVER invent paths - always use paths relative to your workspace: {workspace}
-
-4. Before creating files in subdirectories, ensure the directory exists:
-   - mkdir -p {workspace}/public/css {workspace}/public/js
-</FILE_EDITOR_RULES>
+    # 3.7 TROUBLESHOOTING - Exactamente como OpenHands oficial
+    suffix_parts.append("""
+<TROUBLESHOOTING>
+* If you've made repeated attempts to solve a problem but tests still fail or the user reports it's still broken:
+  1. Step back and reflect on 5-7 different possible sources of the problem
+  2. Assess the likelihood of each possible cause
+  3. Methodically address the most likely causes, starting with the highest probability
+  4. Explain your reasoning process in your response to the user
+* When you run into any major issue while executing a plan from the user, please don't try to directly work around it. Instead, propose a new plan and confirm with the user before proceeding.
+</TROUBLESHOOTING>
 """)
     
     system_suffix = "\n".join(suffix_parts)
