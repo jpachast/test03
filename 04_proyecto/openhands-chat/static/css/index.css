@@ -799,50 +799,102 @@
         .git-repo-info {
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 10px;
+        }
+        
+        /* Repo link - estilo OpenHands */
+        .git-repo-link {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 4px 10px;
+            border: 1px solid #525252;
+            border-radius: 100px;
+            color: #c9d1d9;
+            text-decoration: none;
+            transition: all 0.15s;
+        }
+        
+        .git-repo-link:hover {
+            border-color: #6e7681;
+            color: #ffffff;
         }
         
         .git-icon {
-            width: 24px;
-            height: 24px;
+            width: 12px;
+            height: 12px;
             display: flex;
             align-items: center;
             justify-content: center;
-            color: #8b949e;
+            color: inherit;
+            flex-shrink: 0;
         }
         
         .git-icon svg {
-            width: 22px;
-            height: 22px;
-            fill: currentColor;
-        }
-        
-        .git-icon svg path {
+            width: 12px;
+            height: 12px;
             fill: currentColor;
         }
         
         .git-repo {
-            color: #c9d1d9;
-            font-size: 0.9rem;
+            color: inherit;
+            font-size: 0.85rem;
             font-weight: 400;
+            white-space: nowrap;
         }
         
-        .git-branch-badge {
+        /* External link icon - como OpenHands */
+        .external-link-icon {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.15s;
+            color: inherit;
+            flex-shrink: 0;
+        }
+        
+        .git-repo-link:hover .external-link-icon,
+        .git-branch-link:hover .external-link-icon {
+            opacity: 1;
+        }
+        
+        /* Branch link - estilo OpenHands con badge verde */
+        .git-branch-link {
             display: flex;
             align-items: center;
             gap: 6px;
+            padding: 4px 10px;
+            border: 1px solid #525252;
+            border-radius: 100px;
+            color: #c9d1d9;
+            text-decoration: none;
+            transition: all 0.15s;
             background: #238636;
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 0.8rem;
+            border-color: #238636;
             color: white;
-            font-weight: 500;
         }
         
-        .git-branch-badge svg {
-            width: 14px;
-            height: 14px;
-            fill: currentColor;
+        .git-branch-link:hover {
+            background: #2ea043;
+            border-color: #2ea043;
+        }
+        
+        .git-branch-link .branch-icon {
+            width: 12px;
+            height: 12px;
+            flex-shrink: 0;
+        }
+        
+        .git-branch-link #gitBranchName {
+            font-size: 0.85rem;
+            font-weight: 500;
+            white-space: nowrap;
+        }
+        
+        /* Compat: viejo badge removido */
+        .git-branch-badge {
+            display: none;
         }
         
         .git-buttons {

@@ -378,14 +378,34 @@
             document.getElementById('repoBranch').textContent = branch ? `🔀 ${branch}` : '';
             currentProject = projectName;
             
-            // Actualizar barra de git - ocultar badge si no hay branch real
-            document.getElementById('gitRepoName').textContent = repoFullName || projectName || '';
-            const branchBadge = document.getElementById('gitBranchBadge');
+            // Actualizar barra de git con links clickeables
+            const repoLink = document.getElementById('gitRepoLink');
+            const branchLink = document.getElementById('gitBranchLink');
+            
+            if (repoFullName) {
+                document.getElementById('gitRepoName').textContent = repoFullName;
+                if (repoLink) {
+                    repoLink.href = `https://github.com/${repoFullName}`;
+                    repoLink.style.display = 'flex';
+                }
+            } else {
+                document.getElementById('gitRepoName').textContent = projectName || '';
+                if (repoLink) {
+                    repoLink.href = '#';
+                    repoLink.style.display = projectName ? 'flex' : 'none';
+                }
+            }
+            
             if (branch && branch !== '') {
                 document.getElementById('gitBranchName').textContent = branch;
-                branchBadge.style.display = 'flex';
+                if (branchLink) {
+                    branchLink.href = repoFullName ? `https://github.com/${repoFullName}/tree/${branch}` : '#';
+                    branchLink.style.display = 'flex';
+                }
             } else {
-                branchBadge.style.display = 'none';
+                if (branchLink) {
+                    branchLink.style.display = 'none';
+                }
             }
             
             if (messageInput) messageInput.focus();
@@ -807,8 +827,23 @@
         
         function updateGitBar(owner, repo, branch) {
             currentGitInfo = { owner, repo, branch: branch || 'main' };
-            document.getElementById('gitRepoName').textContent = `${owner}/${repo}`;
-            document.getElementById('gitBranchName').textContent = branch || 'main';
+            const repoFullName = `${owner}/${repo}`;
+            const branchName = branch || 'main';
+            
+            // Actualizar texto
+            document.getElementById('gitRepoName').textContent = repoFullName;
+            document.getElementById('gitBranchName').textContent = branchName;
+            
+            // Actualizar URLs de los links (clickeables como OpenHands)
+            const repoLink = document.getElementById('gitRepoLink');
+            const branchLink = document.getElementById('gitBranchLink');
+            
+            if (repoLink) {
+                repoLink.href = `https://github.com/${repoFullName}`;
+            }
+            if (branchLink) {
+                branchLink.href = `https://github.com/${repoFullName}/tree/${branchName}`;
+            }
         }
         
         // SVG icons para los botones Git
