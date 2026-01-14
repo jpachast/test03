@@ -359,16 +359,15 @@ async def stream_message(message: str = Form(...), project: str = Form(None), im
     if images:
         try:
             images_data = json.loads(images)
+            image_urls = []
             for img in images_data:
-                # img tiene {name, dataUrl} donde dataUrl es base64
+                # img tiene {name, dataUrl} donde dataUrl es data:image/...;base64,...
                 data_url = img.get('dataUrl', '')
                 if data_url.startswith('data:image/'):
-                    # Extraer base64 y tipo
-                    # formato: data:image/png;base64,XXXX
-                    parts = data_url.split(',', 1)
-                    if len(parts) == 2:
-                        base64_data = parts[1]
-                        image_contents.append(ImageContent(base64_data=base64_data))
+                    image_urls.append(data_url)
+            if image_urls:
+                # ImageContent espera image_urls (lista de URLs o data URLs)
+                image_contents.append(ImageContent(image_urls=image_urls))
         except Exception as e:
             print(f"Error parsing images: {e}")
     
