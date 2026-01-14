@@ -277,10 +277,16 @@ async def send_message(message: str = Form(...), project: str = Form(None)):
         
         model = db.get_setting("llm_model", settings.default_model)
         agent = create_agent(api_key, model)
+        
+        # Obtener GITHUB_TOKEN para que el agente pueda usarlo
+        github_token = db.get_github_token()
+        secrets = {"GITHUB_TOKEN": github_token} if github_token else None
+        
         current_conversation = Conversation(
             agent=agent, 
             workspace=current_workspace,
-            callbacks=[capture_response]
+            callbacks=[capture_response],
+            secrets=secrets
         )
         
         current_conversation.send_message(message)
@@ -341,11 +347,16 @@ async def stream_message(message: str = Form(...), project: str = Form(None)):
         model = db.get_setting("llm_model", settings.default_model)
         agent = create_agent(api_key, model)
         
+        # Obtener GITHUB_TOKEN para que el agente pueda usarlo
+        github_token = db.get_github_token()
+        secrets = {"GITHUB_TOKEN": github_token} if github_token else None
+        
         streaming_cb = create_streaming_callback(q, conversation_id)
         conv = Conversation(
             agent=agent,
             workspace=workspace,
-            callbacks=[streaming_cb, capture_response]
+            callbacks=[streaming_cb, capture_response],
+            secrets=secrets
         )
         
         conv.send_message(message)
