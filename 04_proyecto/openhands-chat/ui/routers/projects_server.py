@@ -213,6 +213,7 @@ async def proxy_app_server(request: Request, path: str, conversation_id: int = N
             response_headers = dict(response.headers)
             response_headers.pop("transfer-encoding", None)
             response_headers.pop("content-encoding", None)
+            response_headers.pop("content-length", None)  # Remover para recalcular
             
             content = response.content
             content_type = response_headers.get("content-type", "")
