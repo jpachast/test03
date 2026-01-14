@@ -128,24 +128,30 @@
         
         <!-- Input del chat con adjuntar y estado -->
         <div class="chat-input-container">
+            <!-- Input oculto para archivos -->
+            <input type="file" id="fileInput" style="display: none;" accept="image/*,.txt,.md,.js,.py,.html,.css,.json,.xml,.csv" multiple>
+            
             <form class="chat-input-row" id="chatForm" onsubmit="sendMessage(event)">
                 <input type="hidden" name="project" id="currentProject" value="">
                 <input type="hidden" id="currentConversationId" value="">
                 
                 <!-- Botón adjuntar -->
-                <button type="button" class="attach-btn" onclick="attachFile()" title="Adjuntar archivo">
+                <button type="button" class="attach-btn" onclick="attachFile()" title="Adjuntar archivo o imagen">
                     📎
                 </button>
                 
-                <!-- Input de mensaje -->
-                <input 
-                    type="text" 
-                    name="message" 
+                <!-- Input de mensaje (contenteditable para soportar imágenes) -->
+                <div 
                     id="messageInput"
-                    placeholder="¿Qué quieres construir?" 
-                    {% if not has_api_key %}disabled{% endif %}
-                    autocomplete="off"
-                >
+                    class="message-input"
+                    contenteditable="{% if has_api_key %}true{% else %}false{% endif %}"
+                    data-placeholder="¿Qué quieres construir?"
+                    role="textbox"
+                    aria-multiline="true"
+                ></div>
+                
+                <!-- Preview de imágenes adjuntas -->
+                <div id="attachedImages" class="attached-images"></div>
                 
                 <!-- Botón enviar -->
                 <button type="submit" class="send-btn" {% if not has_api_key %}disabled{% endif %}>

@@ -654,7 +654,8 @@
             opacity: 1;
         }
         
-        .chat-input-row input[type="text"] {
+        /* Message input (contenteditable div) */
+        .message-input {
             flex: 1;
             padding: 12px 0;
             background: transparent;
@@ -662,10 +663,75 @@
             color: #c9d1d9;
             font-size: 15px;
             outline: none;
+            min-height: 24px;
+            max-height: 200px;
+            overflow-y: auto;
+            word-wrap: break-word;
+            white-space: pre-wrap;
         }
         
-        .chat-input-row input[type="text"]::placeholder {
+        .message-input:empty::before {
+            content: attr(data-placeholder);
             color: #6e7681;
+            pointer-events: none;
+        }
+        
+        .message-input[contenteditable="false"] {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        /* Attached images preview */
+        .attached-images {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            padding: 0;
+        }
+        
+        .attached-images:empty {
+            display: none;
+        }
+        
+        .attached-image-item {
+            position: relative;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid #30363d;
+        }
+        
+        .attached-image-item img {
+            max-height: 80px;
+            max-width: 120px;
+            object-fit: cover;
+            display: block;
+        }
+        
+        .attached-image-item .remove-image {
+            position: absolute;
+            top: 2px;
+            right: 2px;
+            width: 20px;
+            height: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            border: none;
+            border-radius: 50%;
+            color: #fff;
+            cursor: pointer;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .attached-image-item .remove-image:hover {
+            background: #f85149;
+        }
+        
+        /* Drag over effect */
+        .chat-input-container.drag-over {
+            border-color: #238636;
+            background: rgba(35, 134, 54, 0.1);
         }
         
         .send-btn {
@@ -1042,4 +1108,68 @@
         .browser-hint {
             font-size: 12px !important;
             color: #6e7681 !important;
+        }
+        
+        /* Imágenes en mensajes */
+        .message-images {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+        
+        .message-image {
+            max-height: 150px;
+            max-width: 250px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: transform 0.2s;
+            border: 1px solid #30363d;
+        }
+        
+        .message-image:hover {
+            transform: scale(1.02);
+        }
+        
+        /* Fullscreen image overlay */
+        .image-fullscreen-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.9);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+            cursor: pointer;
+        }
+        
+        .fullscreen-image {
+            max-width: 90%;
+            max-height: 90%;
+            object-fit: contain;
+            border-radius: 4px;
+        }
+        
+        .close-fullscreen {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 40px;
+            height: 40px;
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            border-radius: 50%;
+            color: #fff;
+            font-size: 24px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .close-fullscreen:hover {
+            background: rgba(255, 255, 255, 0.3);
         }

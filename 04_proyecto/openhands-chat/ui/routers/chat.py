@@ -338,7 +338,7 @@ async def send_message(message: str = Form(...), project: str = Form(None)):
 
 
 @router.post("/stream")
-async def stream_message(message: str = Form(...), project: str = Form(None)):
+async def stream_message(message: str = Form(...), project: str = Form(None), images: str = Form(None)):
     """Enviar mensaje al agente con streaming SSE"""
     global current_conversation, current_workspace, last_agent_response
     
@@ -353,6 +353,24 @@ async def stream_message(message: str = Form(...), project: str = Form(None)):
     else:
         workspace = str(settings.projects_dir)
     current_workspace = workspace
+    
+    # Parsear imágenes si las hay
+    image_contents = []
+    if images:
+        try:
+            images_data = json.loads(images)
+            for img in images_data:
+                # img tiene {name, dataUrl} donde dataUrl es base64
+                data_url = img.get('dataUrl', '')
+                if data_url.startswith('data:image/'):
+                    # Extraer base64 y tipo
+                    # formato: data:image/png;base64,XXXX
+                    parts = data_url.split(',', 1)
+                    if len(parts) == 2:
+                        base64_data = parts[1]
+                        image_contents.append(ImageContent(base64_data=base64_data))
+        except Exception as e:
+            print(f"Error parsing images: {e}")
     
     async def generate_events():
         global last_agent_response
@@ -389,7 +407,11 @@ async def stream_message(message: str = Form(...), project: str = Form(None)):
         if conversation_id:
             active_sdk_conversations[conversation_id] = conv
         
-        conv.send_message(message)
+        # Enviar mensaje con imágenes si las hay
+        if image_contents:
+            conv.send_message(message, image_contents=image_contents)
+        else:
+            conv.send_message(message)
         
         def run_agent():
             try:

@@ -934,6 +934,50 @@
             chatMessages.scrollTop = chatMessages.scrollHeight;
         }
         
+        // Agregar mensaje con imágenes adjuntas
+        function addMessageWithImages(content, type, images = []) {
+            const div = document.createElement('div');
+            div.className = `message ${type}`;
+            
+            let html = '';
+            
+            // Mostrar imágenes primero
+            if (images.length > 0) {
+                html += '<div class="message-images">';
+                images.forEach(img => {
+                    html += `<img src="${img.dataUrl}" alt="${img.name}" class="message-image" onclick="showImageFullscreen('${img.dataUrl}')">`;
+                });
+                html += '</div>';
+            }
+            
+            // Luego el texto
+            if (content) {
+                if (type === 'assistant') {
+                    html += '🤖 ' + formatMessage(content);
+                } else {
+                    html += content;
+                }
+            }
+            
+            div.innerHTML = html;
+            chatMessages.appendChild(div);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+        
+        // Mostrar imagen en pantalla completa
+        function showImageFullscreen(src) {
+            const overlay = document.createElement('div');
+            overlay.className = 'image-fullscreen-overlay';
+            overlay.innerHTML = `
+                <img src="${src}" class="fullscreen-image">
+                <button class="close-fullscreen" onclick="this.parentElement.remove()">×</button>
+            `;
+            overlay.onclick = (e) => {
+                if (e.target === overlay) overlay.remove();
+            };
+            document.body.appendChild(overlay);
+        }
+        
         // === FUNCIONES DE UI ===
         
         // Estado del agente (como OpenHands)
@@ -1067,27 +1111,158 @@
             }
         }
         
+        // === MANEJO DE ARCHIVOS E IMÁGENES ===
+        let attachedFiles = []; // Array de {file, dataUrl, type}
+        
         function attachFile() {
-            // Crear input file dinámico
-            const fileInput = document.createElement('input');
-            fileInput.type = 'file';
-            fileInput.accept = '.txt,.md,.js,.py,.html,.css,.json,.xml,.csv';
-            fileInput.onchange = async (e) => {
-                const file = e.target.files[0];
-                if (file) {
-                    const reader = new FileReader();
-                    reader.onload = (event) => {
-                        const content = event.target.result;
-                        // Agregar contenido al mensaje
-                        const currentMsg = messageInput.value;
-                        messageInput.value = currentMsg + (currentMsg ? '\n\n' : '') + 
-                            `📎 Archivo adjunto: ${file.name}\n\`\`\`\n${content.substring(0, 2000)}${content.length > 2000 ? '...(truncado)' : ''}\n\`\`\``;
-                        messageInput.focus();
-                    };
+            document.getElementById('fileInput').click();
+        }
+        
+        // Setup file input change handler
+        document.addEventListener('DOMContentLoaded', () => {
+            const fileInput = document.getElementById('fileInput');
+            const messageInputEl = document.getElementById('messageInput');
+            const chatInputContainer = document.querySelector('.chat-input-container');
+            
+            if (fileInput) {
+                fileInput.addEventListener('change', handleFileSelect);
+            }
+            
+            if (messageInputEl) {
+                // Paste handler
+                messageInputEl.addEventListener('paste', handlePaste);
+                
+                // Enter key handler
+                messageInputEl.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        document.getElementById('chatForm').dispatchEvent(new Event('submit'));
+                    }
+                });
+            }
+            
+            if (chatInputContainer) {
+                // Drag and drop handlers
+                chatInputContainer.addEventListener('dragover', handleDragOver);
+                chatInputContainer.addEventListener('dragleave', handleDragLeave);
+                chatInputContainer.addEventListener('drop', handleDrop);
+            }
+        });
+        
+        function handleFileSelect(e) {
+            const files = Array.from(e.target.files || []);
+            processFiles(files);
+            e.target.value = ''; // Reset input
+        }
+        
+        function handlePaste(e) {
+            const items = e.clipboardData?.items;
+            if (!items) return;
+            
+            const files = [];
+            for (const item of items) {
+                if (item.type.startsWith('image/')) {
+                    const file = item.getAsFile();
+                    if (file) files.push(file);
+                }
+            }
+            
+            if (files.length > 0) {
+                e.preventDefault();
+                processFiles(files);
+            }
+            // Si no hay imágenes, deja que pegue texto normal
+        }
+        
+        function handleDragOver(e) {
+            e.preventDefault();
+            e.currentTarget.classList.add('drag-over');
+        }
+        
+        function handleDragLeave(e) {
+            e.preventDefault();
+            e.currentTarget.classList.remove('drag-over');
+        }
+        
+        function handleDrop(e) {
+            e.preventDefault();
+            e.currentTarget.classList.remove('drag-over');
+            const files = Array.from(e.dataTransfer?.files || []);
+            processFiles(files);
+        }
+        
+        function processFiles(files) {
+            files.forEach(file => {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    const dataUrl = event.target.result;
+                    const isImage = file.type.startsWith('image/');
+                    
+                    attachedFiles.push({
+                        file: file,
+                        dataUrl: dataUrl,
+                        type: isImage ? 'image' : 'text',
+                        name: file.name
+                    });
+                    
+                    updateAttachedFilesUI();
+                };
+                
+                if (file.type.startsWith('image/')) {
+                    reader.readAsDataURL(file);
+                } else {
                     reader.readAsText(file);
                 }
-            };
-            fileInput.click();
+            });
+        }
+        
+        function updateAttachedFilesUI() {
+            const container = document.getElementById('attachedImages');
+            if (!container) return;
+            
+            container.innerHTML = '';
+            
+            attachedFiles.forEach((item, index) => {
+                const div = document.createElement('div');
+                div.className = 'attached-image-item';
+                
+                if (item.type === 'image') {
+                    div.innerHTML = `
+                        <img src="${item.dataUrl}" alt="${item.name}">
+                        <button class="remove-image" onclick="removeAttachedFile(${index})">×</button>
+                    `;
+                } else {
+                    div.innerHTML = `
+                        <div style="padding: 8px; background: #21262d; font-size: 12px; color: #8b949e;">
+                            📎 ${item.name}
+                        </div>
+                        <button class="remove-image" onclick="removeAttachedFile(${index})">×</button>
+                    `;
+                }
+                
+                container.appendChild(div);
+            });
+        }
+        
+        function removeAttachedFile(index) {
+            attachedFiles.splice(index, 1);
+            updateAttachedFilesUI();
+        }
+        
+        function clearAttachedFiles() {
+            attachedFiles = [];
+            updateAttachedFilesUI();
+        }
+        
+        // Helper to get message from contenteditable
+        function getMessageInputValue() {
+            const el = document.getElementById('messageInput');
+            return el ? el.textContent.trim() : '';
+        }
+        
+        function setMessageInputValue(value) {
+            const el = document.getElementById('messageInput');
+            if (el) el.textContent = value;
         }
         
         function toggleTools() {
@@ -1102,11 +1277,26 @@
         async function sendMessage(event) {
             event.preventDefault();
             
-            const message = messageInput.value.trim();
-            if (!message) return;
+            const message = getMessageInputValue();
+            const hasImages = attachedFiles.some(f => f.type === 'image');
+            const hasTextFiles = attachedFiles.some(f => f.type === 'text');
             
-            addMessage(message, 'user');
-            messageInput.value = '';
+            if (!message && !hasImages && !hasTextFiles) return;
+            
+            // Construir mensaje completo con archivos de texto
+            let fullMessage = message;
+            attachedFiles.filter(f => f.type === 'text').forEach(f => {
+                fullMessage += (fullMessage ? '\n\n' : '') + 
+                    `📎 Archivo adjunto: ${f.name}\n\`\`\`\n${f.dataUrl.substring(0, 2000)}${f.dataUrl.length > 2000 ? '...(truncado)' : ''}\n\`\`\``;
+            });
+            
+            // Mostrar mensaje del usuario (con thumbnails de imágenes)
+            addMessageWithImages(fullMessage, 'user', attachedFiles.filter(f => f.type === 'image'));
+            
+            // Limpiar input y archivos adjuntos
+            setMessageInputValue('');
+            const currentImages = [...attachedFiles.filter(f => f.type === 'image')]; // Guardar copia para enviar
+            clearAttachedFiles();
             
             // Cambiar estado a procesando
             setTaskStatus('processing', 'Iniciando...');
@@ -1120,8 +1310,16 @@
             
             try {
                 const formData = new FormData();
-                formData.append('message', message);
+                formData.append('message', fullMessage);
                 formData.append('project', currentProject);
+                
+                // Agregar imágenes como base64
+                if (currentImages.length > 0) {
+                    formData.append('images', JSON.stringify(currentImages.map(img => ({
+                        name: img.name,
+                        dataUrl: img.dataUrl
+                    }))));
+                }
                 
                 // Usar streaming SSE
                 const response = await fetch('/api/chat/stream', {
