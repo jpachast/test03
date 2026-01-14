@@ -673,21 +673,22 @@
             }
         }
         
-        // === APLICACIÓN (App Server dinámico) ===
+        // === APLICACIÓN (Port Forwarding dinámico como OpenHands Cloud) ===
         let appServerPort = null;
         
         async function checkAppServer() {
-            // Verificar si hay un servidor de aplicación corriendo
+            // Detectar puerto activo automáticamente (como OpenHands Cloud)
             try {
-                const resp = await fetch('/api/app-server/status?conversation_id=' + currentConversationId);
+                const resp = await fetch('/api/app-server/active-port?conversation_id=' + currentConversationId);
                 const data = await resp.json();
                 
-                if (data.status === 'running' && data.port) {
+                // Si hay un servidor activo en cualquier puerto
+                if (data.status === 'active' && data.port) {
                     showAppInIframe(data.port);
                     return true;
                 }
             } catch (e) {
-                console.log('No app server running');
+                console.log('No app server detected');
             }
             return false;
         }
