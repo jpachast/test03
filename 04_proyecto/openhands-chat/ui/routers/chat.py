@@ -82,15 +82,14 @@ def create_streaming_callback(q, conv_id=None):
                         output = ' '.join(str(x) for x in output)
                     
                     # Buscar JSON con screenshot en la salida (del CLI de browser)
-                    if output and 'screenshot' in output.lower():
+                    if output and '"screenshot"' in output and '"success"' in output:
                         try:
-                            # El CLI retorna JSON directo
-                            import re
-                            # Buscar JSON en la salida
-                            json_match = re.search(r'\{[^{}]*"screenshot"[^{}]*\}', output, re.DOTALL)
-                            if json_match:
-                                result = json.loads(json_match.group())
-                                if isinstance(result, dict) and result.get('screenshot'):
+                            # El CLI retorna JSON directo - intentar parsear el output completo
+                            # Buscar el inicio del JSON (primera {) y parsearlo
+                            json_start = output.find('{')
+                            if json_start >= 0:
+                                result = json.loads(output[json_start:])
+                                if isinstance(result, dict) and result.get('screenshot') and result.get('success'):
                                     screenshot_data = result.get('screenshot', '')
                                     browser_url = result.get('url', '')
                                     if screenshot_data and conv_id:
@@ -98,11 +97,11 @@ def create_streaming_callback(q, conv_id=None):
                                         q.put({
                                             "type": "browser", 
                                             "icon": "🌐", 
-                                            "text": f"Navegando: {browser_url[:40] if browser_url else 'capturado'}",
+                                            "text": f"Navegando: {browser_url[:50] if browser_url else 'capturado'}",
                                             "screenshot": True
                                         })
-                        except (json.JSONDecodeError, TypeError, AttributeError):
-                            pass
+                        except (json.JSONDecodeError, TypeError, AttributeError) as e:
+                            pass  # No es un JSON válido de browser
                     
                     if is_browser_tool:
                         # Las herramientas de browser MCP retornan content con ImageContent
