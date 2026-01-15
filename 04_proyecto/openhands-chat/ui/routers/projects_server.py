@@ -7,7 +7,7 @@ import os
 import asyncio
 import re
 from fastapi import APIRouter, Request, WebSocket, WebSocketDisconnect
-from fastapi.responses import JSONResponse, HTMLResponse
+from fastapi.responses import JSONResponse, HTMLResponse, Response
 import httpx
 import websockets
 
@@ -348,10 +348,19 @@ async def proxy_app_server(request: Request, path: str, conversation_id: int = N
             response_headers["Pragma"] = "no-cache"
             response_headers["Expires"] = "0"
             
-            return HTMLResponse(
+            # Headers para permitir iframe embedding
+            response_headers.pop("content-security-policy", None)  # Remover CSP que bloquee iframe
+            response_headers.pop("x-frame-options", None)  # Remover si viene del servidor upstream
+            # NO poner X-Frame-Options para permitir embedding en cualquier iframe
+            
+            # Establecer content-length correcto (importante para iframes)
+            response_headers["Content-Length"] = str(len(content))
+            
+            return Response(
                 content=content,
                 status_code=response.status_code,
-                headers=response_headers
+                headers=response_headers,
+                media_type=content_type or "text/html"
             )
     except httpx.ConnectError:
         return HTMLResponse(

@@ -721,20 +721,26 @@
         
         async function checkAppServer() {
             // Detectar puerto activo automáticamente (como OpenHands Cloud)
+            console.log('checkAppServer called, conversationId:', currentConversationId);
             try {
-                const resp = await fetch('/api/app-server/active-port?conversation_id=' + currentConversationId);
+                const url = '/api/app-server/active-port?conversation_id=' + currentConversationId;
+                console.log('Fetching:', url);
+                const resp = await fetch(url);
                 const data = await resp.json();
+                console.log('checkAppServer response:', data);
                 
                 // Si hay un servidor activo en cualquier puerto
                 if (data.status === 'active' && data.port) {
+                    console.log('Server active on port', data.port);
                     showAppInIframe(data.port);
                     return true;
                 } else {
                     // No hay servidor - mostrar placeholder
+                    console.log('No active server, showing placeholder');
                     hideAppIframe();
                 }
             } catch (e) {
-                console.log('No app server detected');
+                console.log('checkAppServer error:', e);
                 hideAppIframe();
             }
             return false;
@@ -743,13 +749,14 @@
         function hideAppIframe() {
             // Ocultar iframe y mostrar placeholder cuando no hay servidor
             const placeholder = document.getElementById('appPlaceholder');
+            const activeContainer = document.getElementById('appActiveContainer');
             const frame = document.getElementById('appFrame');
             const urlInput = document.getElementById('appUrl');
             
             if (appServerPort !== null) {
                 appServerPort = null;
                 placeholder.style.display = 'flex';
-                frame.style.display = 'none';
+                if (activeContainer) activeContainer.style.display = 'none';
                 frame.src = 'about:blank';
                 urlInput.value = 'http://localhost:PORT';
                 console.log('App server stopped - showing placeholder');
@@ -798,6 +805,7 @@
         
         function showAppInIframe(port) {
             const placeholder = document.getElementById('appPlaceholder');
+            const activeContainer = document.getElementById('appActiveContainer');
             const frame = document.getElementById('appFrame');
             const urlInput = document.getElementById('appUrl');
             const copyBtn = document.getElementById('copyUrlBtn');
@@ -805,10 +813,17 @@
             // Solo actualizar si el puerto cambió
             if (appServerPort !== port) {
                 appServerPort = port;
+                
+                // Ocultar placeholder y mostrar container activo
                 placeholder.style.display = 'none';
-                frame.style.display = 'block';
-                // Agregar timestamp para evitar caché
-                frame.src = `/api/app-server/app-preview/?conversation_id=${currentConversationId}&_t=${Date.now()}`;
+                if (activeContainer) {
+                    activeContainer.style.display = 'flex';
+                }
+                
+                // Cargar el iframe con la URL
+                const iframeSrc = `/api/app-server/app-preview/?conversation_id=${currentConversationId}&_t=${Date.now()}`;
+                console.log('Setting iframe src:', iframeSrc);
+                frame.src = iframeSrc;
                 
                 // === OpenHands Pattern: Mostrar URL externa transformada ===
                 // Si no estamos en localhost, mostrar la URL del proxy accesible externamente
@@ -819,8 +834,10 @@
                     urlInput.value = `http://localhost:${port}`;
                 }
                 
-                // Mostrar botón de copiar URL externa
+                // Mostrar botones de URL externa y nueva pestaña
                 if (copyBtn) copyBtn.style.display = 'inline-block';
+                const openNewTabBtn = document.getElementById('openNewTabBtn');
+                if (openNewTabBtn) openNewTabBtn.style.display = 'inline-block';
                 console.log(`App server detected on port ${port}`);
             }
         }
@@ -865,6 +882,17 @@
                 document.body.removeChild(textArea);
                 showNotification('✅ URL copiada', 'success');
             });
+        }
+        
+        // Abrir la aplicación en una nueva pestaña
+        function openAppInNewTab() {
+            if (!currentConversationId) {
+                showNotification('No hay conversación activa', 'error');
+                return;
+            }
+            const baseUrl = window.location.origin;
+            const externalUrl = `${baseUrl}/api/app-server/app-preview/?conversation_id=${currentConversationId}`;
+            window.open(externalUrl, '_blank');
         }
         
         // Polling para detectar cuando el agente inicia un servidor

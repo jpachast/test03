@@ -249,6 +249,7 @@
                     <input type="text" id="appUrl" class="browser-url" placeholder="http://localhost:PORT" readonly>
                     <button onclick="refreshApp()" title="Recargar">🔄</button>
                     <button onclick="copyExternalUrl()" title="Copiar URL externa" id="copyUrlBtn" style="display:none;">🔗</button>
+                    <button onclick="openAppInNewTab()" title="Abrir en nueva pestaña" id="openNewTabBtn" style="display:none;">🔲</button>
                 </div>
                 <div class="app-placeholder" id="appPlaceholder">
                     <div class="placeholder-icon">
@@ -264,7 +265,23 @@
                     <p class="app-hint">El agente puede iniciar servidores con comandos como:<br>
                     <code>python app.py</code>, <code>npm start</code>, <code>flask run</code></p>
                 </div>
-                <iframe id="appFrame" style="display:none;" sandbox="allow-scripts allow-same-origin allow-forms allow-popups"></iframe>
+                <!-- Container para mostrar la app cuando está activa -->
+                <div id="appActiveContainer" style="display:none; width:100%; height:100%; flex:1; flex-direction:column;">
+                    <div style="text-align:center; padding:20px; background:#1a1a2e; border-radius:8px; margin:20px;">
+                        <p style="color:#8b949e; margin-bottom:15px;">🚀 El servidor está funcionando</p>
+                        <button onclick="openAppInNewTab()" style="background:#238636; color:white; border:none; padding:12px 24px; border-radius:6px; cursor:pointer; font-size:16px; margin-bottom:10px;">
+                            🔲 Abrir aplicación en nueva pestaña
+                        </button>
+                        <p style="color:#6e7681; font-size:12px; margin-top:10px;">
+                            La vista embebida puede no funcionar en algunos entornos.<br>
+                            Usa el botón de arriba para ver la aplicación completa.
+                        </p>
+                    </div>
+                    <iframe id="appFrame" 
+                        style="flex:1; width:100%; min-height:400px; border:none; background:white;" 
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                        loading="eager"></iframe>
+                </div>
             </div>
             <!-- Vista de Código (VS Code) en panel derecho -->
             <div id="codeViewRight" style="display: none; width: 100%; height: 100%;">
