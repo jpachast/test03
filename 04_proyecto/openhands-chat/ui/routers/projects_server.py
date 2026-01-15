@@ -263,7 +263,15 @@ async def proxy_app_server(request: Request, path: str, conversation_id: int = N
                     content_str
                 )
                 
-                # 4. Agregar <base> tag para rutas relativas si no existe
+                # 4. Reescribir rutas relativas (sin /) como href="style.css" o src="script.js"
+                # Estas no empiezan con / pero tampoco con http
+                content_str = re.sub(
+                    r'(href|src)=["\'](?!/)(?!http)(?!#)(?!data:)([^"\'?#]+)["\']',
+                    rf'\1="{base_path}/\2?conversation_id={conversation_id}"',
+                    content_str
+                )
+                
+                # 5. Agregar <base> tag solo para links relativos que no capturamos (como #anchors)
                 if '<base' not in content_str.lower():
                     content_str = re.sub(
                         r'(<head[^>]*>)',
