@@ -121,6 +121,15 @@ When asked to pull/clone the repository:
   3. Only install individual packages directly if no dependency files are found or if only specific packages are needed
 * Similarly, if you encounter missing dependencies for essential tools requested by the user, install them when possible.
 
+## Server Management (IMPORTANT):
+* Before starting ANY web server (node, python http.server, npm start, etc.), ALWAYS kill existing processes on the same port:
+  - For Node.js: pkill -f "node server" || true
+  - For Python: pkill -f "python.*http.server" || true  
+  - For specific port: fuser -k 3000/tcp 2>/dev/null || true
+* When cleaning a directory to start fresh, also kill any running servers from that project.
+* Use these common ports: 3000 (Node), 5000 (Flask), 8000 (Python http.server), 8080 (general)
+* Always use CDN links for external libraries (Bootstrap, jQuery, etc.) instead of local paths.
+
 ## Available base tools:
 - Python 3.12+ with pip, pipenv, poetry
 - Node.js 22+ with npm, yarn, corepack
