@@ -12,14 +12,13 @@ Referencia: https://docs.openhands.dev/sdk/getting-started
 import os
 
 from pydantic import SecretStr
-from openhands.sdk import LLM, Agent, AgentContext
-from openhands.sdk.tool import Tool
+from openhands.sdk import LLM, Agent, AgentContext, Tool
 from openhands.sdk.context.condenser import LLMSummarizingCondenser
 
-# Tools se especifican por nombre - el SDK las resuelve automáticamente
-# Core tools: terminal, file_editor, task_tracker
-# Search tools: glob, grep  
-# Delegate: delegate
+# Core tools - del paquete openhands-tools
+from openhands.tools.terminal import TerminalTool
+from openhands.tools.file_editor import FileEditorTool
+from openhands.tools.task_tracker import TaskTrackerTool
 
 # Directorio de la aplicación (para browser CLI)
 APP_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -189,17 +188,10 @@ When asked to pull/clone the repository:
         condenser=condenser,
         agent_context=agent_context,
         tools=[
-            # Core tools - especificados por nombre
-            Tool(name="terminal"),
-            Tool(name="file_editor"),
-            Tool(name="task_tracker"),
-            
-            # Search tools
-            Tool(name="glob"),
-            Tool(name="grep"),
-            
-            # Delegate (sub-agents)
-            Tool(name="delegate"),
+            # Core tools - usando las clases de openhands-tools
+            Tool(name=TerminalTool.name),
+            Tool(name=FileEditorTool.name),
+            Tool(name=TaskTrackerTool.name),
             
             # Para navegación web: usar terminal con curl/httpx
             # Ejemplo: curl -s https://example.com | head -100

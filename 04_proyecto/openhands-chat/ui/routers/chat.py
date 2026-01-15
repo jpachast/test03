@@ -18,8 +18,14 @@ from fastapi.responses import JSONResponse, StreamingResponse
 
 from openhands.sdk import Conversation, ImageContent, TextContent, Message, LLMStreamChunk
 
-# NOTE: En el SDK actual, los Observation types se verifican por nombre de clase (str)
-# No importamos directamente las clases ya que la ruta cambió en versiones recientes
+# Import observations para type checking (del paquete openhands-tools)
+try:
+    from openhands.tools.task_tracker import TaskTrackerObservation
+    from openhands.tools.browser_use import BrowserObservation
+except ImportError:
+    # Fallback si no están disponibles
+    TaskTrackerObservation = None
+    BrowserObservation = None
 
 from config.database import Database
 from config.settings import Settings
@@ -359,7 +365,7 @@ def create_streaming_callback(q, conv_id=None):
                                 "exit_code": 0
                             })
                     
-                    elif 'BrowserObservation' in obs_type or 'Browser' in obs_type:
+                    elif 'BrowserObservation' in obs_type or (BrowserObservation and isinstance(obs, BrowserObservation)):
                         # BrowserObservation nativo del SDK - tiene screenshot_data
                         screenshot_data = getattr(obs, 'screenshot_data', None)
                         content = getattr(obs, 'content', '')
