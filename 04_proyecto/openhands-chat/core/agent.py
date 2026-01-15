@@ -12,23 +12,14 @@ Referencia: https://docs.openhands.dev/sdk/getting-started
 import os
 
 from pydantic import SecretStr
-from openhands.sdk import LLM, Agent, AgentContext, Tool
+from openhands.sdk import LLM, Agent, AgentContext
+from openhands.sdk.tool import Tool
 from openhands.sdk.context.condenser import LLMSummarizingCondenser
 
-# Core tools
-from openhands.tools.terminal import TerminalTool
-from openhands.tools.file_editor import FileEditorTool
-from openhands.tools.task_tracker import TaskTrackerTool
-
-# Search tools
-from openhands.tools.glob import GlobTool
-from openhands.tools.grep import GrepTool
-
-# Delegate tool (sub-agents)
-from openhands.tools.delegate import DelegateTool
-
-# WebFetch tool - Alternativa confiable al browser (sin bugs del SDK)
-# El browser_tool_set del SDK tiene bugs, usamos httpx directamente
+# Tools se especifican por nombre - el SDK las resuelve automáticamente
+# Core tools: terminal, file_editor, task_tracker
+# Search tools: glob, grep  
+# Delegate: delegate
 
 # Directorio de la aplicación (para browser CLI)
 APP_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -198,17 +189,17 @@ When asked to pull/clone the repository:
         condenser=condenser,
         agent_context=agent_context,
         tools=[
-            # Core tools
-            Tool(name=TerminalTool.name),        # "terminal"
-            Tool(name=FileEditorTool.name),      # "file_editor"
-            Tool(name=TaskTrackerTool.name),     # "task_tracker"
+            # Core tools - especificados por nombre
+            Tool(name="terminal"),
+            Tool(name="file_editor"),
+            Tool(name="task_tracker"),
             
             # Search tools
-            Tool(name=GlobTool.name),            # "glob"
-            Tool(name=GrepTool.name),            # "grep"
+            Tool(name="glob"),
+            Tool(name="grep"),
             
             # Delegate (sub-agents)
-            Tool(name=DelegateTool.name),        # "delegate"
+            Tool(name="delegate"),
             
             # Para navegación web: usar terminal con curl/httpx
             # Ejemplo: curl -s https://example.com | head -100
