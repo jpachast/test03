@@ -316,8 +316,9 @@
 
 {% block scripts %}
 <script>
-    // Pasar variable del servidor al JavaScript
+    // Pasar variables del servidor al JavaScript
     const isMainProject = {{ is_main_project|default(false)|tojson }};
+    const initialConversationId = {{ conversation_id|default(null)|tojson }};
 </script>
-<script src="/static/js/index.js"></script>
+<script src="/static/js/index.js?v=20250115b"></script>
 {% endblock %}

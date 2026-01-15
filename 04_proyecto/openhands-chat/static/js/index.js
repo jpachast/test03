@@ -408,7 +408,10 @@
         }
         
         // === NAVEGACIÓN ===
-        let currentConversationId = null;
+        // Inicializar con el ID de conversación del servidor (si existe)
+        let currentConversationId = (typeof initialConversationId !== 'undefined' && initialConversationId) 
+            ? initialConversationId 
+            : null;
         
         function showChat(projectName, repoFullName, branch) {
             document.getElementById('homeFullscreen').style.display = 'none';
@@ -1121,7 +1124,20 @@
                     
                     // Configurar renderer para links (OpenHands pattern)
                     const renderer = new marked.Renderer();
-                    renderer.link = function(href, title, text) {
+                    // marked v5+ passes an object { href, title, text }
+                    renderer.link = function(token) {
+                        // Support both old API (href, title, text) and new API (object)
+                        let href, title, text;
+                        if (typeof token === 'object' && token !== null) {
+                            href = token.href;
+                            title = token.title;
+                            text = token.text;
+                        } else {
+                            // Old API fallback
+                            href = arguments[0];
+                            title = arguments[1];
+                            text = arguments[2];
+                        }
                         // Abrir todos los links en nueva pestaña (como OpenHands anchor.tsx)
                         const titleAttr = title ? ` title="${title}"` : '';
                         return `<a href="${href}"${titleAttr} target="_blank" rel="noopener noreferrer" class="text-blue-400 hover:underline">${text}</a>`;
