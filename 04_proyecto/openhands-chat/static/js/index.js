@@ -810,7 +810,7 @@
             const urlInput = document.getElementById('appUrl');
             const copyBtn = document.getElementById('copyUrlBtn');
             
-            // Solo actualizar si el puerto cambió
+            // Solo actualizar si el puerto cambio
             if (appServerPort !== port) {
                 appServerPort = port;
                 
@@ -820,13 +820,10 @@
                     activeContainer.style.display = 'flex';
                 }
                 
-                // Cargar el iframe con la URL
-                const iframeSrc = `/api/app-server/app-preview/?conversation_id=${currentConversationId}&_t=${Date.now()}`;
-                console.log('Setting iframe src:', iframeSrc);
-                frame.src = iframeSrc;
+                // === SOLUCION: Usar fetch + srcdoc para evitar problemas con iframe src ===
+                loadAppWithFetchSrcdoc(frame);
                 
                 // === OpenHands Pattern: Mostrar URL externa transformada ===
-                // Si no estamos en localhost, mostrar la URL del proxy accesible externamente
                 if (window.location.hostname !== 'localhost') {
                     const externalUrl = `${window.location.origin}/api/app-server/app-preview/?conversation_id=${currentConversationId}`;
                     urlInput.value = externalUrl;
@@ -834,7 +831,7 @@
                     urlInput.value = `http://localhost:${port}`;
                 }
                 
-                // Mostrar botones de URL externa y nueva pestaña
+                // Mostrar botones de URL externa y nueva pestana
                 if (copyBtn) copyBtn.style.display = 'inline-block';
                 const openNewTabBtn = document.getElementById('openNewTabBtn');
                 if (openNewTabBtn) openNewTabBtn.style.display = 'inline-block';
@@ -842,12 +839,61 @@
             }
         }
         
+        // === Carga del iframe usando fetch + srcdoc ===
+        async function loadAppWithFetchSrcdoc(frame, retries = 3) {
+            const url = `/api/app-server/app-preview/?conversation_id=${currentConversationId}&_t=${Date.now()}`;
+            console.log('Loading app via fetch + srcdoc:', url);
+            
+            for (let attempt = 1; attempt <= retries; attempt++) {
+                try {
+                    const response = await fetch(url, { 
+                        cache: 'no-store',
+                        headers: { 'Accept': 'text/html' }
+                    });
+                    
+                    if (!response.ok) {
+                        console.warn(`Fetch attempt ${attempt} failed: ${response.status}`);
+                        if (attempt < retries) {
+                            await new Promise(r => setTimeout(r, 500 * attempt));
+                            continue;
+                        }
+                        frame.src = url;
+                        return;
+                    }
+                    
+                    const html = await response.text();
+                    
+                    if (html.length === 0) {
+                        console.warn(`Fetch attempt ${attempt} empty`);
+                        if (attempt < retries) {
+                            await new Promise(r => setTimeout(r, 500 * attempt));
+                            continue;
+                        }
+                        frame.src = url;
+                        return;
+                    }
+                    
+                    console.log(`Fetched ${html.length} bytes on attempt ${attempt}`);
+                    const cleanHtml = html.replace(/<base[^>]*>/gi, '');
+                    frame.srcdoc = cleanHtml;
+                    frame.style.display = 'block';
+                    return;
+                    
+                } catch (err) {
+                    console.warn(`Fetch attempt ${attempt} error:`, err);
+                    if (attempt < retries) {
+                        await new Promise(r => setTimeout(r, 500 * attempt));
+                    }
+                }
+            }
+            frame.src = url;
+        }
+        
         function refreshApp() {
             const frame = document.getElementById('appFrame');
             if (appServerPort) {
-                // Forzar recarga con timestamp para evitar caché
-                const baseUrl = `/api/app-server/app-preview/?conversation_id=${currentConversationId}`;
-                frame.src = `${baseUrl}&_t=${Date.now()}`;
+                // Usar fetch + srcdoc para refresh (mas confiable)
+                loadAppWithFetchSrcdoc(frame);
             } else {
                 checkAppServer();
             }

@@ -348,6 +348,11 @@ async def proxy_app_server(request: Request, path: str, conversation_id: int = N
             response_headers["Pragma"] = "no-cache"
             response_headers["Expires"] = "0"
             
+            # CORS headers para permitir fetch desde JavaScript
+            response_headers["Access-Control-Allow-Origin"] = "*"
+            response_headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
+            response_headers["Access-Control-Allow-Headers"] = "Content-Type, Accept"
+            
             # Headers para permitir iframe embedding
             response_headers.pop("content-security-policy", None)  # Remover CSP que bloquee iframe
             response_headers.pop("x-frame-options", None)  # Remover si viene del servidor upstream
@@ -482,3 +487,14 @@ async def websocket_proxy(websocket: WebSocket, path: str):
             await websocket.close()
         except Exception:
             pass
+
+# Endpoint de diagnóstico
+@router.get("/debug-test")
+async def debug_test():
+    """Simple debug endpoint"""
+    import datetime
+    return JSONResponse({
+        "status": "ok",
+        "timestamp": str(datetime.datetime.now()),
+        "message": "Debug endpoint working"
+    })
