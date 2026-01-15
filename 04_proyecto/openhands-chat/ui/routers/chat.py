@@ -301,6 +301,10 @@ def create_streaming_callback(q, conv_id=None):
                                 "stderr": str(stderr)[:500] if stderr else "",
                                 "exit_code": exit_code
                             })
+                        
+                        # Enviar status de comando completado
+                        status_icon = "✅" if exit_code == 0 else "❌"
+                        q.put({"type": "command_done", "icon": status_icon, "exit_code": exit_code})
                     
                     elif 'FileEditor' in obs_type:
                         # Obtener contenido del FileEditorObservation

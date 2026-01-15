@@ -1731,6 +1731,10 @@
                                     const isError = data.exit_code !== 0 || data.stderr;
                                     const output = data.stderr || data.output;
                                     addTerminalOutput(output, isError);
+                                } else if (data.type === 'command_done') {
+                                    // Comando completado - actualizar status
+                                    const statusText = data.exit_code === 0 ? 'Listo!' : 'Error en comando';
+                                    setTaskStatus('processing', statusText);
                                 } else if (data.type === 'task_tracker_update') {
                                     // Task Tracker - actualizar lista de tareas
                                     updateTaskTrackerUI(data.tasks);
