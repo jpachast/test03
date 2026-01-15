@@ -1,5 +1,6 @@
 # OpenHands SDK
 openhands-sdk>=1.8.0
+openhands-tools>=1.8.0
 
 # Web Framework
 fastapi>=0.109.0
