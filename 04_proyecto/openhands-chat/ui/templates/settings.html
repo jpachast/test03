@@ -160,6 +160,46 @@
                     </div>
                 </div>
             </section>
+            
+            <!-- Tavily (Búsquedas Web) -->
+            <section class="settings-section">
+                <h3>🔍 Tavily (Búsquedas Web)</h3>
+                
+                <div class="github-card" id="tavilyStatus">
+                    <div id="tavilyNotConnected">
+                        <p>Conecta Tavily para habilitar búsquedas web en tiempo real.</p>
+                        
+                        <input 
+                            type="password" 
+                            id="tavily_api_key" 
+                            class="token-input"
+                            placeholder="Pega tu Tavily API Key"
+                        >
+                        
+                        <button class="btn-connect" onclick="connectTavily()">
+                            Configurar Tavily
+                        </button>
+                        
+                        <p class="help-text" style="margin-top:1rem;">
+                            <a href="https://tavily.com/#api" target="_blank">
+                                Obtener API Key gratis →
+                            </a>
+                            <br>
+                            <small>Incluye 1000 búsquedas/mes gratis</small>
+                        </p>
+                    </div>
+                    
+                    <div id="tavilyConnected" class="github-connected" style="display:none;">
+                        <div class="github-info" style="margin-left: 0;">
+                            <h4>🔍 Tavily</h4>
+                            <p>✅ Búsquedas web habilitadas</p>
+                        </div>
+                        <button class="btn-disconnect" onclick="disconnectTavily()">
+                            Desconectar
+                        </button>
+                    </div>
+                </div>
+            </section>
         </div>
         
         <!-- Sección Aplicación -->

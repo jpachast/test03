@@ -4,16 +4,20 @@ Agente OpenHands - 100% IDÉNTICO AL SDK OFICIAL
 Usa los prompts oficiales de OpenHands SIN modificaciones.
 Incluye TODAS las tools oficiales del SDK:
 - terminal, file_editor, task_tracker
-- browser tools (10 herramientas)
+- browser tools (11 herramientas)
 - glob, grep, delegate
+- MCP tools (Tavily, GitHub) si están configurados
 
 Referencia: https://docs.openhands.dev/sdk/getting-started
 """
 import os
+import logging
 
 from pydantic import SecretStr
-from openhands.sdk import LLM, Agent, AgentContext, Tool
+from openhands.sdk import LLM, Agent, AgentContext
+from openhands.sdk.tool import Tool
 from openhands.sdk.context.condenser import LLMSummarizingCondenser
+from openhands.sdk.mcp import create_mcp_tools
 
 # Core tools - del paquete openhands-tools
 from openhands.tools.terminal import TerminalTool
@@ -23,13 +27,69 @@ from openhands.tools.task_tracker import TaskTrackerTool
 # Browser tools - como OpenHands oficial
 from openhands.tools.browser_use import BrowserToolSet
 
+# Search tools - como OpenHands oficial
+from openhands.tools.glob import GlobTool
+from openhands.tools.grep import GrepTool
+
+# Delegate tool - para sub-agentes
+from openhands.tools.delegate import DelegateTool
+
 # Directorio de la aplicación
 APP_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+logger = logging.getLogger(__name__)
+
+
+def get_mcp_tools(tavily_api_key: str = None, github_token: str = None) -> list:
+    """
+    Crea MCP tools si las API keys están disponibles.
+    Igual que OpenHands Cloud.
+    """
+    mcp_tools = []
+    
+    # Tavily MCP - búsquedas web en tiempo real
+    if tavily_api_key:
+        try:
+            tavily_config = {
+                "mcpServers": {
+                    "tavily": {
+                        "command": "npx",
+                        "args": ["-y", "@tavily/mcp-server"],
+                        "env": {"TAVILY_API_KEY": tavily_api_key}
+                    }
+                }
+            }
+            tavily_tools = create_mcp_tools(tavily_config, timeout=30.0)
+            mcp_tools.extend(tavily_tools)
+            logger.info(f"Tavily MCP tools loaded: {[t.name for t in tavily_tools]}")
+        except Exception as e:
+            logger.warning(f"Failed to load Tavily MCP tools: {e}")
+    
+    # GitHub MCP - operaciones con GitHub API
+    if github_token:
+        try:
+            github_config = {
+                "mcpServers": {
+                    "github": {
+                        "command": "npx",
+                        "args": ["-y", "@modelcontextprotocol/server-github"],
+                        "env": {"GITHUB_PERSONAL_ACCESS_TOKEN": github_token}
+                    }
+                }
+            }
+            github_tools = create_mcp_tools(github_config, timeout=30.0)
+            mcp_tools.extend(github_tools)
+            logger.info(f"GitHub MCP tools loaded: {[t.name for t in github_tools]}")
+        except Exception as e:
+            logger.warning(f"Failed to load GitHub MCP tools: {e}")
+    
+    return mcp_tools
 
 
 def create_agent(api_key: str, model: str = "gemini/gemini-2.5-pro", base_url: str = None,
                  workspace: str = None, repo_info: dict = None, 
-                 external_url: str = None, conversation_id: int = None) -> Agent:
+                 external_url: str = None, conversation_id: int = None,
+                 tavily_api_key: str = None, github_token: str = None) -> Agent:
     """
     Crea el agente OpenHands usando la configuración oficial del SDK.
     
@@ -44,11 +104,11 @@ def create_agent(api_key: str, model: str = "gemini/gemini-2.5-pro", base_url: s
         base_url=base_url,
     )
     
-    # 2. Condenser para contextos largos (igual que OpenHands)
+    # 2. Condenser para contextos largos - IGUAL QUE OPENHANDS OFICIAL
     condenser = LLMSummarizingCondenser(
-        llm=llm,
-        max_size=240,
-        keep_first=2,
+        llm=llm.model_copy(update={"usage_id": "condenser"}),
+        max_size=80,   # Oficial: 80
+        keep_first=4,  # Oficial: 4
     )
     
     # 3. Construir el suffix con contexto adicional
@@ -187,19 +247,37 @@ When asked to pull/clone the repository:
         load_public_skills=True,  # Carga skills públicos de OpenHands
     )
     
-    # 5. Crear agente con tools del SDK - IGUAL QUE OPENHANDS OFICIAL
+    # 5. Tools base del SDK - IGUAL QUE OPENHANDS OFICIAL
+    tools = [
+        # Core tools - IGUAL QUE OFICIAL
+        Tool(name=TerminalTool.name),
+        Tool(name=FileEditorTool.name),
+        Tool(name=TaskTrackerTool.name),
+        
+        # Browser tools - IGUAL QUE OFICIAL
+        Tool(name=BrowserToolSet.name),
+        
+        # Search tools - IGUAL QUE OPENHANDS CLOUD
+        Tool(name=GlobTool.name),
+        Tool(name=GrepTool.name),
+        
+        # Delegate tool - para sub-agentes
+        Tool(name=DelegateTool.name),
+    ]
+    
+    # 6. MCP Tools (Tavily, GitHub) - si están configurados
+    mcp_tools = get_mcp_tools(
+        tavily_api_key=tavily_api_key,
+        github_token=github_token
+    )
+    
+    # 7. Crear agente con todas las tools
     agent = Agent(
         llm=llm,
         condenser=condenser,
         agent_context=agent_context,
-        tools=[
-            # Core tools
-            Tool(name=TerminalTool.name),
-            Tool(name=FileEditorTool.name),
-            Tool(name=TaskTrackerTool.name),
-            # Browser tools - como OpenHands oficial
-            Tool(name=BrowserToolSet.name),
-        ],
+        tools=tools,
+        mcp_tools=mcp_tools if mcp_tools else None,
     )
     
     return agent

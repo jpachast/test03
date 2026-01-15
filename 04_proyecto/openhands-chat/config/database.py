@@ -542,6 +542,21 @@ class Database:
         """Obtener GitHub username"""
         return self.get_setting('github_username', '')
 
+    # === TAVILY API KEY ===
+    
+    def set_tavily_api_key(self, api_key: str):
+        """Guardar Tavily API key (para búsquedas web)"""
+        self.set_setting('tavily_api_key', api_key, encrypt=True)
+    
+    def get_tavily_api_key(self) -> str:
+        """Obtener Tavily API key"""
+        return self.get_setting('tavily_api_key', '')
+    
+    def has_tavily_api_key(self) -> bool:
+        """Verificar si hay Tavily API key configurada"""
+        key = self.get_tavily_api_key()
+        return key is not None and len(key) > 0
+
     # === PROYECTOS CON REPO ===
     
     def add_project_with_repo(self, name: str, path: str, repo_owner: str, 

@@ -118,3 +118,64 @@
                 document.getElementById('githubAvatar').src = `https://github.com/${username}.png`;
             }
         }
+        
+        // === TAVILY ===
+        async function connectTavily() {
+            const apiKey = document.getElementById('tavily_api_key').value.trim();
+            if (!apiKey) {
+                alert('Por favor ingresa tu Tavily API Key');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/settings/tavily', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({api_key: apiKey})
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showTavilyConnected();
+                    alert('✅ Tavily configurado exitosamente');
+                } else {
+                    alert('Error: ' + (data.error || 'No se pudo configurar'));
+                }
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        }
+        
+        async function disconnectTavily() {
+            if (!confirm('¿Estás seguro de desconectar Tavily?')) return;
+            
+            try {
+                await fetch('/api/settings/tavily', {method: 'DELETE'});
+                document.getElementById('tavilyNotConnected').style.display = 'block';
+                document.getElementById('tavilyConnected').style.display = 'none';
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        }
+        
+        function showTavilyConnected() {
+            document.getElementById('tavilyNotConnected').style.display = 'none';
+            document.getElementById('tavilyConnected').style.display = 'flex';
+        }
+        
+        // Verificar estado de Tavily al cargar
+        async function checkTavilyStatus() {
+            try {
+                const response = await fetch('/api/settings/tavily');
+                const data = await response.json();
+                if (data.connected) {
+                    showTavilyConnected();
+                }
+            } catch (error) {
+                console.error('Error checking Tavily status:', error);
+            }
+        }
+        
+        // Llamar checkTavilyStatus al cargar
+        document.addEventListener('DOMContentLoaded', checkTavilyStatus);

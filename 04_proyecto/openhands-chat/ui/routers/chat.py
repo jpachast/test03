@@ -76,11 +76,14 @@ def create_token_callback(q):
 
 
 def _get_cached_agent(api_key: str, model: str, workspace: str, repo_info: dict = None,
-                      external_url: str = None, conversation_id: int = None):
+                      external_url: str = None, conversation_id: int = None,
+                      tavily_api_key: str = None, github_token: str = None):
     """Obtiene un agente del cache o crea uno nuevo"""
     repo_key = f"{repo_info.get('owner', '')}/{repo_info.get('name', '')}" if repo_info else ""
     # Incluir external_url y conversation_id en cache key para que el agente tenga la URL correcta
-    cache_key = f"{model}:{workspace}:{repo_key}:{external_url}:{conversation_id}"
+    # También incluir si hay MCP keys para forzar recreación si cambian
+    mcp_key = f"t:{1 if tavily_api_key else 0}:g:{1 if github_token else 0}"
+    cache_key = f"{model}:{workspace}:{repo_key}:{external_url}:{conversation_id}:{mcp_key}"
     
     now = time.time()
     if cache_key in _agent_cache:
@@ -88,10 +91,11 @@ def _get_cached_agent(api_key: str, model: str, workspace: str, repo_info: dict 
         if now - ts < _AGENT_CACHE_TTL:
             return agent, True  # Cached
     
-    # Crear nuevo agente con URL externa
+    # Crear nuevo agente con URL externa y MCP tools
     agent = create_agent(
         api_key, model, workspace=workspace, repo_info=repo_info,
-        external_url=external_url, conversation_id=conversation_id
+        external_url=external_url, conversation_id=conversation_id,
+        tavily_api_key=tavily_api_key, github_token=github_token
     )
     _agent_cache[cache_key] = (agent, now)
     return agent, False  # Nuevo
@@ -604,19 +608,24 @@ async def stream_message(
         
         model = db.get_setting("llm_model", settings.default_model)
         
+        # Obtener API keys para MCP tools
+        github_token = db.get_github_token()
+        tavily_api_key = db.get_tavily_api_key()
+        
         # OPTIMIZACIÓN: Usar cache de agentes para respuestas más rápidas
         # Pasar external_url y conversation_id para que el agente conozca la URL del preview
+        # Pasar MCP keys para habilitar Tavily (búsquedas) y GitHub (PRs)
         agent, from_cache = _get_cached_agent(
             api_key, model, workspace, repo_info,
-            external_url=external_url, conversation_id=conversation_id
+            external_url=external_url, conversation_id=conversation_id,
+            tavily_api_key=tavily_api_key, github_token=github_token
         )
         if from_cache:
             yield f"data: {json.dumps({'type': 'status', 'icon': '⚡', 'text': 'Listo!'})}\n\n"
         else:
             yield f"data: {json.dumps({'type': 'status', 'icon': '🤖', 'text': 'Preparando agente...'})}\n\n"
         
-        # Obtener GITHUB_TOKEN para que el agente pueda usarlo
-        github_token = db.get_github_token()
+        # Secrets para la Conversation (el agente ya tiene las MCP tools)
         secrets = {"GITHUB_TOKEN": github_token} if github_token else None
         
         # Callbacks para eventos y tokens (streaming)
