@@ -4,7 +4,11 @@
         let repos = [];
         let currentView = 'chat';
         let codeServerLoaded = false;
-        // isMainProject viene del servidor (template)
+        
+        // Variables del servidor (vienen de window.serverConfig)
+        const serverConfig = window.serverConfig || {};
+        const isMainProject = serverConfig.isMainProject || false;
+        const initialConversationId = serverConfig.initialConversationId || null;
         
         // === URL TRANSFORMATION (OpenHands pattern) ===
         /**
@@ -409,9 +413,7 @@
         
         // === NAVEGACIÓN ===
         // Inicializar con el ID de conversación del servidor (si existe)
-        let currentConversationId = (typeof initialConversationId !== 'undefined' && initialConversationId) 
-            ? initialConversationId 
-            : null;
+        let currentConversationId = initialConversationId;
         
         function showChat(projectName, repoFullName, branch) {
             document.getElementById('homeFullscreen').style.display = 'none';

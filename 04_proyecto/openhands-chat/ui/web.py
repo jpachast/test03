@@ -34,7 +34,12 @@ class CacheControlMiddleware(BaseHTTPMiddleware):
         response = await call_next(request)
         # Cache para archivos estáticos (CSS, JS, imágenes)
         if request.url.path.startswith("/static/"):
-            response.headers["Cache-Control"] = "public, max-age=3600"  # 1 hora
+            # Si tiene query string (cache-buster), cache muy largo (1 año)
+            # Si no tiene, cache corto (1 hora)
+            if request.url.query:
+                response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+            else:
+                response.headers["Cache-Control"] = "public, max-age=3600"
         return response
 
 # Inicializar
