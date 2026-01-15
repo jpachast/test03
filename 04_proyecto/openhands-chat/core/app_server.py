@@ -316,14 +316,24 @@ def is_port_listening(port: int) -> bool:
 def get_active_port(conversation_id: int) -> dict:
     """
     Obtiene el puerto activo para una conversación.
-    SOLO detecta servidores del agente (Node.js, Flask, etc.)
-    NO usa el servidor de archivos estáticos como fallback.
+    Detecta servidores del agente y el servidor de archivos estáticos.
     """
-    # Buscar en puertos comunes del agente (Node.js, Flask, etc.)
+    # 1. Primero buscar en APP_SERVER_INSTANCES (servidor iniciado por nosotros)
+    if conversation_id in APP_SERVER_INSTANCES:
+        instance = APP_SERVER_INSTANCES[conversation_id]
+        if instance.get("process") and instance["process"].poll() is None:
+            port = instance["port"]
+            return {
+                "status": "active",
+                "port": port,
+                "conversation_id": conversation_id,
+                "auto_detected": False
+            }
+    
+    # 2. Buscar en puertos comunes del agente (Node.js, Flask, etc.)
     common_ports = [3000, 5000, 8000, 8080, 4200, 5173, 3001]
     for p in common_ports:
         if is_port_listening(p):
-            # Encontró servidor del agente - actualizar y devolver
             CONVERSATION_PORTS[conversation_id] = p
             return {
                 "status": "active",
@@ -332,13 +342,23 @@ def get_active_port(conversation_id: int) -> dict:
                 "auto_detected": True
             }
     
-    # No hay servidor del agente activo - NO usar servidor estático como fallback
-    # El frontend mostrará el placeholder "Inicia un servidor web..."
+    # 3. Buscar en rango de app-server (50000-50099)
+    for p in range(50000, 50100):
+        if is_port_listening(p):
+            CONVERSATION_PORTS[conversation_id] = p
+            return {
+                "status": "active",
+                "port": p,
+                "conversation_id": conversation_id,
+                "auto_detected": True
+            }
+    
+    # No hay servidor activo
     return {
         "status": "no_server",
         "port": None,
         "conversation_id": conversation_id,
-        "message": "No hay servidor del agente activo"
+        "message": "No hay servidor activo"
     }
 
 
