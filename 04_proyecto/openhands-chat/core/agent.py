@@ -20,6 +20,9 @@ from openhands.tools.terminal import TerminalTool
 from openhands.tools.file_editor import FileEditorTool
 from openhands.tools.task_tracker import TaskTrackerTool
 
+# Browser tools - para interacción con navegador
+from openhands.tools.browser_use import BrowserToolSet
+
 # Directorio de la aplicación (para browser CLI)
 APP_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -184,21 +187,19 @@ When asked to pull/clone the repository:
         load_public_skills=True,  # Carga skills públicos de OpenHands
     )
     
-    # 5. Crear agente con tools estables del SDK
-    # NOTA: browser_tool_set tiene bugs en el SDK, el agente puede usar
-    # terminal con curl/wget para obtener contenido web
+    # 5. Crear agente con tools del SDK (incluyendo browser)
     agent = Agent(
         llm=llm,
         condenser=condenser,
         agent_context=agent_context,
         tools=[
-            # Core tools - usando las clases de openhands-tools
+            # Core tools
             Tool(name=TerminalTool.name),
             Tool(name=FileEditorTool.name),
             Tool(name=TaskTrackerTool.name),
             
-            # Para navegación web: usar terminal con curl/httpx
-            # Ejemplo: curl -s https://example.com | head -100
+            # Browser tools - para interacción con navegador web
+            Tool(name=BrowserToolSet.name),
         ],
     )
     
