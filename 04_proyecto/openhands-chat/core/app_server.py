@@ -316,21 +316,10 @@ def is_port_listening(port: int) -> bool:
 def get_active_port(conversation_id: int) -> dict:
     """
     Obtiene el puerto activo para una conversación.
-    Detecta servidores del agente y el servidor de archivos estáticos.
+    Prioridad: puertos del agente > servidor estático de fallback.
     """
-    # 1. Primero buscar en APP_SERVER_INSTANCES (servidor iniciado por nosotros)
-    if conversation_id in APP_SERVER_INSTANCES:
-        instance = APP_SERVER_INSTANCES[conversation_id]
-        if instance.get("process") and instance["process"].poll() is None:
-            port = instance["port"]
-            return {
-                "status": "active",
-                "port": port,
-                "conversation_id": conversation_id,
-                "auto_detected": False
-            }
-    
-    # 2. Buscar en puertos comunes del agente (Node.js, Flask, etc.)
+    # 1. PRIMERO buscar en puertos comunes del agente (Node.js, Flask, etc.)
+    # Esto tiene prioridad porque el agente inicia servidores en estos puertos
     common_ports = [3000, 5000, 8000, 8080, 4200, 5173, 3001]
     for p in common_ports:
         if is_port_listening(p):
@@ -342,7 +331,19 @@ def get_active_port(conversation_id: int) -> dict:
                 "auto_detected": True
             }
     
-    # 3. Buscar en rango de app-server (50000-50099)
+    # 2. Si no hay servidor del agente, usar APP_SERVER_INSTANCES (servidor estático)
+    if conversation_id in APP_SERVER_INSTANCES:
+        instance = APP_SERVER_INSTANCES[conversation_id]
+        if instance.get("process") and instance["process"].poll() is None:
+            port = instance["port"]
+            return {
+                "status": "active",
+                "port": port,
+                "conversation_id": conversation_id,
+                "auto_detected": False
+            }
+    
+    # 3. Buscar en rango de app-server (50000-50099) como último recurso
     for p in range(50000, 50100):
         if is_port_listening(p):
             CONVERSATION_PORTS[conversation_id] = p
