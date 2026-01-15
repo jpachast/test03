@@ -844,6 +844,8 @@
             const url = `/api/app-server/app-preview/?conversation_id=${currentConversationId}&_t=${Date.now()}`;
             console.log('Loading app via fetch + srcdoc:', url);
             
+            let fetchFailed = true;
+            
             for (let attempt = 1; attempt <= retries; attempt++) {
                 try {
                     const response = await fetch(url, { 
@@ -857,26 +859,26 @@
                             await new Promise(r => setTimeout(r, 500 * attempt));
                             continue;
                         }
-                        frame.src = url;
-                        return;
+                        break;
                     }
                     
                     const html = await response.text();
                     
                     if (html.length === 0) {
-                        console.warn(`Fetch attempt ${attempt} empty`);
+                        console.warn(`Fetch attempt ${attempt} empty (0 bytes)`);
                         if (attempt < retries) {
                             await new Promise(r => setTimeout(r, 500 * attempt));
                             continue;
                         }
-                        frame.src = url;
-                        return;
+                        break;
                     }
                     
                     console.log(`Fetched ${html.length} bytes on attempt ${attempt}`);
                     const cleanHtml = html.replace(/<base[^>]*>/gi, '');
                     frame.srcdoc = cleanHtml;
                     frame.style.display = 'block';
+                    fetchFailed = false;
+                    hideIframeFallback();
                     return;
                     
                 } catch (err) {
@@ -886,7 +888,84 @@
                     }
                 }
             }
-            frame.src = url;
+            
+            // Fetch failed after all retries - show fallback UI
+            if (fetchFailed) {
+                console.log('Fetch failed after all retries, showing fallback UI');
+                showIframeFallback(url);
+            }
+        }
+        
+        // === Mostrar UI de fallback cuando iframe no puede cargar ===
+        function showIframeFallback(url) {
+            const activeContainer = document.getElementById('appActiveContainer');
+            if (!activeContainer) return;
+            
+            // Ocultar el iframe
+            const frame = document.getElementById('appFrame');
+            if (frame) frame.style.display = 'none';
+            
+            // Crear o actualizar overlay de fallback
+            let fallback = document.getElementById('iframeFallbackOverlay');
+            if (!fallback) {
+                fallback = document.createElement('div');
+                fallback.id = 'iframeFallbackOverlay';
+                fallback.style.cssText = `
+                    flex: 1;
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    justify-content: center;
+                    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+                    border-radius: 12px;
+                    margin: 10px;
+                    padding: 40px;
+                    text-align: center;
+                    min-height: 300px;
+                `;
+                activeContainer.appendChild(fallback);
+            }
+            
+            fallback.innerHTML = `
+                <div style="font-size: 64px; margin-bottom: 20px;">🚀</div>
+                <h2 style="color: #e6edf3; margin-bottom: 15px; font-size: 24px;">¡Tu aplicación está lista!</h2>
+                <p style="color: #8b949e; margin-bottom: 25px; max-width: 400px; line-height: 1.6;">
+                    La vista embebida no está disponible en este entorno.<br>
+                    Abre la aplicación en una nueva pestaña para verla.
+                </p>
+                <button onclick="openAppInNewTab()" style="
+                    background: linear-gradient(135deg, #238636 0%, #2ea043 100%);
+                    color: white;
+                    border: none;
+                    padding: 16px 32px;
+                    border-radius: 8px;
+                    cursor: pointer;
+                    font-size: 18px;
+                    font-weight: 600;
+                    box-shadow: 0 4px 14px rgba(35, 134, 54, 0.4);
+                    transition: transform 0.2s, box-shadow 0.2s;
+                " onmouseover="this.style.transform='scale(1.05)'; this.style.boxShadow='0 6px 20px rgba(35, 134, 54, 0.5)';"
+                   onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='0 4px 14px rgba(35, 134, 54, 0.4)';">
+                    🔲 Abrir en Nueva Pestaña
+                </button>
+                <p style="color: #6e7681; font-size: 12px; margin-top: 20px;">
+                    💡 Tip: La URL externa ya está copiable desde la barra de arriba
+                </p>
+            `;
+            
+            fallback.style.display = 'flex';
+        }
+        
+        // === Ocultar UI de fallback cuando iframe carga correctamente ===
+        function hideIframeFallback() {
+            const fallback = document.getElementById('iframeFallbackOverlay');
+            if (fallback) {
+                fallback.style.display = 'none';
+            }
+            const frame = document.getElementById('appFrame');
+            if (frame) {
+                frame.style.display = 'block';
+            }
         }
         
         function refreshApp() {
