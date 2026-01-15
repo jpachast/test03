@@ -35,7 +35,8 @@ APP_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 def create_agent(api_key: str, model: str = "gemini/gemini-2.5-pro", base_url: str = None,
-                 workspace: str = None, repo_info: dict = None) -> Agent:
+                 workspace: str = None, repo_info: dict = None, 
+                 external_url: str = None, conversation_id: int = None) -> Agent:
     """
     Crea el agente OpenHands usando la configuración oficial del SDK.
     
@@ -67,6 +68,20 @@ IMPORTANT: Always respond in Spanish (Latin American).
 All messages to the user must be in Spanish.
 Code comments can be in English if the project requires it.
 </LANGUAGE>
+""")
+
+    # 3.1b APP PREVIEW URL - URL externa para ver la aplicación
+    if external_url and conversation_id:
+        app_preview_url = f"{external_url}/api/app-server/app-preview/?conversation_id={conversation_id}"
+        suffix_parts.append(f"""
+<APP_PREVIEW_URL>
+When the user asks for the URL to view the application, provide this URL:
+{app_preview_url}
+
+This is the external URL where the user can see any web application you start.
+When you start a web server (npm start, python -m http.server, etc.), 
+tell the user they can view it at: {app_preview_url}
+</APP_PREVIEW_URL>
 """)
     
     # 3.2 RUNTIME INFO - Working directory

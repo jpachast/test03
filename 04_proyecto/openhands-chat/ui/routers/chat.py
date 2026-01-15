@@ -70,10 +70,12 @@ def create_token_callback(q):
     return token_callback
 
 
-def _get_cached_agent(api_key: str, model: str, workspace: str, repo_info: dict = None):
+def _get_cached_agent(api_key: str, model: str, workspace: str, repo_info: dict = None,
+                      external_url: str = None, conversation_id: int = None):
     """Obtiene un agente del cache o crea uno nuevo"""
     repo_key = f"{repo_info.get('owner', '')}/{repo_info.get('name', '')}" if repo_info else ""
-    cache_key = f"{model}:{workspace}:{repo_key}"
+    # Incluir external_url y conversation_id en cache key para que el agente tenga la URL correcta
+    cache_key = f"{model}:{workspace}:{repo_key}:{external_url}:{conversation_id}"
     
     now = time.time()
     if cache_key in _agent_cache:
@@ -81,8 +83,11 @@ def _get_cached_agent(api_key: str, model: str, workspace: str, repo_info: dict 
         if now - ts < _AGENT_CACHE_TTL:
             return agent, True  # Cached
     
-    # Crear nuevo agente
-    agent = create_agent(api_key, model, workspace=workspace, repo_info=repo_info)
+    # Crear nuevo agente con URL externa
+    agent = create_agent(
+        api_key, model, workspace=workspace, repo_info=repo_info,
+        external_url=external_url, conversation_id=conversation_id
+    )
     _agent_cache[cache_key] = (agent, now)
     return agent, False  # Nuevo
 
@@ -520,7 +525,12 @@ async def send_message(message: str = Form(...), project: str = Form(None)):
 
 
 @router.post("/stream")
-async def stream_message(message: str = Form(...), project: str = Form(None), images: str = Form(None)):
+async def stream_message(
+    message: str = Form(...), 
+    project: str = Form(None), 
+    images: str = Form(None),
+    external_url: str = Form(None)
+):
     """Enviar mensaje al agente con streaming SSE"""
     global current_conversation, current_workspace, last_agent_response
     
@@ -586,7 +596,11 @@ async def stream_message(message: str = Form(...), project: str = Form(None), im
         model = db.get_setting("llm_model", settings.default_model)
         
         # OPTIMIZACIÓN: Usar cache de agentes para respuestas más rápidas
-        agent, from_cache = _get_cached_agent(api_key, model, workspace, repo_info)
+        # Pasar external_url y conversation_id para que el agente conozca la URL del preview
+        agent, from_cache = _get_cached_agent(
+            api_key, model, workspace, repo_info,
+            external_url=external_url, conversation_id=conversation_id
+        )
         if from_cache:
             yield f"data: {json.dumps({'type': 'status', 'icon': '⚡', 'text': 'Listo!'})}\n\n"
         else:

@@ -1639,6 +1639,10 @@
                 formData.append('message', fullMessage);
                 formData.append('project', currentProject);
                 
+                // Agregar URL externa para que el agente pueda darla al usuario
+                const externalUrl = window.location.origin;
+                formData.append('external_url', externalUrl);
+                
                 // Agregar imágenes como base64
                 if (currentImages.length > 0) {
                     formData.append('images', JSON.stringify(currentImages.map(img => ({
