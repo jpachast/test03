@@ -119,6 +119,10 @@ When asked to pull/clone the repository:
 * When cleaning a directory to start fresh, also kill any running servers from that project.
 * Use these common ports: 3000 (Node), 5000 (Flask), 8000 (Python http.server), 8080 (general)
 * Always use CDN links for external libraries (Bootstrap, jQuery, etc.) instead of local paths.
+* IMPORTANT: Always start servers with nohup to keep them running:
+  - Node.js: nohup node server.js > server.log 2>&1 &
+  - Python: nohup python -m http.server 8000 > server.log 2>&1 &
+  - npm: nohup npm start > server.log 2>&1 &
 
 ## Available base tools:
 - Python 3.12+ with pip, pipenv, poetry
