@@ -1,6 +1,27 @@
-        function togglePassword(inputId = 'api_key') {
+        async function togglePassword(inputId = 'api_key') {
             const input = document.getElementById(inputId);
-            input.type = input.type === 'password' ? 'text' : 'password';
+            const btn = event.target;
+            
+            if (input.type === 'password') {
+                // Cargar valor real desde BD
+                const endpoint = inputId === 'deepseek_key' ? '/api/settings/deepseek-key' : '/api/settings/api-key';
+                try {
+                    const resp = await fetch(endpoint);
+                    const data = await resp.json();
+                    if (data.value) {
+                        input.value = data.value;
+                        input.type = 'text';
+                        btn.textContent = '🙈 Ocultar';
+                    }
+                } catch (e) {
+                    console.error(e);
+                }
+            } else {
+                input.type = 'password';
+                input.value = '';
+                input.placeholder = '••••••••••••••••';
+                btn.textContent = '👁️ Ver';
+            }
         }
         
         function showSection(section) {

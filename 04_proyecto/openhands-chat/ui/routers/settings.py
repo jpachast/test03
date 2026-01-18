@@ -8,11 +8,25 @@ router = APIRouter(prefix="/api/settings", tags=["settings"])
 db = Database()
 
 
+@router.get("/api-key")
+async def get_api_key():
+    """Obtener API key de Gemini"""
+    value = db.get_api_key()
+    return JSONResponse({"value": value})
+
+
 @router.post("/api-key")
 async def save_api_key(api_key: str = Form(...)):
     """Guardar API key de Gemini (visión)"""
     db.set_api_key(api_key)
     return JSONResponse({"status": "ok", "message": "API key guardada"})
+
+
+@router.get("/deepseek-key")
+async def get_deepseek_key():
+    """Obtener API key de DeepSeek"""
+    value = db.get_setting("deepseek_api_key")
+    return JSONResponse({"value": value})
 
 
 @router.post("/deepseek-key")
