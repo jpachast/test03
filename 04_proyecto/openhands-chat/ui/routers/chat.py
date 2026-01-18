@@ -566,6 +566,7 @@ async def stream_message(
     last_agent_response = ""
     
     # Obtener modelo configurado
+    model = db.get_setting("llm_model", settings.default_model)
     
     # Seleccionar API key y base_url según modelo
     base_url = None
