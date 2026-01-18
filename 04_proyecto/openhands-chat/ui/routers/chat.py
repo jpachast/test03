@@ -97,7 +97,7 @@ def _get_cached_agent(api_key: str, model: str, workspace: str, repo_info: dict 
         api_key, model, workspace=workspace, repo_info=repo_info,
         external_url=external_url, conversation_id=conversation_id,
         tavily_api_key=tavily_api_key, github_token=github_token,
-        vision_api_key=vision_api_key, vision_model=vision_model
+        vision_api_key=db.get_api_key(), vision_model=vision_model
     )
     _agent_cache[cache_key] = (agent, now)
     return agent, False  # Nuevo
@@ -628,7 +628,7 @@ async def stream_message(
             api_key, model, workspace, repo_info,
             external_url=external_url, conversation_id=conversation_id,
             tavily_api_key=tavily_api_key, github_token=github_token,
-            vision_api_key=vision_api_key, vision_model=settings.vision_model
+            vision_api_key=db.get_api_key(), vision_model=settings.vision_model
         )
         if from_cache:
             yield f"data: {json.dumps({'type': 'status', 'icon': '⚡', 'text': 'Listo!'})}\n\n"
