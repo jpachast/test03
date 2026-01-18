@@ -481,7 +481,6 @@ async def send_message(message: str = Form(...), project: str = Form(None)):
     last_agent_response = ""
     
     # Obtener modelo configurado
-    model = db.get_setting("llm_model", settings.default_model)
     
     # Seleccionar API key y base_url según modelo
     base_url = None
@@ -519,7 +518,6 @@ async def send_message(message: str = Form(...), project: str = Form(None)):
         if conversation_id:
             db.add_message(conversation_id, 'user', message)
         
-        model = db.get_setting("llm_model", settings.default_model)
         agent = create_agent(api_key, model, workspace=current_workspace)
         
         # Obtener GITHUB_TOKEN para que el agente pueda usarlo
@@ -567,7 +565,20 @@ async def stream_message(
     
     last_agent_response = ""
     
-    api_key = db.get_api_key()
+    # Obtener modelo configurado
+    
+    # Seleccionar API key y base_url según modelo
+    base_url = None
+    if model.startswith("deepseek/"):
+        api_key = db.get_setting("deepseek_api_key")
+        base_url = settings.deepseek_base_url
+        if not api_key:
+            model = "gemini/gemini-2.5-pro"
+            api_key = db.get_api_key()
+            base_url = None
+    else:
+        api_key = db.get_api_key()
+    
     if not api_key:
         return JSONResponse({"error": "API key no configurada"}, status_code=400)
     
@@ -624,7 +635,6 @@ async def stream_message(
         # OPTIMIZACIÓN UX: Feedback inmediato mientras se prepara el agente
         yield f"data: {json.dumps({'type': 'status', 'icon': '🔄', 'text': 'Conectando...'})}\n\n"
         
-        model = db.get_setting("llm_model", settings.default_model)
         
         # Obtener API keys para MCP tools
         github_token = db.get_github_token()
