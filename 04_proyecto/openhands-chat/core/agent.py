@@ -13,6 +13,13 @@ Referencia: https://docs.openhands.dev/sdk/getting-started
 import os
 import logging
 
+# Configurar timeouts de browser-use para contenedores (antes de importar)
+# Estos valores aumentan los timeouts default de 30s a 120s
+os.environ.setdefault("TIMEOUT_BrowserStartEvent", "120.0")
+os.environ.setdefault("TIMEOUT_BrowserLaunchEvent", "120.0")
+os.environ.setdefault("TIMEOUT_BrowserConnectedEvent", "120.0")
+os.environ.setdefault("TIMEOUT_NavigateToUrlEvent", "60.0")
+
 from pydantic import SecretStr
 from openhands.sdk import LLM, Agent, AgentContext
 from openhands.sdk.tool import Tool
@@ -248,14 +255,35 @@ When asked to pull/clone the repository:
     )
     
     # 5. Tools base del SDK - IGUAL QUE OPENHANDS OFICIAL
+    # Configuración para browser en contenedor (sin display)
+    # Parámetros que van a BrowserToolExecutor y luego a BrowserProfile
+    browser_config = {
+        "headless": True,
+        "init_timeout_seconds": 120,  # Más tiempo para inicializar en contenedor
+        "session_timeout_minutes": 30,
+        # Estos parámetros van directo a BrowserProfile via **config
+        "executable_path": "/usr/bin/chromium",  # Ruta explícita al binario
+        "keep_alive": True,  # Mantener browser vivo entre operaciones
+        "args": [
+            "--no-sandbox",
+            "--disable-dev-shm-usage", 
+            "--disable-gpu",
+            "--disable-software-rasterizer",
+            "--disable-setuid-sandbox",
+            "--headless=new",  # Nuevo modo headless (más estable)
+        ],
+        "chromium_sandbox": False,  # Desactivar sandbox en contenedor
+        "disable_security": True,   # Permite más flexibilidad en contenedor
+    }
+    
     tools = [
         # Core tools - IGUAL QUE OFICIAL
         Tool(name=TerminalTool.name),
         Tool(name=FileEditorTool.name),
         Tool(name=TaskTrackerTool.name),
         
-        # Browser tools - IGUAL QUE OFICIAL
-        Tool(name=BrowserToolSet.name),
+        # Browser tools - Con configuración para contenedores
+        Tool(name=BrowserToolSet.name, params=browser_config),
         
         # Search tools - IGUAL QUE OPENHANDS CLOUD
         Tool(name=GlobTool.name),

@@ -10,6 +10,7 @@
 .terminal-header {
     display: flex;
     align-items: center;
+    justify-content: space-between;
     padding: 8px 16px;
     background: #2d2d2d;
     border-bottom: 1px solid #404040;
@@ -22,6 +23,31 @@
     display: flex;
     align-items: center;
     gap: 8px;
+}
+
+.terminal-clear-btn {
+    background: #3a3a3a;
+    border: 1px solid #505050;
+    color: #b0b0b0;
+    cursor: pointer;
+    padding: 5px 10px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    transition: all 0.2s ease;
+}
+
+.terminal-clear-btn:hover {
+    background: #505050;
+    border-color: #666;
+    color: #fff;
+}
+
+.terminal-clear-btn svg {
+    width: 14px;
+    height: 14px;
 }
 
 .terminal-title::before {

@@ -647,6 +647,9 @@
             }
         }
         
+        // Exponer clearTerminal globalmente para el botón del UI
+        window.clearTerminal = clearTerminal;
+        
         // === NAVEGADOR (Browser Screenshots - como OpenHands) ===
         let currentBrowserUrl = '';
         let currentScreenshot = null;
