@@ -10,9 +10,16 @@ db = Database()
 
 @router.post("/api-key")
 async def save_api_key(api_key: str = Form(...)):
-    """Guardar API key"""
+    """Guardar API key de Gemini (visión)"""
     db.set_api_key(api_key)
     return JSONResponse({"status": "ok", "message": "API key guardada"})
+
+
+@router.post("/deepseek-key")
+async def save_deepseek_key(api_key: str = Form(...)):
+    """Guardar API key de DeepSeek (código)"""
+    db.set_setting("deepseek_api_key", api_key, encrypt=True)
+    return JSONResponse({"status": "ok", "message": "DeepSeek API key guardada"})
 
 
 @router.post("/model")

@@ -44,11 +44,53 @@
         <div id="section-usuario" class="settings-section-content">
             <h2>👤 Usuario</h2>
             
-            <!-- API Key -->
+            <!-- API Key DeepSeek (Código) -->
             <section class="settings-section">
-                <h3>🔑 API Key (Gemini)</h3>
+                <h3>🔑 API Key DeepSeek (Código)</h3>
                 <p class="description">
-                    Tu API key de Gemini. Se guarda encriptada en la base de datos local.
+                    DeepSeek V3 para generación de código. Se guarda encriptada.
+                </p>
+                
+                <form action="/api/settings/deepseek-key" method="post" class="settings-form">
+                    <div class="form-group">
+                        <label for="deepseek_key">API Key:</label>
+                        <input 
+                            type="password" 
+                            name="api_key" 
+                            id="deepseek_key"
+                            placeholder="{% if has_deepseek_key %}••••••••••••••••{% else %}Pega tu API key aquí{% endif %}"
+                            required
+                        >
+                        <button type="button" onclick="togglePassword('deepseek_key')" class="btn-secondary">
+                            👁️ Ver
+                        </button>
+                    </div>
+                    
+                    <div class="form-status">
+                        {% if has_deepseek_key %}
+                        <span class="status-ok">✅ API Key configurada</span>
+                        {% else %}
+                        <span class="status-warning">⚠️ API Key no configurada</span>
+                        {% endif %}
+                    </div>
+                    
+                    <button type="submit" class="btn-primary">💾 Guardar API Key</button>
+                </form>
+                
+                <div class="help-text">
+                    <p>¿No tienes una API key? 
+                        <a href="https://platform.deepseek.com/api_keys" target="_blank">
+                            Obtén una aquí →
+                        </a>
+                    </p>
+                </div>
+            </section>
+            
+            <!-- API Key Gemini (Visión) -->
+            <section class="settings-section">
+                <h3>🖼️ API Key Gemini (Visión)</h3>
+                <p class="description">
+                    Gemini Flash para procesar imágenes. Se guarda encriptada.
                 </p>
                 
                 <form action="/api/settings/api-key" method="post" class="settings-form">
@@ -61,7 +103,7 @@
                             placeholder="{% if has_api_key %}••••••••••••••••{% else %}Pega tu API key aquí{% endif %}"
                             required
                         >
-                        <button type="button" onclick="togglePassword()" class="btn-secondary">
+                        <button type="button" onclick="togglePassword('api_key')" class="btn-secondary">
                             👁️ Ver
                         </button>
                     </div>
@@ -88,26 +130,26 @@
             
             <!-- Modelo -->
             <section class="settings-section">
-                <h3>🧠 Modelo</h3>
+                <h3>🧠 Modelo Principal</h3>
                 <p class="description">
-                    Modelo de lenguaje a utilizar.
+                    Modelo para código. Gemini Flash se usa automáticamente para imágenes.
                 </p>
                 
                 <form action="/api/settings/model" method="post" class="settings-form">
                     <div class="form-group">
                         <label for="model">Modelo:</label>
                         <select name="model" id="model">
-                            <option value="gemini/gemini-2.5-pro" 
-                                {% if settings.get('llm_model', default_model) == 'gemini/gemini-2.5-pro' %}selected{% endif %}>
-                                Gemini 2.5 Pro (Recomendado)
+                            <option value="deepseek/deepseek-chat" 
+                                {% if settings.get('llm_model', default_model) == 'deepseek/deepseek-chat' %}selected{% endif %}>
+                                DeepSeek V3 (Recomendado)
                             </option>
-                            <option value="gemini/gemini-2.5-flash"
-                                {% if settings.get('llm_model') == 'gemini/gemini-2.5-flash' %}selected{% endif %}>
-                                Gemini 2.5 Flash (Más rápido)
+                            <option value="deepseek/deepseek-coder"
+                                {% if settings.get('llm_model') == 'deepseek/deepseek-coder' %}selected{% endif %}>
+                                DeepSeek Coder V2
                             </option>
-                            <option value="gemini/gemini-2.0-flash"
-                                {% if settings.get('llm_model') == 'gemini/gemini-2.0-flash' %}selected{% endif %}>
-                                Gemini 2.0 Flash (Más barato)
+                            <option value="gemini/gemini-2.5-pro"
+                                {% if settings.get('llm_model') == 'gemini/gemini-2.5-pro' %}selected{% endif %}>
+                                Gemini 2.5 Pro
                             </option>
                         </select>
                     </div>
@@ -238,19 +280,24 @@
                     </thead>
                     <tbody>
                         <tr>
+                            <td>DeepSeek V3 ⭐</td>
+                            <td>$0.14</td>
+                            <td>$0.28</td>
+                        </tr>
+                        <tr>
+                            <td>Gemini 2.0 Flash (Visión)</td>
+                            <td>$0.10</td>
+                            <td>$0.40</td>
+                        </tr>
+                        <tr>
                             <td>Gemini 2.5 Pro</td>
                             <td>$1.25</td>
                             <td>$10.00</td>
                         </tr>
                         <tr>
-                            <td>Gemini 2.5 Flash</td>
-                            <td>$0.30</td>
-                            <td>$2.50</td>
-                        </tr>
-                        <tr>
-                            <td>Gemini 2.0 Flash</td>
-                            <td>$0.10</td>
-                            <td>$0.40</td>
+                            <td>Claude Sonnet (referencia)</td>
+                            <td>$3.00</td>
+                            <td>$15.00</td>
                         </tr>
                     </tbody>
                 </table>

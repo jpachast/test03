@@ -93,22 +93,28 @@ def get_mcp_tools(tavily_api_key: str = None, github_token: str = None) -> list:
     return mcp_tools
 
 
-def create_agent(api_key: str, model: str = "gemini/gemini-2.5-pro", base_url: str = None,
+def create_agent(api_key: str, model: str = "deepseek/deepseek-chat", base_url: str = None,
                  workspace: str = None, repo_info: dict = None, 
                  external_url: str = None, conversation_id: int = None,
-                 tavily_api_key: str = None, github_token: str = None) -> Agent:
+                 tavily_api_key: str = None, github_token: str = None,
+                 vision_api_key: str = None, vision_model: str = "gemini/gemini-2.0-flash") -> Agent:
     """
     Crea el agente OpenHands usando la configuración oficial del SDK.
+    
+    Modelo híbrido:
+    - DeepSeek V3 para código (api_key)
+    - Gemini Flash para visión (vision_api_key)
     
     El agente usa los prompts oficiales en inglés (mejor rendimiento),
     pero responde en español según la instrucción en system_message_suffix.
     """
     
-    # 1. Configurar LLM
+    # 1. Configurar LLM principal (DeepSeek para código)
     llm = LLM(
         model=model,
         api_key=SecretStr(api_key),
         base_url=base_url,
+        temperature=0,  # Respuestas más determinísticas
     )
     
     # 2. Condenser para contextos largos - IGUAL QUE OPENHANDS OFICIAL

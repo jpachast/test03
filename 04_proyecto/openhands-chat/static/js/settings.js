@@ -1,5 +1,5 @@
-        function togglePassword() {
-            const input = document.getElementById('api_key');
+        function togglePassword(inputId = 'api_key') {
+            const input = document.getElementById(inputId);
             input.type = input.type === 'password' ? 'text' : 'password';
         }
         

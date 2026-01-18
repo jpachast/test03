@@ -77,7 +77,8 @@ def create_token_callback(q):
 
 def _get_cached_agent(api_key: str, model: str, workspace: str, repo_info: dict = None,
                       external_url: str = None, conversation_id: int = None,
-                      tavily_api_key: str = None, github_token: str = None):
+                      tavily_api_key: str = None, github_token: str = None,
+                      vision_api_key: str = None, vision_model: str = None):
     """Obtiene un agente del cache o crea uno nuevo"""
     repo_key = f"{repo_info.get('owner', '')}/{repo_info.get('name', '')}" if repo_info else ""
     # Incluir external_url y conversation_id en cache key para que el agente tenga la URL correcta
@@ -95,7 +96,8 @@ def _get_cached_agent(api_key: str, model: str, workspace: str, repo_info: dict 
     agent = create_agent(
         api_key, model, workspace=workspace, repo_info=repo_info,
         external_url=external_url, conversation_id=conversation_id,
-        tavily_api_key=tavily_api_key, github_token=github_token
+        tavily_api_key=tavily_api_key, github_token=github_token,
+        vision_api_key=vision_api_key, vision_model=vision_model
     )
     _agent_cache[cache_key] = (agent, now)
     return agent, False  # Nuevo
@@ -477,9 +479,16 @@ async def send_message(message: str = Form(...), project: str = Form(None)):
     
     last_agent_response = ""
     
-    api_key = db.get_api_key()
+    # DeepSeek para código (modelo principal)
+    api_key = db.get_setting("deepseek_api_key")
     if not api_key:
-        raise HTTPException(status_code=400, detail="API key no configurada")
+        # Fallback a Gemini si no hay DeepSeek
+        api_key = db.get_api_key()
+    if not api_key:
+        raise HTTPException(status_code=400, detail="API key no configurada (DeepSeek o Gemini)")
+    
+    # Gemini para visión (imágenes)
+    vision_api_key = db.get_api_key()  # Gemini key
     
     # SIEMPRE actualizar workspace según el proyecto actual
     if project:
@@ -618,7 +627,8 @@ async def stream_message(
         agent, from_cache = _get_cached_agent(
             api_key, model, workspace, repo_info,
             external_url=external_url, conversation_id=conversation_id,
-            tavily_api_key=tavily_api_key, github_token=github_token
+            tavily_api_key=tavily_api_key, github_token=github_token,
+            vision_api_key=vision_api_key, vision_model=settings.vision_model
         )
         if from_cache:
             yield f"data: {json.dumps({'type': 'status', 'icon': '⚡', 'text': 'Listo!'})}\n\n"

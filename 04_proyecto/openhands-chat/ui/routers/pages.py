@@ -64,10 +64,12 @@ async def settings_page(request: Request):
     """Página de configuración"""
     current_settings = db.get_all_settings()
     has_api_key = db.has_api_key()
+    has_deepseek_key = db.get_setting("deepseek_api_key") is not None
     return templates.TemplateResponse("settings.html", {
         "request": request,
         "settings": current_settings,
         "has_api_key": has_api_key,
+        "has_deepseek_key": has_deepseek_key,
         "default_model": settings.default_model,
     })
 
