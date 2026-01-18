@@ -23,9 +23,10 @@ class Settings:
         # Puerto del servidor de proyectos
         self.projects_port = 12001  # Puerto fijo para work-2
         
-        # Modelos - Gemini por defecto (DeepSeek requiere key válida)
-        self.default_model = "gemini/gemini-2.5-pro"
-        self.vision_model = "gemini/gemini-2.0-flash"  # Para imágenes
+        # Modelos - DeepSeek para código, Gemini para visión
+        self.default_model = "deepseek/deepseek-chat"
+        self.vision_model = "gemini/gemini-2.0-flash"
         
-        # Base URL (opcional)
+        # Base URLs
+        self.deepseek_base_url = "https://api.deepseek.com/v1"
         self.llm_base_url = None

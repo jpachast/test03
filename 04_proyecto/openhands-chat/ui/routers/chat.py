@@ -78,7 +78,8 @@ def create_token_callback(q):
 def _get_cached_agent(api_key: str, model: str, workspace: str, repo_info: dict = None,
                       external_url: str = None, conversation_id: int = None,
                       tavily_api_key: str = None, github_token: str = None,
-                      vision_api_key: str = None, vision_model: str = None):
+                      vision_api_key: str = None, vision_model: str = None,
+                      base_url: str = None):
     """Obtiene un agente del cache o crea uno nuevo"""
     repo_key = f"{repo_info.get('owner', '')}/{repo_info.get('name', '')}" if repo_info else ""
     # Incluir external_url y conversation_id en cache key para que el agente tenga la URL correcta
@@ -94,7 +95,7 @@ def _get_cached_agent(api_key: str, model: str, workspace: str, repo_info: dict 
     
     # Crear nuevo agente con URL externa y MCP tools
     agent = create_agent(
-        api_key, model, workspace=workspace, repo_info=repo_info,
+        api_key, model, base_url=base_url, workspace=workspace, repo_info=repo_info,
         external_url=external_url, conversation_id=conversation_id,
         tavily_api_key=tavily_api_key, github_token=github_token,
         vision_api_key=db.get_api_key(), vision_model=vision_model
@@ -482,13 +483,16 @@ async def send_message(message: str = Form(...), project: str = Form(None)):
     # Obtener modelo configurado
     model = db.get_setting("llm_model", settings.default_model)
     
-    # Seleccionar API key según modelo
+    # Seleccionar API key y base_url según modelo
+    base_url = None
     if model.startswith("deepseek/"):
         api_key = db.get_setting("deepseek_api_key")
+        base_url = settings.deepseek_base_url
         if not api_key:
             # Fallback a Gemini si DeepSeek no configurado
             model = "gemini/gemini-2.5-pro"
             api_key = db.get_api_key()
+            base_url = None
     else:
         api_key = db.get_api_key()
     
@@ -633,7 +637,8 @@ async def stream_message(
             api_key, model, workspace, repo_info,
             external_url=external_url, conversation_id=conversation_id,
             tavily_api_key=tavily_api_key, github_token=github_token,
-            vision_api_key=db.get_api_key(), vision_model=settings.vision_model
+            vision_api_key=db.get_api_key(), vision_model=settings.vision_model,
+            base_url=base_url
         )
         if from_cache:
             yield f"data: {json.dumps({'type': 'status', 'icon': '⚡', 'text': 'Listo!'})}\n\n"
