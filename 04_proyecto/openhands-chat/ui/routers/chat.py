@@ -479,16 +479,21 @@ async def send_message(message: str = Form(...), project: str = Form(None)):
     
     last_agent_response = ""
     
-    # DeepSeek para código (modelo principal)
-    api_key = db.get_setting("deepseek_api_key")
-    if not api_key:
-        # Fallback a Gemini si no hay DeepSeek
-        api_key = db.get_api_key()
-    if not api_key:
-        raise HTTPException(status_code=400, detail="API key no configurada (DeepSeek o Gemini)")
+    # Obtener modelo configurado
+    model = db.get_setting("llm_model", settings.default_model)
     
-    # Gemini para visión (imágenes)
-    vision_api_key = db.get_api_key()  # Gemini key
+    # Seleccionar API key según modelo
+    if model.startswith("deepseek/"):
+        api_key = db.get_setting("deepseek_api_key")
+        if not api_key:
+            # Fallback a Gemini si DeepSeek no configurado
+            model = "gemini/gemini-2.5-pro"
+            api_key = db.get_api_key()
+    else:
+        api_key = db.get_api_key()
+    
+    if not api_key:
+        raise HTTPException(status_code=400, detail="API key no configurada")
     
     # SIEMPRE actualizar workspace según el proyecto actual
     if project:
