@@ -474,6 +474,14 @@ class Database:
         conv = self.get_conversation(project['id'])
         return self.get_messages(conv['id'])
 
+    def clear_messages(self, conversation_id: int):
+        """Borrar solo los mensajes de una conversación (mantiene la conversación)"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute('DELETE FROM messages WHERE conversation_id = ?', (conversation_id,))
+        conn.commit()
+        conn.close()
+
     def delete_conversation(self, conversation_id: int):
         """Eliminar conversación y sus mensajes"""
         conn = sqlite3.connect(self.db_path)

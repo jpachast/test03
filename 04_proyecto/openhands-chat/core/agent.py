@@ -114,7 +114,7 @@ def create_agent(api_key: str, model: str = "deepseek/deepseek-chat", base_url: 
         model=model,
         api_key=SecretStr(api_key),
         base_url=base_url,
-        temperature=0,  # Respuestas más determinísticas
+        temperature=0.7,  # Respuestas más determinísticas
     )
     
     # 2. Condenser para contextos largos - IGUAL QUE OPENHANDS OFICIAL

@@ -24,7 +24,7 @@ class Settings:
         self.projects_port = 12001  # Puerto fijo para work-2
         
         # Modelos - DeepSeek para código, Gemini para visión
-        self.default_model = "deepseek/deepseek-chat"
+        self.default_model = "anthropic/claude-sonnet-4-20250514"
         self.vision_model = "gemini/gemini-2.0-flash"
         
         # Base URLs

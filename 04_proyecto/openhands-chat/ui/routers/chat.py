@@ -489,7 +489,7 @@ async def send_message(message: str = Form(...), project: str = Form(None)):
         base_url = settings.deepseek_base_url
         if not api_key:
             # Fallback a Gemini si DeepSeek no configurado
-            model = "gemini/gemini-2.5-pro"
+            model = settings.default_model
             api_key = db.get_api_key()
             base_url = None
     else:
@@ -574,7 +574,7 @@ async def stream_message(
         api_key = db.get_setting("deepseek_api_key")
         base_url = settings.deepseek_base_url
         if not api_key:
-            model = "gemini/gemini-2.5-pro"
+            model = settings.default_model
             api_key = db.get_api_key()
             base_url = None
     else:
@@ -767,6 +767,15 @@ async def reset_chat():
     global current_conversation
     current_conversation = None
     return JSONResponse({"status": "ok"})
+
+
+@router.delete("/clear-history/{conversation_id}")
+async def clear_history(conversation_id: int):
+    """Borrar historial de mensajes de una conversación"""
+    global current_conversation
+    db.clear_messages(conversation_id)
+    current_conversation = None  # Reset para empezar fresco
+    return JSONResponse({"status": "ok", "message": "Historial borrado"})
 
 
 @router.get("/messages/{project_name}")

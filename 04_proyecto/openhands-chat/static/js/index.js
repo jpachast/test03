@@ -1668,7 +1668,91 @@
                 '• Tareas - Organizar trabajo\n\n' +
                 'Escribe tu solicitud y el agente usará las herramientas necesarias.');
         }
+
+        // ============================================
+        // Modal y Toast helpers
+        // ============================================
+        let pendingConfirmAction = null;
         
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            const toastIcon = document.getElementById('toastIcon');
+            const toastMessage = document.getElementById('toastMessage');
+            
+            toastIcon.textContent = type === 'success' ? '✅' : '❌';
+            toastMessage.textContent = message;
+            toast.className = 'toast toast-' + type;
+            toast.style.display = 'flex';
+            
+            setTimeout(() => {
+                toast.classList.add('toast-out');
+                setTimeout(() => {
+                    toast.style.display = 'none';
+                    toast.classList.remove('toast-out');
+                }, 300);
+            }, 3000);
+        }
+        
+        function showConfirmModal(title, message, icon, confirmText, onConfirm) {
+            document.getElementById('confirmModalTitle').textContent = title;
+            document.getElementById('confirmModalMessage').textContent = message;
+            document.getElementById('confirmModalIcon').textContent = icon;
+            document.getElementById('confirmModalBtn').textContent = confirmText;
+            document.getElementById('confirmModal').style.display = 'flex';
+            pendingConfirmAction = onConfirm;
+        }
+        
+        function closeConfirmModal() {
+            document.getElementById('confirmModal').style.display = 'none';
+            pendingConfirmAction = null;
+        }
+        
+        function confirmAction() {
+            if (pendingConfirmAction) {
+                pendingConfirmAction();
+            }
+            closeConfirmModal();
+        }
+        
+        // Cerrar modal con Escape o click fuera
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeConfirmModal();
+        });
+
+        async function clearHistory() {
+            if (!currentConversationId) {
+                showToast('No hay conversación activa', 'error');
+                return;
+            }
+
+            showConfirmModal(
+                '¿Limpiar historial?',
+                'Se borrarán todos los mensajes de esta conversación. Los archivos del proyecto NO se borrarán.',
+                '🗑️',
+                'Limpiar',
+                async () => {
+                    try {
+                        const response = await fetch(`/api/chat/clear-history/${currentConversationId}`, {
+                            method: 'DELETE'
+                        });
+
+                        if (response.ok) {
+                            const container = document.getElementById('chatMessages');
+                            if (container) {
+                                container.innerHTML = '';
+                            }
+                            showToast('Historial borrado exitosamente', 'success');
+                        } else {
+                            showToast('Error al borrar historial', 'error');
+                        }
+                    } catch (error) {
+                        console.error('Error:', error);
+                        showToast('Error al borrar historial', 'error');
+                    }
+                }
+            );
+        }
+
         async function sendMessage(event) {
             event.preventDefault();
             
