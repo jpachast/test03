@@ -254,6 +254,6 @@ def get_code_server_status(conversation_id: int = None) -> dict:
 def is_main_project(repo_name: str) -> bool:
     """
     Verifica si es el proyecto principal (test03)
-    El proyecto principal no debe tener code-server
+    NOTA: Ahora permitimos code-server para TODOS los proyectos incluyendo test03
     """
-    return repo_name and "test03" in repo_name.lower()
+    return False  # Permitir code-server para todos los proyectos

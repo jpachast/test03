@@ -25,6 +25,32 @@ def get_current_port() -> int:
     return CODE_SERVER_PORT or 8080
 
 
+# Variable global para almacenar el workspace actual (para el proxy)
+_CURRENT_WORKSPACE_PATH = ""
+
+def _get_workspace_for_codeserver(conv_data: dict) -> str:
+    """
+    Obtiene el directorio de trabajo para code-server.
+    Para test03, usa la raíz del repositorio.
+    Para otros proyectos, usa el workspace_path de la conversación.
+    """
+    global _CURRENT_WORKSPACE_PATH
+    
+    repo_name = conv_data.get("repo_name", "") or conv_data.get("project_name", "")
+    workspace_path = conv_data.get("workspace_path", "")
+    
+    # Si es test03, usar la raíz del repo (subir desde el directorio del chat)
+    if repo_name and "test03" in repo_name.lower():
+        # El workspace_path típico es: .../projects/jpachast-test03/chatXX
+        # Queremos: /workspace/project/test03 (la raíz del repo)
+        if "/projects/" in workspace_path:
+            workspace_path = "/workspace/project/test03"
+    
+    # Guardar para uso del proxy
+    _CURRENT_WORKSPACE_PATH = workspace_path
+    return workspace_path
+
+
 @router.post("/api/code-server/start")
 async def api_start_code_server(request: Request):
     """Inicia code-server para el proyecto actual"""
@@ -38,15 +64,9 @@ async def api_start_code_server(request: Request):
     if not conv_data:
         return JSONResponse({"error": "Conversación no encontrada"}, status_code=404)
     
-    repo_name = conv_data.get("repo_name", "") or conv_data.get("project_name", "")
+    # Obtener workspace apropiado (raíz para test03, chat dir para otros)
+    workspace_path = _get_workspace_for_codeserver(conv_data)
     
-    if is_main_project(repo_name):
-        return JSONResponse({
-            "error": "El editor de código no está disponible para el proyecto principal",
-            "is_main_project": True
-        }, status_code=403)
-    
-    workspace_path = conv_data.get("workspace_path")
     if not workspace_path or not os.path.isdir(workspace_path):
         return JSONResponse({
             "error": f"Workspace no encontrado: {workspace_path}",
@@ -81,13 +101,9 @@ async def api_prestart_code_server(request: Request):
     if not conv_data:
         return JSONResponse({"status": "skipped", "reason": "conversation not found"})
     
-    repo_name = conv_data.get("repo_name", "") or conv_data.get("project_name", "")
+    # Obtener workspace apropiado (raíz para test03, chat dir para otros)
+    workspace_path = _get_workspace_for_codeserver(conv_data)
     
-    # No pre-iniciar para proyecto principal
-    if is_main_project(repo_name):
-        return JSONResponse({"status": "skipped", "reason": "main project"})
-    
-    workspace_path = conv_data.get("workspace_path")
     if not workspace_path or not os.path.isdir(workspace_path):
         return JSONResponse({"status": "skipped", "reason": "no workspace"})
     
@@ -117,6 +133,8 @@ async def api_code_server_status():
 @router.api_route("/code-server/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"])
 async def proxy_code_server(request: Request, path: str):
     """Proxy para code-server"""
+    global _CURRENT_WORKSPACE_PATH
+    
     status = get_code_server_status()
     
     if status.get("status") != "running":
@@ -126,7 +144,21 @@ async def proxy_code_server(request: Request, path: str):
         )
     
     port = status.get("port") or get_current_port()
+    # Usar la variable global si status no tiene path
+    workspace_path = status.get("path", "") or _CURRENT_WORKSPACE_PATH
+    
     target_url = f"http://127.0.0.1:{port}/{path}"
+    
+    # Si es la página principal y no tiene folder, agregar el folder correcto
+    if (path == "" or path == "/" or path.endswith("?")) and workspace_path:
+        if "folder=" not in str(request.query_params):
+            # Redirigir con el folder correcto
+            from starlette.responses import RedirectResponse
+            return RedirectResponse(
+                url=f"/code-server/?folder={workspace_path}",
+                status_code=302
+            )
+    
     if request.query_params:
         target_url += f"?{request.query_params}"
     
@@ -144,6 +176,21 @@ async def proxy_code_server(request: Request, path: str):
                 content=body if body else None,
                 follow_redirects=False
             )
+            
+            # Si code-server redirige con un folder diferente, interceptar
+            if response.status_code in (301, 302, 307, 308):
+                location = response.headers.get("location", "")
+                # Si la redirección tiene folder incorrecto, corregirla
+                if "folder=" in location and workspace_path and workspace_path not in location:
+                    import re
+                    corrected = re.sub(r'folder=[^&]*', f'folder={workspace_path}', location)
+                    response_headers = dict(response.headers)
+                    response_headers["location"] = corrected
+                    return Response(
+                        content=response.content,
+                        status_code=response.status_code,
+                        headers=response_headers
+                    )
             
             response_headers = dict(response.headers)
             response_headers.pop("content-encoding", None)

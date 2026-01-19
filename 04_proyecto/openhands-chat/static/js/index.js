@@ -1028,25 +1028,15 @@
         }
         
         function showCodeTabs(repoName) {
-            // Mostrar tabs solo si NO es el proyecto principal (test03)
+            // Mostrar tabs para TODOS los proyectos (incluyendo test03)
             const viewTabs = document.getElementById('viewTabs');
             const rightPanel = document.querySelector('.chat-right-panel');
             const leftPanel = document.querySelector('.chat-left-panel');
             
-            // Usar la variable del servidor si está definida, sino detectar por nombre
-            const isTest03 = (typeof isMainProject !== 'undefined' && isMainProject) || 
-                             (repoName && repoName.toLowerCase().includes('test03'));
-            
-            if (isTest03) {
-                // Ocultar panel derecho completo para test03
-                if (viewTabs) viewTabs.style.display = 'none';
-                if (rightPanel) rightPanel.style.display = 'none';
-                if (leftPanel) leftPanel.style.flex = '1';
-            } else {
-                if (viewTabs) viewTabs.style.display = 'flex';
-                if (rightPanel) rightPanel.style.display = 'flex';
-                if (leftPanel) leftPanel.style.flex = '';
-            }
+            // Siempre mostrar el panel derecho con las opciones
+            if (viewTabs) viewTabs.style.display = 'flex';
+            if (rightPanel) rightPanel.style.display = 'flex';
+            if (leftPanel) leftPanel.style.flex = '';
         }
         
         function showHelp() {
