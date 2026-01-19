@@ -1,0 +1,14 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    container_name: openhands-chat
+    ports:
+      - "80:12000"
+    volumes:
+      - ./data:/app/data
+      - ./projects:/app/projects
+    restart: unless-stopped
+    environment:
+      - PYTHONUNBUFFERED=1
