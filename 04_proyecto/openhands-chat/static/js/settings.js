@@ -259,8 +259,84 @@
             }
         }
         
+        // ============================================
+        // Hetzner Server Management Functions
+        // ============================================
+        
+        async function checkHetznerServerInfo() {
+            try {
+                const response = await fetch('/api/settings/hetzner/server');
+                const data = await response.json();
+                
+                if (data.server) {
+                    document.getElementById('hetznerServerInfo').style.display = 'block';
+                    document.getElementById('serverIP').textContent = data.server.ip;
+                    document.getElementById('serverStatus').textContent = data.server.status === 'running' ? '🟢 Online' : '🔴 Offline';
+                    document.getElementById('sshPassword').textContent = data.server.ssh_password || '••••••••';
+                    document.getElementById('sshCommand').textContent = `ssh root@${data.server.ip}`;
+                    document.getElementById('serverURL').href = `http://${data.server.ip}`;
+                }
+            } catch (error) {
+                console.error('Error checking server info:', error);
+            }
+        }
+        
+        function copySSHCommand() {
+            const cmd = document.getElementById('sshCommand').textContent;
+            navigator.clipboard.writeText(cmd);
+            alert('✅ Comando SSH copiado al portapapeles');
+        }
+        
+        async function viewServerLogs() {
+            const container = document.getElementById('serverLogsContainer');
+            const logsEl = document.getElementById('serverLogs');
+            
+            container.style.display = 'block';
+            logsEl.textContent = '⏳ Cargando logs...';
+            
+            try {
+                const response = await fetch('/api/settings/hetzner/logs');
+                const data = await response.json();
+                
+                if (data.logs) {
+                    logsEl.textContent = data.logs;
+                    // Scroll al final
+                    logsEl.scrollTop = logsEl.scrollHeight;
+                } else {
+                    logsEl.textContent = '❌ Error: ' + (data.error || 'No se pudieron obtener los logs');
+                }
+            } catch (error) {
+                logsEl.textContent = '❌ Error de conexión: ' + error.message;
+            }
+        }
+        
+        async function refreshServerLogs() {
+            await viewServerLogs();
+        }
+        
+        async function restartServer() {
+            if (!confirm('¿Estás seguro de reiniciar el servidor? La app estará offline por unos segundos.')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/settings/hetzner/restart', { method: 'POST' });
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert('✅ Servidor reiniciando... Espera unos segundos y recarga la página.');
+                    document.getElementById('serverStatus').textContent = '🟡 Reiniciando...';
+                } else {
+                    alert('❌ Error: ' + (data.error || 'No se pudo reiniciar'));
+                }
+            } catch (error) {
+                alert('❌ Error: ' + error.message);
+            }
+        }
+        
         // Llamar checks al cargar
         document.addEventListener('DOMContentLoaded', () => {
             checkTavilyStatus();
             checkHetznerStatus();
+            checkHetznerServerInfo();
         });

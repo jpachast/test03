@@ -144,3 +144,128 @@ async def delete_hetzner_token():
     """Eliminar token de Hetzner"""
     db.set_setting('hetzner_api_token', '')
     return JSONResponse({"success": True})
+
+
+@router.get("/hetzner/server")
+async def get_hetzner_server_info():
+    """Obtener información del servidor desplegado"""
+    token = db.get_setting('hetzner_api_token', '')
+    if not token:
+        return JSONResponse({"server": None})
+    
+    import httpx
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                "https://api.hetzner.cloud/v1/servers",
+                headers={"Authorization": f"Bearer {token}"}
+            )
+            if response.status_code == 200:
+                servers = response.json().get("servers", [])
+                # Buscar servidor openhands-chat
+                for server in servers:
+                    if "openhands" in server.get("name", "").lower():
+                        return JSONResponse({
+                            "server": {
+                                "id": server["id"],
+                                "name": server["name"],
+                                "ip": server["public_net"]["ipv4"]["ip"],
+                                "status": server["status"],
+                                "ssh_password": db.get_setting('hetzner_ssh_password', 'kCJHc3sVMwNv')
+                            }
+                        })
+                return JSONResponse({"server": None})
+    except Exception as e:
+        return JSONResponse({"server": None, "error": str(e)})
+
+
+@router.get("/hetzner/logs")
+async def get_hetzner_logs():
+    """Obtener logs del servidor via SSH"""
+    token = db.get_setting('hetzner_api_token', '')
+    ssh_password = db.get_setting('hetzner_ssh_password', 'kCJHc3sVMwNv')
+    
+    if not token:
+        return JSONResponse({"error": "Token de Hetzner no configurado"})
+    
+    import httpx
+    # Primero obtener la IP del servidor
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                "https://api.hetzner.cloud/v1/servers",
+                headers={"Authorization": f"Bearer {token}"}
+            )
+            servers = response.json().get("servers", [])
+            server_ip = None
+            for server in servers:
+                if "openhands" in server.get("name", "").lower():
+                    server_ip = server["public_net"]["ipv4"]["ip"]
+                    break
+            
+            if not server_ip:
+                return JSONResponse({"error": "Servidor no encontrado"})
+    except Exception as e:
+        return JSONResponse({"error": f"Error obteniendo IP: {str(e)}"})
+    
+    # Conectar por SSH y obtener logs
+    try:
+        import paramiko
+        client = paramiko.SSHClient()
+        client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        client.connect(server_ip, username='root', password=ssh_password, timeout=10)
+        
+        stdin, stdout, stderr = client.exec_command("docker logs openhands-chat 2>&1 | tail -100")
+        logs = stdout.read().decode()
+        client.close()
+        
+        return JSONResponse({"logs": logs})
+    except Exception as e:
+        return JSONResponse({"error": f"Error SSH: {str(e)}"})
+
+
+@router.post("/hetzner/restart")
+async def restart_hetzner_container():
+    """Reiniciar contenedor en el servidor"""
+    token = db.get_setting('hetzner_api_token', '')
+    ssh_password = db.get_setting('hetzner_ssh_password', 'kCJHc3sVMwNv')
+    
+    if not token:
+        return JSONResponse({"error": "Token de Hetzner no configurado"})
+    
+    import httpx
+    # Obtener IP
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                "https://api.hetzner.cloud/v1/servers",
+                headers={"Authorization": f"Bearer {token}"}
+            )
+            servers = response.json().get("servers", [])
+            server_ip = None
+            for server in servers:
+                if "openhands" in server.get("name", "").lower():
+                    server_ip = server["public_net"]["ipv4"]["ip"]
+                    break
+    except:
+        return JSONResponse({"error": "Error obteniendo servidor"})
+    
+    if not server_ip:
+        return JSONResponse({"error": "Servidor no encontrado"})
+    
+    # Reiniciar contenedor por SSH
+    try:
+        import paramiko
+        client = paramiko.SSHClient()
+        client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        client.connect(server_ip, username='root', password=ssh_password, timeout=10)
+        
+        stdin, stdout, stderr = client.exec_command(
+            "cd /opt/openhands-chat/04_proyecto/openhands-chat && docker-compose restart"
+        )
+        stdout.channel.recv_exit_status()
+        client.close()
+        
+        return JSONResponse({"success": True})
+    except Exception as e:
+        return JSONResponse({"error": f"Error reiniciando: {str(e)}"})

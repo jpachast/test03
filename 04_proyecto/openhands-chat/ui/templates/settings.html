@@ -279,6 +279,62 @@
                         </button>
                     </div>
                 </div>
+                
+                <!-- Servidor Desplegado -->
+                <div id="hetznerServerInfo" style="display:none; margin-top: 20px; padding: 15px; background: #1a1a2e; border-radius: 8px; border: 1px solid #333;">
+                    <h4 style="margin: 0 0 15px 0; color: #4ecdc4;">🖥️ Servidor Desplegado</h4>
+                    
+                    <!-- Info del servidor -->
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 15px;">
+                        <div style="background: #252540; padding: 10px; border-radius: 6px;">
+                            <span style="color: #888; font-size: 12px;">IP Pública</span>
+                            <p id="serverIP" style="margin: 5px 0 0 0; font-family: monospace; color: #fff;"></p>
+                        </div>
+                        <div style="background: #252540; padding: 10px; border-radius: 6px;">
+                            <span style="color: #888; font-size: 12px;">Estado</span>
+                            <p id="serverStatus" style="margin: 5px 0 0 0; color: #4ecdc4;"></p>
+                        </div>
+                    </div>
+                    
+                    <!-- Credenciales SSH -->
+                    <div style="background: #252540; padding: 15px; border-radius: 6px; margin-bottom: 15px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                            <span style="color: #888; font-size: 12px;">🔐 Acceso SSH</span>
+                            <button onclick="copySSHCommand()" style="background: #4ecdc4; color: #000; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 11px;">
+                                Copiar comando
+                            </button>
+                        </div>
+                        <div style="font-family: monospace; font-size: 13px;">
+                            <p style="margin: 5px 0;"><span style="color: #888;">Usuario:</span> <span style="color: #fff;">root</span></p>
+                            <p style="margin: 5px 0;"><span style="color: #888;">Password:</span> <span id="sshPassword" style="color: #fff;"></span></p>
+                            <p style="margin: 5px 0;"><span style="color: #888;">Comando:</span> <code id="sshCommand" style="color: #4ecdc4; background: #1a1a2e; padding: 2px 6px; border-radius: 3px;"></code></p>
+                        </div>
+                    </div>
+                    
+                    <!-- Botones de acción -->
+                    <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                        <button onclick="viewServerLogs()" class="btn-primary" style="flex: 1;">
+                            📋 Ver Logs
+                        </button>
+                        <button onclick="restartServer()" class="btn-secondary" style="flex: 1; background: #ff6b6b; border-color: #ff6b6b;">
+                            🔄 Reiniciar
+                        </button>
+                        <a id="serverURL" href="" target="_blank" class="btn-secondary" style="flex: 1; text-align: center; text-decoration: none;">
+                            🌐 Abrir App
+                        </a>
+                    </div>
+                    
+                    <!-- Logs del servidor -->
+                    <div id="serverLogsContainer" style="display: none;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                            <span style="color: #888; font-size: 12px;">📋 Logs del Servidor</span>
+                            <button onclick="refreshServerLogs()" style="background: transparent; color: #4ecdc4; border: 1px solid #4ecdc4; padding: 3px 8px; border-radius: 4px; cursor: pointer; font-size: 11px;">
+                                🔄 Actualizar
+                            </button>
+                        </div>
+                        <pre id="serverLogs" style="background: #0d0d1a; padding: 15px; border-radius: 6px; max-height: 300px; overflow-y: auto; font-size: 11px; color: #ccc; white-space: pre-wrap; word-break: break-all;"></pre>
+                    </div>
+                </div>
             </section>
         </div>
         
