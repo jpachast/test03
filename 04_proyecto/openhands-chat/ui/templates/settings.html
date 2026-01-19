@@ -242,6 +242,44 @@
                     </div>
                 </div>
             </section>
+            
+            <!-- Hetzner Cloud -->
+            <section class="settings-section">
+                <h3>☁️ Hetzner Cloud</h3>
+                <p class="section-description">Para despliegue y hosting del proyecto</p>
+                
+                <div class="github-card" id="hetznerStatus">
+                    <div id="hetznerNotConnected">
+                        <div class="github-form">
+                            <input type="password" 
+                                id="hetzner_api_token"
+                                placeholder="API Token de Hetzner"
+                                class="input-field">
+                            <button class="btn-primary" onclick="saveHetznerToken()">
+                                Guardar
+                            </button>
+                        </div>
+                        <p class="github-hint">
+                            <a href="https://console.hetzner.cloud" target="_blank">
+                                Obtener token en Hetzner Cloud Console → Security → API Tokens
+                            </a>
+                            <br>
+                            <small>Permite desplegar el proyecto en servidores Hetzner (~€4.50/mes)</small>
+                        </p>
+                    </div>
+                    
+                    <div id="hetznerConnected" class="github-connected" style="display:none;">
+                        <div class="github-info" style="margin-left: 0;">
+                            <h4>☁️ Hetzner Cloud</h4>
+                            <p>✅ Token configurado</p>
+                            <p id="hetznerServers" style="color: #888; font-size: 12px;"></p>
+                        </div>
+                        <button class="btn-disconnect" onclick="disconnectHetzner()">
+                            Desconectar
+                        </button>
+                    </div>
+                </div>
+            </section>
         </div>
         
         <!-- Sección Aplicación -->

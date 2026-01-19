@@ -176,7 +176,18 @@ def create_streaming_callback(q, conv_id=None):
                         command = getattr(action, 'command', '')
                         task_list = getattr(action, 'task_list', [])
                         if task_list:
-                            q.put({"type": "task_tracker", "command": command, "tasks": task_list})
+                            # Convertir TaskItem a dict para serialización JSON
+                            tasks_serializable = []
+                            for task in task_list:
+                                if hasattr(task, '__dict__'):
+                                    tasks_serializable.append(task.__dict__)
+                                elif hasattr(task, 'model_dump'):
+                                    tasks_serializable.append(task.model_dump())
+                                elif isinstance(task, dict):
+                                    tasks_serializable.append(task)
+                                else:
+                                    tasks_serializable.append(str(task))
+                            q.put({"type": "task_tracker", "command": command, "tasks": tasks_serializable})
                         elif command == 'view':
                             q.put({"type": "task_tracker", "command": "view", "tasks": []})
                     

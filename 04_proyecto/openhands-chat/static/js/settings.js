@@ -198,5 +198,69 @@
             }
         }
         
-        // Llamar checkTavilyStatus al cargar
-        document.addEventListener('DOMContentLoaded', checkTavilyStatus);
+        // ============================================
+        // Hetzner Cloud Functions
+        // ============================================
+        
+        async function saveHetznerToken() {
+            const token = document.getElementById('hetzner_api_token').value.trim();
+            if (!token) {
+                alert('Por favor ingresa tu Hetzner API Token');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/settings/hetzner', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({token: token})
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    showHetznerConnected(data.servers || 0);
+                    alert('✅ Hetzner configurado exitosamente');
+                } else {
+                    const error = await response.json();
+                    alert('Error: ' + (error.detail || 'Token inválido'));
+                }
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        }
+        
+        async function disconnectHetzner() {
+            if (!confirm('¿Estás seguro de desconectar Hetzner?')) return;
+            
+            try {
+                await fetch('/api/settings/hetzner', {method: 'DELETE'});
+                document.getElementById('hetznerNotConnected').style.display = 'block';
+                document.getElementById('hetznerConnected').style.display = 'none';
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        }
+        
+        function showHetznerConnected(servers) {
+            document.getElementById('hetznerNotConnected').style.display = 'none';
+            document.getElementById('hetznerConnected').style.display = 'flex';
+            document.getElementById('hetznerServers').textContent = `${servers} servidor(es) activo(s)`;
+        }
+        
+        async function checkHetznerStatus() {
+            try {
+                const response = await fetch('/api/settings/hetzner');
+                const data = await response.json();
+                if (data.connected) {
+                    showHetznerConnected(data.servers || 0);
+                }
+            } catch (error) {
+                console.error('Error checking Hetzner status:', error);
+            }
+        }
+        
+        // Llamar checks al cargar
+        document.addEventListener('DOMContentLoaded', () => {
+            checkTavilyStatus();
+            checkHetznerStatus();
+        });

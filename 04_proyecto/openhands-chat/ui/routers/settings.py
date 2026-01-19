@@ -77,3 +77,70 @@ async def delete_tavily_api_key():
     """Eliminar Tavily API key"""
     db.set_tavily_api_key("")
     return JSONResponse({"success": True})
+
+
+# ============================================
+# Hetzner Cloud Endpoints
+# ============================================
+
+@router.get("/hetzner")
+async def get_hetzner_status():
+    """Verificar estado de Hetzner"""
+    token = db.get_setting('hetzner_api_token', '')
+    if not token:
+        return JSONResponse({"connected": False})
+    
+    # Verificar token y contar servidores
+    import httpx
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                "https://api.hetzner.cloud/v1/servers",
+                headers={"Authorization": f"Bearer {token}"}
+            )
+            if response.status_code == 200:
+                data = response.json()
+                return JSONResponse({
+                    "connected": True,
+                    "servers": len(data.get("servers", []))
+                })
+            else:
+                return JSONResponse({"connected": False})
+    except:
+        return JSONResponse({"connected": False})
+
+
+@router.post("/hetzner")
+async def save_hetzner_token(request: Request):
+    """Guardar token de Hetzner"""
+    data = await request.json()
+    token = data.get('token', '')
+    
+    if not token:
+        return JSONResponse({"error": "Token requerido"}, status_code=400)
+    
+    # Validar token con la API
+    import httpx
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                "https://api.hetzner.cloud/v1/servers",
+                headers={"Authorization": f"Bearer {token}"}
+            )
+            if response.status_code != 200:
+                return JSONResponse({"detail": "Token inválido"}, status_code=400)
+            
+            servers = len(response.json().get("servers", []))
+    except Exception as e:
+        return JSONResponse({"detail": f"Error validando token: {str(e)}"}, status_code=400)
+    
+    # Guardar token
+    db.set_setting('hetzner_api_token', token)
+    return JSONResponse({"success": True, "servers": servers})
+
+
+@router.delete("/hetzner")
+async def delete_hetzner_token():
+    """Eliminar token de Hetzner"""
+    db.set_setting('hetzner_api_token', '')
+    return JSONResponse({"success": True})
