@@ -31,20 +31,24 @@ _CURRENT_WORKSPACE_PATH = ""
 def _get_workspace_for_codeserver(conv_data: dict) -> str:
     """
     Obtiene el directorio de trabajo para code-server.
-    Para test03, usa la raíz del repositorio.
-    Para otros proyectos, usa el workspace_path de la conversación.
+    Usa el workspace_path de la conversación si existe y tiene .git.
+    Si no, intenta clonar el repositorio automáticamente.
     """
     global _CURRENT_WORKSPACE_PATH
     
-    repo_name = conv_data.get("repo_name", "") or conv_data.get("project_name", "")
     workspace_path = conv_data.get("workspace_path", "")
     
-    # Si es test03, usar la raíz del repo (subir desde el directorio del chat)
-    if repo_name and "test03" in repo_name.lower():
-        # El workspace_path típico es: .../projects/jpachast-test03/chatXX
-        # Queremos: /workspace/project/test03 (la raíz del repo)
-        if "/projects/" in workspace_path:
-            workspace_path = "/workspace/project/test03"
+    # Si el workspace existe y tiene .git, usarlo
+    if workspace_path and os.path.isdir(workspace_path):
+        git_path = os.path.join(workspace_path, ".git")
+        if os.path.isdir(git_path):
+            _CURRENT_WORKSPACE_PATH = workspace_path
+            return workspace_path
+    
+    # Si no existe, verificar si hay que crearlo/clonarlo
+    # El workspace_path típico es: .../projects/owner-repo/chatXX
+    if workspace_path and not os.path.isdir(workspace_path):
+        os.makedirs(workspace_path, exist_ok=True)
     
     # Guardar para uso del proxy
     _CURRENT_WORKSPACE_PATH = workspace_path
