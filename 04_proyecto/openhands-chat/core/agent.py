@@ -1,13 +1,14 @@
 """
-Agente OpenHands - Optimizado para eficiencia de tokens
+Agente OpenHands - Sistema Inteligente con Memoria y Razonamiento
 
-ARQUITECTURA DE CAPAS:
-- CAPA 1: Core Universal (siempre) ~300 tokens
-- CAPA 2: Contexto Técnico (solo si aplica) ~500 tokens  
-- CAPA 3: Especializado (solo si aplica) ~200 tokens
+ARQUITECTURA:
+- Memoria RAG: ChromaDB para recordar conversaciones pasadas
+- Indexer: Analiza estructura del código
+- Analyzer: Evalúa impacto de cambios
+- Condenser: Resume conversaciones largas
 
-Detecta el dominio del mensaje (técnico vs general) y envía SOLO
-el contexto necesario. Igual capacidad, menos tokens desperdiciados.
+El agente sigue un flujo de razonamiento estructurado como los mejores
+asistentes de código (Devin, Cursor, GitHub Copilot).
 """
 import os
 import re
@@ -40,109 +41,124 @@ logger = logging.getLogger(__name__)
 
 
 # ============================================================
-# DETECTOR DE DOMINIO - Técnico vs General
+# DETECTOR DE DOMINIO
 # ============================================================
 
 def detect_domain(message: str) -> str:
-    """
-    Detecta si el mensaje es técnico/código o general.
-    
-    Returns:
-        "technical" - Para código, desarrollo, sistemas
-        "general" - Para cualquier otra cosa (vida, consejos, etc.)
-    """
+    """Detecta si el mensaje es técnico o general."""
     if not message:
         return "general"
     
     message_lower = message.lower()
     
-    # Keywords técnicos
     tech_keywords = [
-        # Acciones de código
         'código', 'code', 'función', 'function', 'variable', 'clase', 'class',
-        'método', 'method', 'archivo', 'file', 'carpeta', 'folder', 'directorio',
-        # Lenguajes
-        'python', 'javascript', 'typescript', 'java', 'c#', 'csharp', '.net',
-        'dotnet', 'php', 'ruby', 'go', 'rust', 'html', 'css', 'sql',
-        # Frameworks
-        'react', 'vue', 'angular', 'django', 'flask', 'fastapi', 'spring',
-        'node', 'express', 'laravel', 'blazor', 'asp.net',
-        # Herramientas
-        'git', 'commit', 'push', 'pull', 'branch', 'merge', 'npm', 'pip',
-        'docker', 'kubernetes', 'deploy', 'servidor', 'server', 'api',
-        'database', 'base de datos', 'terminal', 'consola', 'comando',
-        # Acciones técnicas
-        'instalar', 'install', 'ejecutar', 'run', 'compilar', 'build',
-        'debugg', 'error', 'bug', 'fix', 'arregla', 'modifica', 'crea',
-        'elimina', 'borra', 'actualiza', 'refactoriza',
-        # UI/Frontend
-        'botón', 'button', 'formulario', 'form', 'estilo', 'style',
-        'componente', 'component', 'página', 'page', 'vista', 'view',
+        'archivo', 'file', 'carpeta', 'folder', 'python', 'javascript', 'java',
+        'html', 'css', 'sql', 'react', 'vue', 'angular', 'django', 'flask',
+        'git', 'commit', 'push', 'pull', 'npm', 'pip', 'docker', 'deploy',
+        'servidor', 'server', 'api', 'database', 'terminal', 'error', 'bug',
+        'arregla', 'modifica', 'crea', 'elimina', 'botón', 'button', 'estilo'
     ]
     
-    # Si contiene keywords técnicos
-    for kw in tech_keywords:
-        if kw in message_lower:
-            return "technical"
+    if any(kw in message_lower for kw in tech_keywords):
+        return "technical"
     
-    # Patrones técnicos (rutas, extensiones, etc.)
-    tech_patterns = [
-        r'\.[a-z]{2,4}$',  # extensiones como .py, .js, .html
-        r'[/\\]',  # rutas de archivos
-        r'\{|\}|\[|\]',  # código
-        r'import |from |def |class |function',  # código
-        r'<[a-z]+>|</[a-z]+>',  # HTML tags
-    ]
-    
-    for pattern in tech_patterns:
-        if re.search(pattern, message_lower):
-            return "technical"
+    if re.search(r'\.[a-z]{2,4}$|[/\\]|\{|\}|import |def |class ', message_lower):
+        return "technical"
     
     return "general"
 
 
 # ============================================================
-# CAPAS DEL SYSTEM PROMPT
+# SYSTEM PROMPTS - AGENTE INTELIGENTE
 # ============================================================
 
 def get_core_prompt() -> str:
-    """CAPA 1: Core Universal - Siempre se envía (~400 tokens)"""
+    """CAPA 1: Core - Comportamiento inteligente base (~600 tokens)"""
     return """
-<CORE>
-IMPORTANT: Always respond in Spanish (Latin American).
+<AGENT_CORE>
+You are an intelligent AI coding assistant. Always respond in Spanish (Latin American).
 
-WORKFLOW - Follow this order:
-1. UNDERSTAND: Read the request carefully. If there's RELEVANT_MEMORY, use it.
-2. THINK: What's being asked? What files/code are involved?
-3. ACT: Execute the minimal steps needed.
-4. VERIFY: Confirm the change was applied correctly.
+## REASONING FRAMEWORK
+Before acting, follow this mental process:
 
-MEMORY: If you see <RELEVANT_MEMORY>, that's context from previous conversations.
-Use it to maintain continuity (e.g., "last week we worked on X").
+1. **UNDERSTAND** - What is the user really asking?
+   - Read the full request carefully
+   - Check <RELEVANT_MEMORY> for context from past conversations
+   - Identify the core goal vs specific details
 
-STYLE:
-- Be concise and direct
-- Don't repeat unnecessary explanations
-- If unsure, ask clarifying questions
-</CORE>
+2. **PLAN** - How should I approach this?
+   - For simple tasks: Act directly
+   - For complex tasks: Break into steps
+   - For unclear requests: Ask clarifying questions
+
+3. **EXECUTE** - Carry out the plan
+   - Use the right tools for each step
+   - Be efficient - don't repeat unnecessary commands
+   - If something fails, analyze why before retrying
+
+4. **VERIFY** - Did it work?
+   - Confirm changes were applied
+   - Test if possible
+   - Report results clearly to user
+
+## MEMORY SYSTEM
+- <RELEVANT_MEMORY> contains context from previous conversations (days/weeks ago)
+- Use this to maintain continuity: "As we discussed before...", "Building on our previous work..."
+- If the user references something from the past, check memory first
+
+## COMMUNICATION STYLE
+- Be concise but complete
+- Show your reasoning when it helps the user understand
+- Don't over-explain simple things
+- Ask questions when truly needed, not for every little detail
+- If you made a mistake, acknowledge it and fix it
+
+## IMPORTANT BEHAVIORS
+- NEVER make changes without understanding what exists first
+- ALWAYS verify your changes worked
+- When modifying code, understand the context before editing
+- If a task is complex, use task_tracker to organize steps
+- If you're unsure, say so honestly
+</AGENT_CORE>
 """
 
 
 def get_technical_context(workspace: str = None, repo_info: dict = None, 
                           external_url: str = None) -> str:
-    """CAPA 2: Contexto Técnico - Solo para mensajes técnicos (~500 tokens)"""
+    """CAPA 2: Contexto técnico (~400 tokens)"""
     parts = []
     
-    # Información del workspace
+    parts.append("""
+<CODING_INTELLIGENCE>
+## Code Understanding
+Before modifying ANY code:
+1. Understand what the code does currently
+2. Identify dependencies and shared components
+3. Consider side effects of changes
+
+## Editing Strategy
+- **Known location + simple change** → Edit directly
+- **Unknown location** → Search first (grep, glob)
+- **Shared code (classes used in multiple places)** → Analyze impact first
+- **New feature** → Understand existing patterns before adding
+
+## Quality Standards
+- Write clean, readable code
+- Follow existing code style in the project
+- Minimal changes to achieve the goal
+- Test changes when possible
+</CODING_INTELLIGENCE>
+""")
+    
     if workspace:
         parts.append(f"""
 <WORKSPACE>
 Working directory: {workspace}
-You have access to: terminal, file_editor, browser, git tools.
+Tools available: terminal, file_editor, browser, git, grep, glob, task_tracker
 </WORKSPACE>
 """)
     
-    # Información del repositorio
     if repo_info:
         repo_owner = repo_info.get('owner', '')
         repo_name = repo_info.get('name', '')
@@ -152,65 +168,59 @@ You have access to: terminal, file_editor, browser, git tools.
 <REPOSITORY>
 GitHub: {repo_owner}/{repo_name}
 Branch: {branch}
+Use ${{GITHUB_TOKEN}} for git operations requiring authentication.
 </REPOSITORY>
 """)
     
-    # URL de preview
     if external_url:
         parts.append(f"""
-<APP_URL>
-Application preview: {external_url}
-</APP_URL>
-""")
-    
-    # Reglas básicas de código
-    parts.append("""
-<CODE_RULES>
-BEFORE EDITING:
-- Understand what exists before changing it
-- For complex changes: explore the codebase first (ls, cat, grep)
-- For simple changes to known files: edit directly
-
-WHEN EDITING:
-- Write clean, efficient code
-- Make minimal changes to solve the problem
-- Don't modify more than requested
-- Shared code (generic classes): check impact with grep -c first
-- Specific code (IDs, unique names): edit directly
-
-AFTER EDITING:
-- Verify the change was applied (cat or grep the result)
-- If it's a UI change, tell user to refresh
-</CODE_RULES>
+<APP_PREVIEW>
+Application URL: {external_url}
+Tell user to refresh browser after UI changes.
+</APP_PREVIEW>
 """)
     
     return "\n".join(parts)
 
 
 def get_specialized_context(message: str) -> str:
-    """CAPA 3: Contexto Especializado - Solo cuando aplica (~200 tokens)"""
+    """CAPA 3: Contexto especializado según el tipo de tarea (~200 tokens)"""
     parts = []
     message_lower = message.lower()
     
-    # Si menciona CSS/estilos con clases genéricas
-    if any(kw in message_lower for kw in ['css', 'estilo', 'style', 'color', 'clase', '.btn', '.card']):
-        if '.' in message and '#' not in message:  # Clase genérica, no ID
-            parts.append("""
-<CSS_IMPACT>
-For generic CSS classes (.btn, .card, etc.): run grep -c first to check usage count.
-If 2+ uses: ask user or create specific ID/class.
-For IDs (#specific): edit directly.
-</CSS_IMPACT>
+    # CSS/UI changes
+    if any(kw in message_lower for kw in ['css', 'estilo', 'style', 'color', 'diseño']):
+        parts.append("""
+<CSS_AWARENESS>
+For CSS changes:
+- If targeting a specific element (ID or unique class): edit directly
+- If targeting a shared class (.btn, .card): check how many elements use it first
+- Consider creating a specific selector if the shared class affects multiple unrelated elements
+</CSS_AWARENESS>
 """)
     
-    # Si menciona git/deploy
-    if any(kw in message_lower for kw in ['git', 'commit', 'push', 'pull', 'deploy', 'pr', 'merge']):
+    # Git operations
+    if any(kw in message_lower for kw in ['git', 'commit', 'push', 'pull', 'branch', 'pr']):
         parts.append("""
-<GIT_RULES>
-- Never push to main/master directly unless asked
+<GIT_OPERATIONS>
+Git best practices:
+- Never push directly to main/master unless explicitly asked
 - Use descriptive commit messages
-- Add Co-authored-by: openhands <openhands@all-hands.dev>
-</GIT_RULES>
+- Pull before making changes to avoid conflicts
+- Add Co-authored-by: openhands <openhands@all-hands.dev> to commits
+</GIT_OPERATIONS>
+""")
+    
+    # Complex task
+    if any(kw in message_lower for kw in ['crear', 'create', 'sistema', 'system', 'aplicación', 'proyecto']):
+        parts.append("""
+<COMPLEX_TASK>
+For large/complex tasks:
+- Use task_tracker to break down into steps
+- Complete one step at a time
+- Verify each step before moving to next
+- Keep user informed of progress
+</COMPLEX_TASK>
 """)
     
     return "\n".join(parts)
@@ -260,7 +270,7 @@ def get_mcp_tools(tavily_api_key: str = None, github_token: str = None) -> list:
 
 
 # ============================================================
-# CREAR AGENTE
+# CREAR AGENTE INTELIGENTE
 # ============================================================
 
 def create_agent(api_key: str, model: str = "deepseek/deepseek-chat", base_url: str = None,
@@ -270,11 +280,11 @@ def create_agent(api_key: str, model: str = "deepseek/deepseek-chat", base_url: 
                  vision_api_key: str = None, vision_model: str = "gemini/gemini-2.0-flash",
                  user_message: str = None) -> Agent:
     """
-    Crea el agente OpenHands con contexto optimizado.
-    
-    Detecta el dominio del mensaje y envía SOLO el contexto necesario:
-    - General: ~300 tokens (core)
-    - Técnico: ~800-1000 tokens (core + técnico + especializado)
+    Crea un agente inteligente con:
+    - Razonamiento estructurado
+    - Memoria de conversaciones pasadas
+    - Análisis de código antes de editar
+    - Herramientas completas
     """
 
     # 1. LLM principal
@@ -285,27 +295,27 @@ def create_agent(api_key: str, model: str = "deepseek/deepseek-chat", base_url: 
         temperature=0.7,
     )
 
-    # 2. Condenser optimizado (15 mensajes en vez de 80)
+    # 2. Condenser para conversaciones largas
     condenser = LLMSummarizingCondenser(
         llm=llm.model_copy(update={"usage_id": "condenser"}),
-        max_size=15,   # Optimizado: 15 (antes 80)
+        max_size=20,   # Últimos 20 mensajes completos
         keep_first=3,  # Mantener contexto inicial
     )
 
-    # 3. Detectar dominio del mensaje
+    # 3. Detectar tipo de mensaje
     domain = detect_domain(user_message) if user_message else "technical"
     
-    # 4. Construir system prompt por capas
+    # 4. Construir system prompt
     suffix_parts = []
     
-    # CAPA 1: Core Universal (siempre)
+    # Core siempre
     suffix_parts.append(get_core_prompt())
     
-    # CAPA 2: Contexto Técnico (solo si es técnico)
+    # Técnico si aplica
     if domain == "technical":
         suffix_parts.append(get_technical_context(workspace, repo_info, external_url))
         
-        # CAPA 3: Especializado (solo si aplica)
+        # Especializado si aplica
         if user_message:
             specialized = get_specialized_context(user_message)
             if specialized:
@@ -313,7 +323,7 @@ def create_agent(api_key: str, model: str = "deepseek/deepseek-chat", base_url: 
     
     system_suffix = "\n".join(suffix_parts)
 
-    # 5. Tools
+    # 5. Tools completas
     tools = [
         TerminalTool(),
         FileEditorTool(),
@@ -343,12 +353,12 @@ def create_agent(api_key: str, model: str = "deepseek/deepseek-chat", base_url: 
             
             analyze_tool = Tool(
                 name="analyze_impact",
-                description="Analyze the impact of modifying a CSS selector, function, or variable. Use BEFORE modifying shared code.",
+                description="Analyze the impact of modifying a symbol (CSS class, function, variable). Shows how many files use it and potential side effects. Use before modifying shared code.",
                 parameters={
                     "type": "object",
                     "properties": {
-                        "symbol": {"type": "string", "description": "The symbol to analyze (e.g., '.btn-primary', 'myFunction')"},
-                        "file_types": {"type": "array", "items": {"type": "string"}, "description": "File extensions to search"}
+                        "symbol": {"type": "string", "description": "The symbol to analyze (e.g., '.btn-primary', 'myFunction', 'CONFIG_VAR')"},
+                        "file_types": {"type": "array", "items": {"type": "string"}, "description": "File extensions to search (e.g., ['css', 'html'])"}
                     },
                     "required": ["symbol"]
                 },
@@ -356,13 +366,13 @@ def create_agent(api_key: str, model: str = "deepseek/deepseek-chat", base_url: 
             )
             
             find_refs_tool = Tool(
-                name="find_references",
-                description="Find all references to a symbol in the codebase.",
+                name="find_references", 
+                description="Find all places where a symbol is used in the codebase. Useful for understanding how code is connected.",
                 parameters={
                     "type": "object",
                     "properties": {
-                        "symbol": {"type": "string", "description": "The symbol to find"},
-                        "file_types": {"type": "array", "items": {"type": "string"}}
+                        "symbol": {"type": "string", "description": "The symbol to find references for"},
+                        "file_types": {"type": "array", "items": {"type": "string"}, "description": "File extensions to search"}
                     },
                     "required": ["symbol"]
                 },
