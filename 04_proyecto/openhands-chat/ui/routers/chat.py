@@ -651,20 +651,28 @@ async def stream_message(
         
         conversation_id = None
         repo_info = None
+        print(f"[CHAT] Project received: '{project}'")
         if project:
             proj = db.get_project_by_name(project)
+            print(f"[CHAT] Project found: {proj is not None}, ID: {proj['id'] if proj else 'N/A'}")
             if proj:
                 conv = db.get_conversation(proj['id'])
-                conversation_id = conv['id']
+                conversation_id = conv['id'] if conv else None
+                print(f"[CHAT] Conversation ID: {conversation_id}")
                 # Obtener info del repositorio para pasarla al agente
                 repo_info = {
                     'owner': proj.get('repo_owner'),
                     'name': proj.get('repo_name'),
                     'branch': proj.get('branch', 'main')
                 }
+        else:
+            print("[CHAT] WARNING: No project name received!")
         
         if conversation_id:
             db.add_message(conversation_id, 'user', message)
+            print(f"[CHAT] User message saved to conversation {conversation_id}")
+        else:
+            print("[CHAT] WARNING: conversation_id is None, message NOT saved!")
         
         # OPTIMIZACIÓN UX: Feedback inmediato mientras se prepara el agente
         yield f"data: {json.dumps({'type': 'status', 'icon': '🔄', 'text': 'Conectando...'})}\n\n"
