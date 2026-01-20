@@ -806,10 +806,10 @@ async def stream_message(
         # No duplicamos el historial en el mensaje (best practice de LLMs top)
         pass  # El historial ya está en el sistema de mensajes del SDK
         
-        # Agregar contexto de memoria RAG si existe (limitado a 300 tokens)
+        # Agregar contexto de memoria RAG si existe (limitado a ~500 tokens)
         if memory_context:
-            # Limitar a ~1200 caracteres (~300 tokens) para evitar ruido
-            truncated_context = memory_context[:1200] + "..." if len(memory_context) > 1200 else memory_context
+            # Limitar a ~2000 caracteres (~500 tokens) - balance entre contexto y eficiencia
+            truncated_context = memory_context[:2000] + "..." if len(memory_context) > 2000 else memory_context
             actual_message = f"{actual_message}\n\n{truncated_context}"
             print(f"[MEMORY] Added RAG context ({len(truncated_context)} chars)")
         if repo_info and repo_info.get('owner') and repo_info.get('name'):

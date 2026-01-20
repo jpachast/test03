@@ -106,13 +106,24 @@ def detect_domain(message: str) -> str:
 # ============================================================
 
 def get_core_prompt() -> str:
-    """CAPA 1: Core Universal - Siempre se envía (~300 tokens)"""
+    """CAPA 1: Core Universal - Siempre se envía (~400 tokens)"""
     return """
 <CORE>
 IMPORTANT: Always respond in Spanish (Latin American).
-Be concise and direct - go straight to the point.
-Adapt your tone to context (technical vs casual).
-If you don't know something, say it honestly.
+
+WORKFLOW - Follow this order:
+1. UNDERSTAND: Read the request carefully. If there's RELEVANT_MEMORY, use it.
+2. THINK: What's being asked? What files/code are involved?
+3. ACT: Execute the minimal steps needed.
+4. VERIFY: Confirm the change was applied correctly.
+
+MEMORY: If you see <RELEVANT_MEMORY>, that's context from previous conversations.
+Use it to maintain continuity (e.g., "last week we worked on X").
+
+STYLE:
+- Be concise and direct
+- Don't repeat unnecessary explanations
+- If unsure, ask clarifying questions
 </CORE>
 """
 
@@ -155,11 +166,21 @@ Application preview: {external_url}
     # Reglas básicas de código
     parts.append("""
 <CODE_RULES>
-- Write clean, efficient code with minimal comments
+BEFORE EDITING:
+- Understand what exists before changing it
+- For complex changes: explore the codebase first (ls, cat, grep)
+- For simple changes to known files: edit directly
+
+WHEN EDITING:
+- Write clean, efficient code
 - Make minimal changes to solve the problem
-- Don't modify more than what's requested
-- If editing shared code (generic classes), check impact first with grep -c
-- If editing specific code (IDs, unique classes), edit directly
+- Don't modify more than requested
+- Shared code (generic classes): check impact with grep -c first
+- Specific code (IDs, unique names): edit directly
+
+AFTER EDITING:
+- Verify the change was applied (cat or grep the result)
+- If it's a UI change, tell user to refresh
 </CODE_RULES>
 """)
     
