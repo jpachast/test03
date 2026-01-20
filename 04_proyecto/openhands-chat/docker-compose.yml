@@ -24,3 +24,6 @@ services:
     restart: unless-stopped
     environment:
       - PYTHONUNBUFFERED=1
+      # Turso Database (100% cloud)
+      - TURSO_URL=${TURSO_URL:-}
+      - TURSO_TOKEN=${TURSO_TOKEN:-}

@@ -1,9 +1,13 @@
 """
-Base de datos híbrida: SQLite local + Turso (cloud)
+Base de datos Turso (100% cloud)
 
 ARQUITECTURA:
-- SQLite local: settings (credenciales, configuración)
-- Turso (si configurado): projects, conversations, messages
+- Si TURSO_URL y TURSO_TOKEN están en env vars → TODO en Turso
+- Si no → fallback a SQLite local
+
+VARIABLES DE ENTORNO:
+- TURSO_URL: libsql://...turso.io
+- TURSO_TOKEN: token de autenticación
 
 OPTIMIZACIONES:
 - Connection pool con conexión persistente (singleton)
@@ -23,6 +27,10 @@ from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 # Cache global de cipher para evitar recalcular PBKDF2
 _cipher_cache = {}
 _cipher_lock = threading.Lock()
+
+# Credenciales de Turso desde variables de entorno
+TURSO_URL = os.environ.get('TURSO_URL', '')
+TURSO_TOKEN = os.environ.get('TURSO_TOKEN', '')
 
 # Intentar importar libsql para Turso
 try:
@@ -75,14 +83,24 @@ class Database:
         self._init_turso()
     
     def _init_turso(self):
-        """Inicializar conexión a Turso si está configurado"""
+        """Inicializar conexión a Turso si está configurado
+        
+        Prioridad:
+        1. Variables de entorno (TURSO_URL, TURSO_TOKEN)
+        2. Settings en SQLite local (fallback)
+        """
         if not TURSO_AVAILABLE:
             return
         
         try:
-            # Leer credenciales de Turso desde settings locales
-            turso_url = self.get_setting('turso_url', '')
-            turso_token = self.get_setting('turso_token', '')
+            # Prioridad 1: Variables de entorno
+            turso_url = TURSO_URL
+            turso_token = TURSO_TOKEN
+            
+            # Prioridad 2: Settings locales (si no hay env vars)
+            if not turso_url or not turso_token:
+                turso_url = self.get_setting('turso_url', '')
+                turso_token = self.get_setting('turso_token', '')
             
             if turso_url and turso_token:
                 self._turso_conn = libsql.connect(
@@ -92,7 +110,7 @@ class Database:
                 )
                 # Inicializar tablas en Turso
                 self._init_turso_tables()
-                print(f"[DB] ✅ Conectado a Turso: {turso_url}")
+                print(f"[DB] ✅ Conectado a Turso (100% cloud): {turso_url}")
             else:
                 print("[DB] Turso no configurado, usando SQLite local")
         except Exception as e:
@@ -100,11 +118,22 @@ class Database:
             self._turso_conn = None
     
     def _init_turso_tables(self):
-        """Crear tablas en Turso si no existen"""
+        """Crear TODAS las tablas en Turso (100% cloud)"""
         if not self._turso_conn:
             return
         
         with self._turso_lock:
+            # Settings (configuración, API keys)
+            self._turso_conn.execute('''
+                CREATE TABLE IF NOT EXISTS settings (
+                    key TEXT PRIMARY KEY,
+                    value TEXT NOT NULL,
+                    encrypted INTEGER DEFAULT 0,
+                    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')
+            
             # Proyectos
             self._turso_conn.execute('''
                 CREATE TABLE IF NOT EXISTS projects (
@@ -143,6 +172,12 @@ class Database:
                 )
             ''')
             
+            # Índices para búsquedas rápidas
+            self._turso_conn.execute('CREATE INDEX IF NOT EXISTS idx_projects_name ON projects(name)')
+            self._turso_conn.execute('CREATE INDEX IF NOT EXISTS idx_projects_repo ON projects(repo_owner, repo_name)')
+            self._turso_conn.execute('CREATE INDEX IF NOT EXISTS idx_conversations_project ON conversations(project_id)')
+            self._turso_conn.execute('CREATE INDEX IF NOT EXISTS idx_messages_conversation ON messages(conversation_id)')
+            
             self._turso_conn.commit()
     
     def _use_turso(self) -> bool:
@@ -160,7 +195,12 @@ class Database:
         return self._conn
     
     def _execute(self, query, params=(), fetch=None):
-        """Ejecutar query en SQLite LOCAL (para settings)"""
+        """Ejecutar query - usa Turso si disponible, sino SQLite local"""
+        # Si Turso está conectado, usar Turso para TODO
+        if self._use_turso():
+            return self._execute_turso(query, params, fetch)
+        
+        # Fallback a SQLite local
         with self._db_lock:
             cursor = self._conn.cursor()
             cursor.execute(query, params)
@@ -171,6 +211,19 @@ class Database:
             else:
                 result = cursor.lastrowid
                 self._conn.commit()
+            return result
+    
+    def _execute_turso(self, query, params=(), fetch=None):
+        """Ejecutar query directamente en Turso"""
+        with self._turso_lock:
+            cursor = self._turso_conn.execute(query, params)
+            if fetch == 'one':
+                result = cursor.fetchone()
+            elif fetch == 'all':
+                result = cursor.fetchall()
+            else:
+                result = cursor.lastrowid
+                self._turso_conn.commit()
             return result
     
     def _execute_data(self, query, params=(), fetch=None):
