@@ -31,6 +31,10 @@ from config.database import Database
 from config.settings import Settings
 from core.agent import create_agent
 from ui.routers.browser import update_screenshot
+from core.memory import (
+    save_file_change, save_command, save_agent_action,
+    get_context_for_message, get_memory_stats
+)
 
 router = APIRouter(prefix="/api/chat", tags=["chat"])
 db = Database()
@@ -158,6 +162,19 @@ def create_streaming_callback(q, conv_id=None):
                             # Enviar a terminal también
                             cmd_text = f"file_editor {command}: {path}"
                             q.put({"type": "terminal_command", "command": cmd_text})
+                            
+                            # GUARDAR EN MEMORIA RAG (solo cambios, no views)
+                            if command in ('str_replace', 'create', 'insert'):
+                                old_str = getattr(action, 'old_str', '')[:100] if hasattr(action, 'old_str') else ''
+                                new_str = getattr(action, 'new_str', '')[:100] if hasattr(action, 'new_str') else ''
+                                desc = f"{command}: {old_str} -> {new_str}" if old_str else f"{command}"
+                                save_file_change(
+                                    file_path=path,
+                                    description=desc,
+                                    change_type="modified" if command == 'str_replace' else "created",
+                                    conversation_id=current_conversation_id,
+                                    project=current_workspace
+                                )
                     
                     elif 'Finish' in action_type:
                         if hasattr(action, 'message') and action.message:
@@ -691,8 +708,16 @@ async def stream_message(
         if conversation_id:
             active_sdk_conversations[conversation_id] = conv
         
+        # MEMORIA RAG: Recuperar contexto relevante del historial
+        memory_context = get_context_for_message(message, project=project)
+        
         # Enriquecer mensaje con info del repo si es comando git
         actual_message = message
+        
+        # Agregar contexto de memoria si existe
+        if memory_context:
+            actual_message = f"{message}\n\n{memory_context}"
+            print(f"[MEMORY] Added context to message")
         if repo_info and repo_info.get('owner') and repo_info.get('name'):
             repo_owner = repo_info['owner']
             repo_name = repo_info['name']
@@ -792,6 +817,13 @@ async def clear_history(conversation_id: int):
     db.clear_messages(conversation_id)
     current_conversation = None  # Reset para empezar fresco
     return JSONResponse({"status": "ok", "message": "Historial borrado"})
+
+
+@router.get("/memory/stats")
+async def memory_stats():
+    """Obtener estadísticas de la memoria RAG"""
+    stats = get_memory_stats()
+    return JSONResponse(stats)
 
 
 @router.get("/messages/{project_name}")

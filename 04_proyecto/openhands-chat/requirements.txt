@@ -29,3 +29,7 @@ python-dotenv>=1.0.0
 
 # SSH
 paramiko>=3.0.0
+
+# RAG Memory (persistent agent memory)
+chromadb>=0.4.0
+sentence-transformers>=2.2.0
