@@ -1,12 +1,15 @@
 """
-Agente OpenHands - 100% IDÉNTICO AL SDK OFICIAL
+Agente OpenHands - Con análisis de impacto inteligente
 
-Usa los prompts oficiales de OpenHands SIN modificaciones.
+Usa los prompts oficiales de OpenHands + herramientas de análisis.
 Incluye TODAS las tools oficiales del SDK:
 - terminal, file_editor, task_tracker
 - browser tools (11 herramientas)
 - glob, grep, delegate
 - MCP tools (Tavily, GitHub) si están configurados
+- analyze_impact, find_references (NUEVAS - análisis antes de editar)
+
+El agente DEBE usar analyze_impact ANTES de modificar código compartido.
 
 Referencia: https://docs.openhands.dev/sdk/getting-started
 """
@@ -40,6 +43,10 @@ from openhands.tools.grep import GrepTool
 
 # Delegate tool - para sub-agentes
 from openhands.tools.delegate import DelegateTool
+
+# Analysis tools - NUEVO: análisis de impacto antes de editar
+from .indexer import CodeIndexer, set_indexer
+from .analyzer import CodeAnalyzer
 
 # Directorio de la aplicación
 APP_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -136,7 +143,54 @@ Code comments can be in English if the project requires it.
 </LANGUAGE>
 """)
 
-    # 3.1a CAMBIOS CONSERVADORES - No modificar más de lo pedido
+    # 3.1a ANÁLISIS DE IMPACTO OBLIGATORIO - Understand Before Modify
+    suffix_parts.append("""
+<IMPACT_ANALYSIS_WORKFLOW>
+## MANDATORY: Understand Before Modify
+
+Before modifying ANY shared code (CSS classes, functions, variables), you MUST:
+
+### Step 1: ANALYZE
+Use grep or search to find ALL places where the symbol is used:
+```bash
+grep -rn "symbol-name" --include="*.css" --include="*.html" --include="*.js"
+```
+
+### Step 2: EVALUATE
+Count how many files/locations use the symbol:
+- 1 location → Safe to modify
+- 2-3 locations → Review each, may need specific selector
+- 4+ locations → HIGH RISK - ask user or create specific selector
+
+### Step 3: DECIDE
+If the symbol is shared across multiple unrelated components:
+- DO NOT modify the shared symbol directly
+- Instead: Create a NEW specific class/ID for just that element
+- Example: Instead of changing `.tool-btn`, add `.tool-btn-limpiar` to that specific button
+
+### Step 4: EXECUTE
+Only after analysis, make the minimal change needed.
+
+## Example Workflow:
+User: "Make the Limpiar button text white"
+
+1. ANALYZE: grep -rn "tool-btn" → Found in 3 places
+2. EVALUATE: Used by Herramientas, Limpiar, and Settings buttons
+3. DECIDE: Need specific selector for just Limpiar
+4. EXECUTE: 
+   - Add id="btn-limpiar" to the button HTML
+   - Add CSS: #btn-limpiar { color: white; }
+
+## NEVER:
+- Modify a shared CSS class without checking all usages first
+- Assume a class is only used in one place
+- Skip the analysis step because it seems obvious
+
+This workflow prevents unintended changes to other UI elements.
+</IMPACT_ANALYSIS_WORKFLOW>
+""")
+
+    # 3.1b CAMBIOS CONSERVADORES - No modificar más de lo pedido
     suffix_parts.append("""
 <CONSERVATIVE_CHANGES>
 CRITICAL: Make ONLY the changes the user explicitly requests. Do NOT:
