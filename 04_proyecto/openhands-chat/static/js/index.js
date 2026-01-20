@@ -1803,6 +1803,7 @@
                 const reader = response.body.getReader();
                 const decoder = new TextDecoder();
                 let finalMessage = '';
+                let doneReceived = false;  // Flag para saber si recibimos evento done
                 
                 // STREAMING DE TOKENS - Variables para acumular respuesta en tiempo real
                 let streamingText = '';
@@ -1847,13 +1848,23 @@
                                 }
                                 
                                 if (data.type === 'done') {
-                                    console.log('[DONE EVENT]', data);
-                                    finalMessage = data.message;
-                                    // Si hay streaming activo, usar ese texto
-                                    if (streamingText && !finalMessage) {
+                                    doneReceived = true;
+                                    console.log('[DONE EVENT] received, message length:', data.message ? data.message.length : 0);
+                                    
+                                    // PRIORIDAD DE MENSAJE:
+                                    // 1. Si hay streamingText (texto en tiempo real), usarlo SIEMPRE
+                                    // 2. Si no, usar data.message del evento done
+                                    // 3. Si ninguno, mensaje por defecto
+                                    if (streamingText && streamingText.length > 0) {
                                         finalMessage = streamingText;
+                                        console.log('[DONE] Using streamingText:', streamingText.length, 'chars');
+                                    } else if (data.message && data.message.length > 0) {
+                                        finalMessage = data.message;
+                                        console.log('[DONE] Using data.message:', data.message.length, 'chars');
+                                    } else {
+                                        finalMessage = "✅ Tarea completada.";
+                                        console.log('[DONE] Using default message');
                                     }
-                                    console.log('[FINAL MESSAGE LENGTH]', finalMessage ? finalMessage.length : 0);
                                 } else if (data.type === 'error') {
                                     progressDiv.querySelector('.progress-content').innerHTML = 
                                         `❌ Error: ${data.text}`;
@@ -1906,41 +1917,71 @@
                 // Remover progreso
                 progressDiv.remove();
                 
-                console.log('[STREAM END] finalMessage:', finalMessage ? finalMessage.substring(0, 100) + '...' : 'EMPTY');
-                console.log('[STREAM END] streamingText:', streamingText ? streamingText.substring(0, 100) + '...' : 'EMPTY');
+                // ============================================================
+                // MANEJO ROBUSTO DEL MENSAJE FINAL - CUBRE TODOS LOS CASOS
+                // ============================================================
+                console.log('[STREAM END] doneReceived:', doneReceived);
+                console.log('[STREAM END] finalMessage:', finalMessage ? finalMessage.length + ' chars' : 'EMPTY');
+                console.log('[STREAM END] streamingText:', streamingText ? streamingText.length + ' chars' : 'EMPTY');
                 console.log('[STREAM END] streamingDiv exists:', !!streamingDiv);
                 
-                // PRIORIDAD: usar streamingText si existe (ya se mostró en tiempo real)
-                // Si no hay streamingText, usar finalMessage del evento done
-                const messageToShow = streamingText || finalMessage;
+                // DETERMINAR QUÉ MENSAJE MOSTRAR (múltiples fallbacks)
+                let messageToShow = '';
                 
-                if (messageToShow) {
-                    // SIEMPRE crear un mensaje nuevo con addMessage para garantizar que se muestre
-                    // Remover el div de streaming si existe (ya cumplió su función de preview)
-                    if (streamingDiv) {
-                        streamingDiv.remove();
-                        streamingDiv = null;
+                // Caso 1: Tenemos finalMessage del evento done (ya procesado con prioridades)
+                if (finalMessage && finalMessage.length > 0) {
+                    messageToShow = finalMessage;
+                    console.log('[STREAM END] Case 1: Using finalMessage');
+                }
+                // Caso 2: No llegó done pero hay streamingText
+                else if (streamingText && streamingText.length > 0) {
+                    messageToShow = streamingText;
+                    console.log('[STREAM END] Case 2: Using streamingText (no done event)');
+                }
+                // Caso 3: El streamingDiv tiene contenido visible
+                else if (streamingDiv) {
+                    const contentEl = streamingDiv.querySelector('.message-content');
+                    if (contentEl && contentEl.textContent && contentEl.textContent.trim().length > 0) {
+                        messageToShow = contentEl.innerHTML; // Preservar HTML/markdown renderizado
+                        console.log('[STREAM END] Case 3: Using streamingDiv content');
                     }
-                    
-                    // Agregar el mensaje final completo
-                    addMessage(messageToShow, 'assistant');
-                    console.log('[STREAM END] Added final message with addMessage()');
-                    
-                    setTaskStatus('completed', 'Tarea completada');
-                    setTimeout(() => setTaskStatus('', 'Esperando tarea.'), 3000);
-                    
-                    // Actualizar rama si hubo operaciones git
-                    if (currentConversationId) {
-                        refreshBranchInfo(currentConversationId);
-                    }
-                } else {
-                    console.warn('[STREAM END] No message to show!');
-                    if (streamingDiv) streamingDiv.remove();
+                }
+                // Caso 4: Mensaje por defecto
+                if (!messageToShow || messageToShow.length === 0) {
+                    messageToShow = "✅ Tarea completada.";
+                    console.log('[STREAM END] Case 4: Using default message');
+                }
+                
+                // LIMPIAR streaming div (siempre)
+                if (streamingDiv) {
+                    streamingDiv.remove();
+                    streamingDiv = null;
+                }
+                
+                // MOSTRAR MENSAJE FINAL (siempre con addMessage para garantizar)
+                addMessage(messageToShow, 'assistant');
+                console.log('[STREAM END] ✅ Message displayed successfully');
+                
+                setTaskStatus('completed', 'Tarea completada');
+                setTimeout(() => setTaskStatus('', 'Esperando tarea.'), 3000);
+                
+                // Actualizar rama si hubo operaciones git
+                if (currentConversationId) {
+                    refreshBranchInfo(currentConversationId);
                 }
                 
             } catch (error) {
+                console.error('[STREAM ERROR]', error);
                 progressDiv.remove();
-                addMessage('Error de conexión: ' + error.message, 'error');
+                
+                // Incluso en error, intentar mostrar el mensaje si hay algo
+                if (streamingText && streamingText.length > 0) {
+                    if (streamingDiv) streamingDiv.remove();
+                    addMessage(streamingText, 'assistant');
+                    console.log('[STREAM ERROR] Recovered message from streamingText');
+                } else {
+                    addMessage('Error de conexión: ' + error.message, 'error');
+                }
                 setTaskStatus('error', 'Error de conexión');
             }
         }
