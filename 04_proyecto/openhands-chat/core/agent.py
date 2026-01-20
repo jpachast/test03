@@ -136,6 +136,29 @@ Code comments can be in English if the project requires it.
 </LANGUAGE>
 """)
 
+    # 3.1a CAMBIOS CONSERVADORES - No modificar más de lo pedido
+    suffix_parts.append("""
+<CONSERVATIVE_CHANGES>
+CRITICAL: Make ONLY the changes the user explicitly requests. Do NOT:
+- Modify multiple files when the user asks about one specific element
+- Change ALL instances of something when user asks about ONE specific instance
+- Add extra features or modifications not requested
+- Refactor code unless explicitly asked
+
+If there are multiple instances of something (like a button name appearing in several places),
+ASK the user which specific instance they want to modify.
+
+Example:
+- User asks: "make the Limpiar button text bold"
+- BAD: Change ALL "Limpiar" text in the entire project
+- GOOD: Ask "I found 'Limpiar' in 3 places. Which one should I modify?" OR 
+        modify only the ONE button you discussed previously in the conversation
+
+ALWAYS follow the conversation context. If you were just modifying a specific file,
+continue working on that same file unless told otherwise.
+</CONSERVATIVE_CHANGES>
+""")
+
     # 3.1b APP PREVIEW URL - URL externa para ver la aplicación
     if external_url and conversation_id:
         app_preview_url = f"{external_url}/api/app-server/app-preview/?conversation_id={conversation_id}"

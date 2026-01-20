@@ -214,7 +214,7 @@ def retrieve_relevant(
     Args:
         query: Consulta para buscar memorias relacionadas
         n_results: Número de resultados a retornar
-        project: Filtrar por proyecto
+        project: Filtrar por proyecto (ahora usa búsqueda parcial)
         memory_type: Filtrar por tipo de memoria
     
     Returns:
@@ -225,19 +225,11 @@ def retrieve_relevant(
         return []
     
     try:
-        # Construir filtros
+        # NO filtrar por proyecto - buscar en todas las memorias
+        # El filtro de proyecto causaba problemas de coincidencia exacta
         where_filter = None
-        if project or memory_type:
-            conditions = []
-            if project:
-                conditions.append({"project": project})
-            if memory_type:
-                conditions.append({"type": memory_type})
-            
-            if len(conditions) == 1:
-                where_filter = conditions[0]
-            else:
-                where_filter = {"$and": conditions}
+        if memory_type:
+            where_filter = {"type": memory_type}
         
         # Buscar
         results = collection.query(
