@@ -46,6 +46,7 @@ settings = Settings()
 current_conversation = None
 current_workspace = None
 last_agent_response = ""
+last_error_message = ""  # Para mostrar errores de API al usuario
 current_conversation_id = None  # Para asociar screenshots con la conversación
 # Almacena la referencia a la Conversation activa para poder pausarla
 active_sdk_conversations = {}  # {conversation_id: Conversation}
@@ -122,7 +123,7 @@ def set_workspace(path):
 def create_streaming_callback(q, conv_id=None):
     """Crea un callback que envía eventos a la cola SSE"""
     def streaming_callback(event):
-        global last_agent_response, current_conversation_id
+        global last_agent_response, last_error_message, current_conversation_id
         event_type = str(type(event).__name__)
         
         # Log de eventos para debug
@@ -134,13 +135,27 @@ def create_streaming_callback(q, conv_id=None):
         
         # Capturar errores de conversación
         if 'Error' in event_type:
-            error_msg = getattr(event, 'error', None) or getattr(event, 'message', None) or str(event)
-            print(f"[EVENT] ERROR: {error_msg}")
-            if hasattr(event, '__dict__'):
-                print(f"[EVENT] ERROR ATTRS: {event.__dict__}")
-            q.put({"type": "error", "icon": "❌", "text": str(error_msg)[:200]})
+            error_detail = getattr(event, 'detail', '') or getattr(event, 'error', '') or getattr(event, 'message', '') or str(event)
+            error_code = getattr(event, 'code', '')
+            print(f"[EVENT] ERROR: {error_code} - {error_detail}")
+            
+            # Traducir errores comunes a mensajes amigables
+            friendly_msg = str(error_detail)[:200]
+            if 'credit balance is too low' in str(error_detail).lower():
+                friendly_msg = "⚠️ SIN CRÉDITO: Tu cuenta de Anthropic no tiene saldo suficiente. Por favor recarga créditos en console.anthropic.com"
+            elif 'rate limit' in str(error_detail).lower():
+                friendly_msg = "⚠️ LÍMITE DE VELOCIDAD: Demasiadas solicitudes. Espera unos segundos e intenta de nuevo."
+            elif 'invalid_api_key' in str(error_detail).lower() or 'authentication' in str(error_detail).lower():
+                friendly_msg = "⚠️ API KEY INVÁLIDA: La clave de API no es válida. Revisa la configuración en Settings."
+            elif 'timeout' in str(error_detail).lower():
+                friendly_msg = "⚠️ TIMEOUT: La solicitud tardó demasiado. Intenta de nuevo."
+            elif 'connection' in str(error_detail).lower():
+                friendly_msg = "⚠️ ERROR DE CONEXIÓN: No se pudo conectar con el servidor de IA."
+            
+            last_error_message = friendly_msg  # Guardar para mostrar al final
+            q.put({"type": "error", "icon": "❌", "text": friendly_msg})
             # También enviar error a la terminal
-            q.put({"type": "terminal_output", "output": f"ERROR: {error_msg}", "stderr": "", "exit_code": 1})
+            q.put({"type": "terminal_output", "output": f"ERROR: {friendly_msg}", "stderr": "", "exit_code": 1})
         
         try:
             if event_type == 'ActionEvent':
@@ -591,9 +606,10 @@ async def stream_message(
     external_url: str = Form(None)
 ):
     """Enviar mensaje al agente con streaming SSE"""
-    global current_conversation, current_workspace, last_agent_response
+    global current_conversation, current_workspace, last_agent_response, last_error_message
     
     last_agent_response = ""
+    last_error_message = ""  # Limpiar errores previos
     
     # Obtener modelo configurado
     model = db.get_setting("llm_model", settings.default_model)
@@ -842,7 +858,11 @@ Do NOT skip steps. Execute step 1 first and check the output."""
         
         agent_response = last_agent_response
         if not agent_response:
-            agent_response = "✅ Tarea completada. Revisa los archivos creados."
+            # Si hubo un error, mostrar el error en lugar de "Tarea completada"
+            if last_error_message:
+                agent_response = f"❌ {last_error_message}"
+            else:
+                agent_response = "✅ Tarea completada. Revisa los archivos creados."
         
         if conversation_id:
             db.add_message(conversation_id, 'assistant', agent_response)
