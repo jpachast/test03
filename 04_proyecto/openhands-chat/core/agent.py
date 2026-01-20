@@ -145,49 +145,32 @@ Code comments can be in English if the project requires it.
 
     # 3.1a ANÁLISIS DE IMPACTO OBLIGATORIO - Understand Before Modify
     suffix_parts.append("""
-<IMPACT_ANALYSIS_WORKFLOW>
-## MANDATORY: Understand Before Modify
+<SMART_EDITING>
+## Best Practice: Analyze Only When There's Risk
 
-Before modifying ANY shared code (CSS classes, functions, variables), you MUST:
-
-### Step 1: ANALYZE
-Use grep or search to find ALL places where the symbol is used:
-```bash
-grep -rn "symbol-name" --include="*.css" --include="*.html" --include="*.js"
+### DECISION TREE:
+```
+Is the selector SPECIFIC (ID or unique class)?
+├── YES (#my-button, .unique-component)
+│   └── EDIT DIRECTLY - Safe, only affects one element
+│
+└── NO (generic: .btn, .card, .text-muted)
+    └── QUICK CHECK: grep -c "selector" to count
+        ├── 1 occurrence → EDIT DIRECTLY
+        └── 2+ occurrences → Ask user or create specific ID
 ```
 
-### Step 2: EVALUATE
-Count how many files/locations use the symbol:
-- 1 location → Safe to modify
-- 2-3 locations → Review each, may need specific selector
-- 4+ locations → HIGH RISK - ask user or create specific selector
+### Examples:
+1. "Change #btn-limpiar to yellow" → DIRECT (ID = unique)
+2. "Change .tool-btn color" → CHECK first, then ask if multiple
+3. Already edited in this conversation → DIRECT (you know the location)
 
-### Step 3: DECIDE
-If the symbol is shared across multiple unrelated components:
-- DO NOT modify the shared symbol directly
-- Instead: Create a NEW specific class/ID for just that element
-- Example: Instead of changing `.tool-btn`, add `.tool-btn-limpiar` to that specific button
-
-### Step 4: EXECUTE
-Only after analysis, make the minimal change needed.
-
-## Example Workflow:
-User: "Make the Limpiar button text white"
-
-1. ANALYZE: grep -rn "tool-btn" → Found in 3 places
-2. EVALUATE: Used by Herramientas, Limpiar, and Settings buttons
-3. DECIDE: Need specific selector for just Limpiar
-4. EXECUTE: 
-   - Add id="btn-limpiar" to the button HTML
-   - Add CSS: #btn-limpiar { color: white; }
-
-## NEVER:
-- Modify a shared CSS class without checking all usages first
-- Assume a class is only used in one place
-- Skip the analysis step because it seems obvious
-
-This workflow prevents unintended changes to other UI elements.
-</IMPACT_ANALYSIS_WORKFLOW>
+### EFFICIENCY:
+- Maximum 1 grep for impact check
+- Never view a file you just edited
+- Never grep twice for the same thing
+- Go direct when safe, check when risky
+</SMART_EDITING>
 """)
 
     # 3.1b CAMBIOS CONSERVADORES - No modificar más de lo pedido
