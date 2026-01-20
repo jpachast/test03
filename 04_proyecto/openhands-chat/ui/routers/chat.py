@@ -779,60 +779,47 @@ async def stream_message(
         memory_context = get_context_for_message(message, project=project)
         
         # ============================================================
-        # ANÁLISIS DE IMPACTO OBLIGATORIO - Preprocesar mensaje
+        # ANÁLISIS DE IMPACTO CONDICIONAL - Solo para clases CSS genéricas
         # ============================================================
-        # Esto detecta si el usuario quiere modificar CSS/código compartido
-        # y enriquece el mensaje con información de impacto para que el
-        # agente NO modifique selectores compartidos sin crear uno específico
-        try:
-            enriched_message, impact_metadata = analyze_and_enrich_message(message, workspace)
-            if impact_metadata.get("high_risk_changes"):
-                print(f"[IMPACT] ⚠️ High risk changes detected: {impact_metadata['high_risk_changes']}")
-                yield f"data: {json.dumps({'type': 'status', 'icon': '🔍', 'text': 'Analizando impacto...'})}\n\n"
-            actual_message = enriched_message
-        except Exception as e:
-            print(f"[IMPACT] Error in preprocessor: {e}")
-            actual_message = message
+        # Best practice: Solo analizar cuando hay RIESGO REAL (clases genéricas)
+        # Si es un ID (#btn-limpiar) o consulta general, ir directo
+        actual_message = message
+        
+        # Solo activar preprocessor si menciona clase CSS genérica (. sin #)
+        has_generic_css = '.' in message and '#' not in message and any(
+            kw in message.lower() for kw in ['css', 'estilo', 'style', 'color', 'clase', 'class']
+        )
+        
+        if has_generic_css:
+            try:
+                enriched_message, impact_metadata = analyze_and_enrich_message(message, workspace)
+                if impact_metadata.get("high_risk_changes"):
+                    print(f"[IMPACT] ⚠️ High risk: {impact_metadata['high_risk_changes']}")
+                    yield f"data: {json.dumps({'type': 'status', 'icon': '🔍', 'text': 'Analizando impacto...'})}\n\n"
+                    actual_message = enriched_message
+            except Exception as e:
+                print(f"[IMPACT] Preprocessor skipped: {e}")
         
         # Construir mensaje completo con historial y memoria
         
-        # Agregar historial de conversación (CRÍTICO para que el agente recuerde)
-        if conversation_history:
-            actual_message = f"""<CONVERSATION_HISTORY>
-Esta es nuestra conversación reciente. DEBES recordar este contexto:
-
-{conversation_history}
-</CONVERSATION_HISTORY>
-
-Mensaje actual del usuario: {message}"""
+        # OPTIMIZADO: El condenser del SDK ya maneja el historial automáticamente
+        # No duplicamos el historial en el mensaje (best practice de LLMs top)
+        pass  # El historial ya está en el sistema de mensajes del SDK
         
-        # Agregar contexto de memoria RAG si existe
+        # Agregar contexto de memoria RAG si existe (limitado a 300 tokens)
         if memory_context:
-            actual_message = f"{actual_message}\n\n{memory_context}"
-            print(f"[MEMORY] Added RAG context to message")
+            # Limitar a ~1200 caracteres (~300 tokens) para evitar ruido
+            truncated_context = memory_context[:1200] + "..." if len(memory_context) > 1200 else memory_context
+            actual_message = f"{actual_message}\n\n{truncated_context}"
+            print(f"[MEMORY] Added RAG context ({len(truncated_context)} chars)")
         if repo_info and repo_info.get('owner') and repo_info.get('name'):
             repo_owner = repo_info['owner']
             repo_name = repo_info['name']
             repo_branch = repo_info.get('branch', 'main')
             
-            # Si es un comando de pull, agregar instrucciones específicas
+            # Si es un comando de pull, agregar contexto mínimo
             if 'pull' in message.lower():
-                actual_message = f"""{message}
-
-IMPORTANT CONTEXT - You MUST follow these steps:
-The repository is: {repo_owner}/{repo_name} branch {repo_branch}
-Workspace: {workspace}
-
-Execute these commands IN ORDER:
-1. ls {workspace}/.git 2>/dev/null && echo "HAS_GIT" || echo "NO_GIT"
-2. If NO_GIT: git clone https://${{GITHUB_TOKEN}}@github.com/{repo_owner}/{repo_name}.git {workspace} --branch {repo_branch}
-3. If HAS_GIT: cd {workspace} && git remote get-url origin
-4. If remote URL contains "{repo_name}": cd {workspace} && git pull origin {repo_branch}
-5. If remote URL does NOT contain "{repo_name}": rm -rf {workspace}/.git && git clone https://${{GITHUB_TOKEN}}@github.com/{repo_owner}/{repo_name}.git {workspace} --branch {repo_branch}
-
-IMPORTANT: Use ${{GITHUB_TOKEN}} for authentication in git commands.
-Do NOT skip steps. Execute step 1 first and check the output."""
-                print(f"[DEBUG] Enriched pull message with repo info: {repo_owner}/{repo_name}")
+                actual_message = f"{message}\n\nRepo: {repo_owner}/{repo_name} (branch: {repo_branch})\nWorkspace: {workspace}\nUse ${{GITHUB_TOKEN}} for git auth."
         
         # Enviar mensaje con imágenes si las hay
         if image_contents:
