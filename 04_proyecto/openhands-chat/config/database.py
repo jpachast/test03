@@ -1,5 +1,9 @@
 """
-Base de datos SQLite para configuración
+Base de datos híbrida: SQLite local + Turso (cloud)
+
+ARQUITECTURA:
+- SQLite local: settings (credenciales, configuración)
+- Turso (si configurado): projects, conversations, messages
 
 OPTIMIZACIONES:
 - Connection pool con conexión persistente (singleton)
@@ -19,6 +23,14 @@ from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 # Cache global de cipher para evitar recalcular PBKDF2
 _cipher_cache = {}
 _cipher_lock = threading.Lock()
+
+# Intentar importar libsql para Turso
+try:
+    import libsql_experimental as libsql
+    TURSO_AVAILABLE = True
+except ImportError:
+    TURSO_AVAILABLE = False
+    print("[DB] libsql no disponible, usando SQLite local")
 
 
 class Database:
@@ -46,21 +58,109 @@ class Database:
         self.db_path = Path(db_path)
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         
-        # Conexión persistente con check_same_thread=False para threading
+        # Conexión LOCAL (siempre para settings)
         self._conn = sqlite3.connect(str(self.db_path), check_same_thread=False)
         self._conn.row_factory = sqlite3.Row
         self._db_lock = threading.Lock()
         
+        # Conexión TURSO (para datos principales)
+        self._turso_conn = None
+        self._turso_lock = threading.Lock()
+        
         self._init_db()
         self._cipher = self._get_cipher()
         self._initialized = True
+        
+        # Intentar conectar a Turso después de inicializar
+        self._init_turso()
+    
+    def _init_turso(self):
+        """Inicializar conexión a Turso si está configurado"""
+        if not TURSO_AVAILABLE:
+            return
+        
+        try:
+            # Leer credenciales de Turso desde settings locales
+            turso_url = self.get_setting('turso_url', '')
+            turso_token = self.get_setting('turso_token', '')
+            
+            if turso_url and turso_token:
+                self._turso_conn = libsql.connect(
+                    "turso-db",
+                    sync_url=turso_url,
+                    auth_token=turso_token
+                )
+                # Inicializar tablas en Turso
+                self._init_turso_tables()
+                print(f"[DB] ✅ Conectado a Turso: {turso_url}")
+            else:
+                print("[DB] Turso no configurado, usando SQLite local")
+        except Exception as e:
+            print(f"[DB] ❌ Error conectando a Turso: {e}")
+            self._turso_conn = None
+    
+    def _init_turso_tables(self):
+        """Crear tablas en Turso si no existen"""
+        if not self._turso_conn:
+            return
+        
+        with self._turso_lock:
+            # Proyectos
+            self._turso_conn.execute('''
+                CREATE TABLE IF NOT EXISTS projects (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT NOT NULL,
+                    path TEXT NOT NULL,
+                    git_url TEXT,
+                    repo_owner TEXT,
+                    repo_name TEXT,
+                    branch TEXT DEFAULT 'main',
+                    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                    last_accessed TEXT DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')
+            
+            # Conversaciones
+            self._turso_conn.execute('''
+                CREATE TABLE IF NOT EXISTS conversations (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    project_id INTEGER,
+                    title TEXT,
+                    status TEXT DEFAULT 'active',
+                    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')
+            
+            # Mensajes
+            self._turso_conn.execute('''
+                CREATE TABLE IF NOT EXISTS messages (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    conversation_id INTEGER,
+                    role TEXT NOT NULL,
+                    content TEXT NOT NULL,
+                    created_at TEXT DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')
+            
+            self._turso_conn.commit()
+    
+    def _use_turso(self) -> bool:
+        """¿Usar Turso para operaciones de datos?"""
+        return self._turso_conn is not None
+    
+    def _get_data_connection(self):
+        """Obtener conexión para datos (Turso si disponible, sino local)"""
+        if self._use_turso():
+            return self._turso_conn
+        return self._conn
     
     def _get_connection(self):
-        """Obtener conexión (reutiliza la persistente)"""
+        """Obtener conexión local (para settings)"""
         return self._conn
     
     def _execute(self, query, params=(), fetch=None):
-        """Ejecutar query de forma thread-safe"""
+        """Ejecutar query en SQLite LOCAL (para settings)"""
         with self._db_lock:
             cursor = self._conn.cursor()
             cursor.execute(query, params)
@@ -72,6 +172,42 @@ class Database:
                 result = cursor.lastrowid
                 self._conn.commit()
             return result
+    
+    def _execute_data(self, query, params=(), fetch=None):
+        """Ejecutar query para DATOS (Turso si disponible)"""
+        if self._use_turso():
+            with self._turso_lock:
+                cursor = self._turso_conn.execute(query, params)
+                if fetch == 'one':
+                    result = cursor.fetchone()
+                elif fetch == 'all':
+                    result = cursor.fetchall()
+                else:
+                    result = cursor.lastrowid
+                    self._turso_conn.commit()
+                return result
+        else:
+            return self._execute(query, params, fetch)
+    
+    def _get_data_conn(self):
+        """Obtener conexión para datos (Turso o SQLite local)
+        
+        IMPORTANTE: Si usa Turso, retorna la conexión de Turso.
+        Si no, retorna una NUEVA conexión SQLite (para compatibilidad).
+        El caller debe cerrar la conexión si es SQLite local.
+        """
+        if self._use_turso():
+            return self._turso_conn, False  # No cerrar
+        else:
+            conn, should_close = self._get_data_conn()
+            conn.row_factory = sqlite3.Row
+            return conn, True  # Cerrar después de usar
+    
+    def reconnect_turso(self):
+        """Reconectar a Turso (llamar después de guardar nuevas credenciales)"""
+        self._turso_conn = None
+        self._init_turso()
+        return self._use_turso()
     
     def _get_cipher(self, use_legacy: bool = False) -> Fernet:
         """Obtener cipher para encriptar/desencriptar (CACHED)"""
@@ -101,7 +237,7 @@ class Database:
     
     def _init_db(self):
         """Inicializar tablas"""
-        conn = sqlite3.connect(self.db_path)
+        conn, should_close = self._get_data_conn()
         cursor = conn.cursor()
         
         # Tabla de configuración
@@ -167,7 +303,7 @@ class Database:
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_messages_created ON messages(created_at)')
         
         conn.commit()
-        conn.close()
+        if should_close: conn.close()
     
     def _migrate_tables(self, cursor):
         """Migrar tablas existentes - NUNCA borrar datos"""
@@ -275,7 +411,7 @@ class Database:
     
     def add_project(self, name: str, path: str, git_url: str = None) -> int:
         """Agregar proyecto"""
-        conn = sqlite3.connect(self.db_path)
+        conn, should_close = self._get_data_conn()
         cursor = conn.cursor()
         
         cursor.execute('''
@@ -285,13 +421,14 @@ class Database:
         
         project_id = cursor.lastrowid
         conn.commit()
-        conn.close()
+        if should_close:
+            if should_close: conn.close()
         
         return project_id
     
     def get_projects(self) -> list:
         """Obtener todos los proyectos"""
-        conn = sqlite3.connect(self.db_path)
+        conn, should_close = self._get_data_conn()
         cursor = conn.cursor()
         
         cursor.execute('''
@@ -301,7 +438,8 @@ class Database:
         ''')
         
         rows = cursor.fetchall()
-        conn.close()
+        if should_close:
+            if should_close: conn.close()
         
         return [
             {
@@ -317,25 +455,26 @@ class Database:
     
     def update_project_access(self, project_id: int):
         """Actualizar última vez accedido"""
-        conn = sqlite3.connect(self.db_path)
+        conn, should_close = self._get_data_conn()
         cursor = conn.cursor()
         cursor.execute('''
             UPDATE projects SET last_accessed = CURRENT_TIMESTAMP
             WHERE id = ?
         ''', (project_id,))
         conn.commit()
-        conn.close()
+        if should_close:
+            if should_close: conn.close()
 
     def get_project(self, project_id: int) -> dict:
         """Obtener proyecto por ID"""
-        conn = sqlite3.connect(self.db_path)
+        conn, should_close = self._get_data_conn()
         cursor = conn.cursor()
         cursor.execute('''
             SELECT id, name, path, git_url, repo_owner, repo_name, branch
             FROM projects WHERE id = ?
         ''', (project_id,))
         row = cursor.fetchone()
-        conn.close()
+        if should_close: conn.close()
         if row:
             return {
                 'id': row[0],
@@ -350,7 +489,7 @@ class Database:
 
     def get_project_by_name(self, name: str) -> dict:
         """Obtener proyecto por nombre (exacto o parcial)"""
-        conn = sqlite3.connect(self.db_path)
+        conn, should_close = self._get_data_conn()
         cursor = conn.cursor()
         
         # Primero buscar exacto
@@ -371,7 +510,7 @@ class Database:
                 cursor.execute('SELECT id, name, path, git_url, repo_owner, repo_name, branch FROM projects WHERE repo_owner = ? AND repo_name = ?', (parts[0], parts[1]))
                 row = cursor.fetchone()
         
-        conn.close()
+        if should_close: conn.close()
         if row:
             return {
                 'id': row[0], 
@@ -388,7 +527,7 @@ class Database:
 
     def create_conversation(self, project_id: int, title: str = None) -> int:
         """Crear nueva conversación"""
-        conn = sqlite3.connect(self.db_path)
+        conn, should_close = self._get_data_conn()
         cursor = conn.cursor()
         cursor.execute('''
             INSERT INTO conversations (project_id, title)
@@ -396,7 +535,7 @@ class Database:
         ''', (project_id, title or "Nueva conversación"))
         conv_id = cursor.lastrowid
         conn.commit()
-        conn.close()
+        if should_close: conn.close()
         return conv_id
 
     def get_conversation(self, conv_id_or_project_id: int, by_conv_id: bool = False) -> dict:
@@ -406,7 +545,7 @@ class Database:
             conv_id_or_project_id: ID de conversación o proyecto según by_conv_id
             by_conv_id: Si True, busca por conversation_id, si False por project_id
         """
-        conn = sqlite3.connect(self.db_path)
+        conn, should_close = self._get_data_conn()
         cursor = conn.cursor()
         
         if by_conv_id:
@@ -430,7 +569,7 @@ class Database:
             ''', (conv_id_or_project_id,))
         
         row = cursor.fetchone()
-        conn.close()
+        if should_close: conn.close()
         
         if row:
             return {
@@ -456,7 +595,7 @@ class Database:
 
     def add_message(self, conversation_id: int, role: str, content: str) -> int:
         """Agregar mensaje a la conversación"""
-        conn = sqlite3.connect(self.db_path)
+        conn, should_close = self._get_data_conn()
         cursor = conn.cursor()
         cursor.execute('''
             INSERT INTO messages (conversation_id, role, content)
@@ -464,12 +603,12 @@ class Database:
         ''', (conversation_id, role, content))
         msg_id = cursor.lastrowid
         conn.commit()
-        conn.close()
+        if should_close: conn.close()
         return msg_id
 
     def get_messages(self, conversation_id: int) -> list:
         """Obtener mensajes de una conversación"""
-        conn = sqlite3.connect(self.db_path)
+        conn, should_close = self._get_data_conn()
         cursor = conn.cursor()
         cursor.execute('''
             SELECT id, role, content, created_at FROM messages
@@ -477,7 +616,7 @@ class Database:
             ORDER BY created_at ASC
         ''', (conversation_id,))
         rows = cursor.fetchall()
-        conn.close()
+        if should_close: conn.close()
         return [
             {'id': row[0], 'role': row[1], 'content': row[2], 'created_at': row[3]}
             for row in rows
@@ -493,28 +632,28 @@ class Database:
 
     def clear_messages(self, conversation_id: int):
         """Borrar solo los mensajes de una conversación (mantiene la conversación)"""
-        conn = sqlite3.connect(self.db_path)
+        conn, should_close = self._get_data_conn()
         cursor = conn.cursor()
         cursor.execute('DELETE FROM messages WHERE conversation_id = ?', (conversation_id,))
         conn.commit()
-        conn.close()
+        if should_close: conn.close()
 
     def delete_conversation(self, conversation_id: int):
         """Eliminar conversación y sus mensajes"""
-        conn = sqlite3.connect(self.db_path)
+        conn, should_close = self._get_data_conn()
         cursor = conn.cursor()
         cursor.execute('DELETE FROM messages WHERE conversation_id = ?', (conversation_id,))
         cursor.execute('DELETE FROM conversations WHERE id = ?', (conversation_id,))
         conn.commit()
-        conn.close()
+        if should_close: conn.close()
 
     def delete_project(self, project_id: int):
         """Eliminar proyecto"""
-        conn = sqlite3.connect(self.db_path)
+        conn, should_close = self._get_data_conn()
         cursor = conn.cursor()
         cursor.execute('DELETE FROM projects WHERE id = ?', (project_id,))
         conn.commit()
-        conn.close()
+        if should_close: conn.close()
 
     # === GITHUB ===
     
@@ -588,7 +727,7 @@ class Database:
                                repo_name: str, branch: str = 'main', 
                                git_url: str = None) -> int:
         """Agregar proyecto con información de repositorio"""
-        conn = sqlite3.connect(self.db_path)
+        conn, should_close = self._get_data_conn()
         cursor = conn.cursor()
         
         cursor.execute('''
@@ -598,13 +737,13 @@ class Database:
         
         project_id = cursor.lastrowid
         conn.commit()
-        conn.close()
+        if should_close: conn.close()
         
         return project_id
     
     def get_project_by_repo(self, repo_owner: str, repo_name: str, branch: str) -> dict:
         """Obtener proyecto por repo y branch"""
-        conn = sqlite3.connect(self.db_path)
+        conn, should_close = self._get_data_conn()
         cursor = conn.cursor()
         cursor.execute('''
             SELECT id, name, path, git_url, repo_owner, repo_name, branch
@@ -612,7 +751,7 @@ class Database:
             WHERE repo_owner = ? AND repo_name = ? AND branch = ?
         ''', (repo_owner, repo_name, branch))
         row = cursor.fetchone()
-        conn.close()
+        if should_close: conn.close()
         if row:
             return {
                 'id': row[0], 'name': row[1], 'path': row[2],
@@ -625,7 +764,7 @@ class Database:
     
     def get_all_conversations(self, limit: int = 50) -> list:
         """Obtener todas las conversaciones recientes con info del proyecto"""
-        conn = sqlite3.connect(self.db_path)
+        conn, should_close = self._get_data_conn()
         cursor = conn.cursor()
         cursor.execute('''
             SELECT c.id, c.title, c.status, c.created_at, c.updated_at,
@@ -637,7 +776,7 @@ class Database:
             LIMIT ?
         ''', (limit,))
         rows = cursor.fetchall()
-        conn.close()
+        if should_close: conn.close()
         
         return [
             {
@@ -657,7 +796,7 @@ class Database:
     
     def update_conversation(self, conversation_id: int, title: str = None, status: str = None):
         """Actualizar conversación"""
-        conn = sqlite3.connect(self.db_path)
+        conn, should_close = self._get_data_conn()
         cursor = conn.cursor()
         
         updates = ['updated_at = CURRENT_TIMESTAMP']
@@ -678,11 +817,11 @@ class Database:
         ''', params)
         
         conn.commit()
-        conn.close()
+        if should_close: conn.close()
     
     def get_conversations_by_project(self, project_id: int) -> list:
         """Obtener conversaciones de un proyecto"""
-        conn = sqlite3.connect(self.db_path)
+        conn, should_close = self._get_data_conn()
         cursor = conn.cursor()
         cursor.execute('''
             SELECT id, title, status, created_at, updated_at
@@ -691,7 +830,7 @@ class Database:
             ORDER BY updated_at DESC
         ''', (project_id,))
         rows = cursor.fetchall()
-        conn.close()
+        if should_close: conn.close()
         
         return [
             {

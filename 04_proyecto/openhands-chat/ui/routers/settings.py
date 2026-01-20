@@ -314,13 +314,17 @@ async def save_turso_config(request: Request):
     except Exception as e:
         return JSONResponse({"success": False, "error": f"No se pudo conectar: {str(e)}"})
     
-    # Guardar credenciales
+    # Guardar credenciales (en SQLite local)
     db.set_setting('turso_url', url)
     db.set_setting('turso_token', token, encrypt=True)
     
-    # TODO: Migrar datos existentes a Turso
+    # Reconectar a Turso con las nuevas credenciales
+    connected = db.reconnect_turso()
     
-    return JSONResponse({"success": True})
+    if connected:
+        return JSONResponse({"success": True, "message": "Conectado a Turso"})
+    else:
+        return JSONResponse({"success": False, "error": "Credenciales guardadas pero no se pudo conectar"})
 
 
 @router.delete("/turso")
