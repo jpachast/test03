@@ -308,3 +308,111 @@ def process_message(message: str, workspace: str) -> Dict[str, Any]:
         'thinking_steps': thinking_steps,
         'suggestions': get_suggestions(intention['intention'])
     }
+
+
+# ============================================================
+# 8. CONTEXT PINNING - Archivos importantes siempre en contexto
+# ============================================================
+
+PINS_FILE = '/app/data/pinned_files.json'
+
+def get_pinned_files(project: str = None) -> List[Dict]:
+    """Obtiene archivos pinneados para un proyecto."""
+    if not os.path.exists(PINS_FILE):
+        return []
+    try:
+        with open(PINS_FILE, 'r') as f:
+            all_pins = json.load(f)
+        if project:
+            return all_pins.get(project, [])
+        return all_pins
+    except:
+        return []
+
+def pin_file(file_path: str, project: str, description: str = None) -> Dict:
+    """Fija un archivo para que siempre esté en contexto."""
+    all_pins = {}
+    if os.path.exists(PINS_FILE):
+        try:
+            with open(PINS_FILE, 'r') as f:
+                all_pins = json.load(f)
+        except:
+            pass
+    if project not in all_pins:
+        all_pins[project] = []
+    for pin in all_pins[project]:
+        if pin['path'] == file_path:
+            return {'success': False, 'error': 'Already pinned'}
+    pin_data = {
+        'path': file_path,
+        'description': description or os.path.basename(file_path),
+        'pinned_at': datetime.now().isoformat()
+    }
+    all_pins[project].append(pin_data)
+    try:
+        os.makedirs(os.path.dirname(PINS_FILE), exist_ok=True)
+        with open(PINS_FILE, 'w') as f:
+            json.dump(all_pins, f, indent=2)
+        return {'success': True, 'pin': pin_data}
+    except Exception as e:
+        return {'success': False, 'error': str(e)}
+
+def unpin_file(file_path: str, project: str) -> Dict:
+    """Quita un archivo del contexto fijo."""
+    if not os.path.exists(PINS_FILE):
+        return {'success': False, 'error': 'No pins file'}
+    try:
+        with open(PINS_FILE, 'r') as f:
+            all_pins = json.load(f)
+        if project not in all_pins:
+            return {'success': False, 'error': 'Project not found'}
+        original_count = len(all_pins[project])
+        all_pins[project] = [p for p in all_pins[project] if p['path'] != file_path]
+        if len(all_pins[project]) == original_count:
+            return {'success': False, 'error': 'File not pinned'}
+        with open(PINS_FILE, 'w') as f:
+            json.dump(all_pins, f, indent=2)
+        return {'success': True}
+    except Exception as e:
+        return {'success': False, 'error': str(e)}
+
+def get_pinned_content(project: str, workspace: str, max_chars: int = 3000) -> str:
+    """Obtiene el contenido de archivos pinneados para incluir en contexto."""
+    pins = get_pinned_files(project)
+    if not pins:
+        return ""
+    contents = []
+    total_chars = 0
+    for pin in pins:
+        file_path = pin['path']
+        full_path = os.path.join(workspace, file_path) if not file_path.startswith('/') else file_path
+        if not os.path.exists(full_path):
+            continue
+        try:
+            with open(full_path, 'r', encoding='utf-8', errors='ignore') as f:
+                content = f.read()
+            if len(content) > 1000:
+                content = content[:1000] + '... (truncado)'
+            if total_chars + len(content) > max_chars:
+                break
+            contents.append(f"📌 {pin['path']}:" + "\n```\n" + content + "\n```")
+            total_chars += len(content)
+        except:
+            continue
+    if not contents:
+        return ""
+    return "<PINNED_FILES>\n" + "\n\n".join(contents) + "\n</PINNED_FILES>"
+
+def auto_detect_important_files(workspace: str) -> List[str]:
+    """Detecta automáticamente archivos importantes del proyecto."""
+    important_patterns = [
+        'README.md', 'config.py', 'config.json', 'settings.py',
+        '.env.example', 'requirements.txt', 'package.json',
+        'main.py', 'app.py', 'index.js',
+    ]
+    found = []
+    for pattern in important_patterns:
+        full_path = os.path.join(workspace, pattern)
+        if os.path.exists(full_path):
+            found.append(pattern)
+    return found[:5]

@@ -39,7 +39,9 @@ from core.memory import (
 from core.message_preprocessor import analyze_and_enrich_message
 from core.smart_chat import (
     process_message as smart_process_message,
-    create_checkpoint, get_suggestions, detect_intention
+    create_checkpoint, get_suggestions, detect_intention,
+    pin_file, unpin_file, get_pinned_files, get_pinned_content,
+    auto_detect_important_files
 )
 
 import re as re_module
@@ -788,6 +790,15 @@ async def stream_message(
         actual_message = message
         smart_analysis = None
         
+        # Agregar contenido de archivos pinneados al contexto
+        try:
+            pinned_content = get_pinned_content(project, workspace, max_chars=2000)
+            if pinned_content:
+                actual_message = f"{message}\n\n{pinned_content}"
+                print(f"[PINS] Added {len(pinned_content)} chars of pinned content")
+        except Exception as e:
+            print(f"[PINS] Error: {e}")
+        
         try:
             smart_analysis = smart_process_message(message, workspace)
             
@@ -936,3 +947,34 @@ async def get_messages(project_name: str):
     """Obtener mensajes de un proyecto"""
     messages = db.get_messages_by_project(project_name)
     return JSONResponse({"messages": messages})
+
+# ============================================================
+# CONTEXT PINNING ENDPOINTS
+# ============================================================
+
+@router.get("/pins/{project}")
+async def get_pins(project: str):
+    """Obtiene archivos pinneados para un proyecto."""
+    pins = get_pinned_files(project)
+    return {"pins": pins}
+
+@router.post("/pins/{project}")
+async def add_pin(project: str, file_path: str = Form(...), description: str = Form(None)):
+    """Fija un archivo al contexto."""
+    result = pin_file(file_path, project, description)
+    return result
+
+@router.delete("/pins/{project}/{file_path:path}")
+async def remove_pin(project: str, file_path: str):
+    """Quita un archivo del contexto."""
+    result = unpin_file(file_path, project)
+    return result
+
+@router.get("/pins/{project}/suggestions")
+async def get_pin_suggestions(project: str):
+    """Sugiere archivos importantes para pinnear."""
+    # Obtener workspace del proyecto
+    workspace = f"/app/projects/{project}"
+    suggestions = auto_detect_important_files(workspace)
+    return {"suggestions": suggestions}
+
