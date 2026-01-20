@@ -38,6 +38,23 @@ from core.memory import (
 # Preprocesador de mensajes - análisis de impacto OBLIGATORIO
 from core.message_preprocessor import analyze_and_enrich_message
 
+import re as re_module
+
+def clean_ansi(text):
+    """Elimina códigos de escape ANSI y secuencias de terminal"""
+    if not text:
+        return ""
+    # Códigos ANSI estándar
+    text = re_module.sub(r'\x1b\[[0-9;]*[a-zA-Z]', '', text)
+    # Secuencias de terminal como [?2004l, [?2004h
+    text = re_module.sub(r'\[\?[0-9]+[a-z]', '', text)
+    # Secuencias @[?...
+    text = re_module.sub(r'@\[\?[0-9]+[a-z]:?', '', text)
+    # Caracteres de control
+    text = re_module.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f]', '', text)
+    return text.strip()
+
+
 router = APIRouter(prefix="/api/chat", tags=["chat"])
 db = Database()
 settings = Settings()
@@ -350,11 +367,11 @@ def create_streaming_callback(q, conv_id=None):
                         
                         if output and len(output) > 0:
                             preview = output[:100].replace('\n', ' ')
-                            q.put({"type": "output", "icon": "📋", "text": f"Resultado: {preview}"})
+                            pass  # No mostrar output técnico del comando
                             # Enviar output a la terminal (solo lectura)
                             q.put({
                                 "type": "terminal_output", 
-                                "output": output[:2000],  # Limitar output
+                                "output": clean_ansi(output[:2000]),  # Limitar output
                                 "stderr": str(stderr)[:500] if stderr else "",
                                 "exit_code": exit_code
                             })
@@ -372,11 +389,11 @@ def create_streaming_callback(q, conv_id=None):
                         if content:
                             # Mostrar resumen en output
                             preview = content[:100].replace('\n', ' ')
-                            q.put({"type": "output", "icon": "✅", "text": f"Archivo modificado: {preview}"})
+                            q.put({"type": "output", "icon": "✅", "text": "Archivo modificado"})
                             # Enviar a terminal
                             q.put({
                                 "type": "terminal_output",
-                                "output": content[:1000],
+                                "output": clean_ansi(content[:1000]),
                                 "stderr": "",
                                 "exit_code": 0
                             })
