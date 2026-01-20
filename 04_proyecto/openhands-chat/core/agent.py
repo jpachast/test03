@@ -1,15 +1,13 @@
 """
-Agente OpenHands - Con análisis de impacto inteligente
+Agente OpenHands - Nivel TOP (Cursor, Devin, OpenHands Cloud)
 
-Usa los prompts oficiales de OpenHands + herramientas de análisis.
-Incluye TODAS las tools oficiales del SDK:
-- terminal, file_editor, task_tracker
-- browser tools (11 herramientas)
-- glob, grep, delegate
-- MCP tools (Tavily, GitHub) si están configurados
-- analyze_impact, find_references (NUEVAS - análisis antes de editar)
-
-El agente DEBE usar analyze_impact ANTES de modificar código compartido.
+Características TOP integradas:
+- Análisis de impacto inteligente (antes de modificar código)
+- Búsqueda semántica de código (ChromaDB)
+- Debug Mode estructurado (hipótesis → evidencia → fix)
+- Project Rules persistentes (.openhands/rules.md)
+- Browser inteligente con retry y cookie sharing
+- Memoria conversacional mejorada
 
 Referencia: https://docs.openhands.dev/sdk/getting-started
 """
@@ -17,7 +15,6 @@ import os
 import logging
 
 # Configurar timeouts de browser-use para contenedores (antes de importar)
-# Estos valores aumentan los timeouts default de 30s a 120s
 os.environ.setdefault("TIMEOUT_BrowserStartEvent", "120.0")
 os.environ.setdefault("TIMEOUT_BrowserLaunchEvent", "120.0")
 os.environ.setdefault("TIMEOUT_BrowserConnectedEvent", "120.0")
@@ -44,9 +41,14 @@ from openhands.tools.grep import GrepTool
 # Delegate tool - para sub-agentes
 from openhands.tools.delegate import DelegateTool
 
-# Analysis tools - NUEVO: análisis de impacto antes de editar
+# Analysis tools - análisis de impacto antes de editar
 from .indexer import CodeIndexer, set_indexer
 from .analyzer import CodeAnalyzer
+
+# TOP Features - Nuevos módulos
+from .semantic_search import SemanticSearch, get_semantic_search, set_semantic_search
+from .debug_mode import DebugSession, create_debug_session, get_active_debug_session
+from .project_rules import ProjectRules, get_project_rules, set_project_rules
 
 # Directorio de la aplicación
 APP_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -365,6 +367,194 @@ When asked to pull/clone the repository:
   4. Explain your reasoning process in your response to the user
 * When you run into any major issue while executing a plan from the user, please don't try to directly work around it. Instead, propose a new plan and confirm with the user before proceeding.
 </TROUBLESHOOTING>
+""")
+
+    # ============================================
+    # TOP FEATURES - Características nivel Cursor/Devin
+    # ============================================
+
+    # 3.8 DEBUG MODE - Debugging estructurado como Cursor
+    suffix_parts.append("""
+<DEBUG_MODE>
+## Structured Debugging Workflow (like Cursor Debug Mode)
+
+When debugging a bug, follow this systematic process:
+
+### Phase 1: HYPOTHESIZE
+Generate 3-5 possible causes for the bug based on:
+- Error messages and stack traces
+- Recent code changes
+- Common patterns (null values, async issues, type errors)
+
+### Phase 2: INSTRUMENT
+Add strategic logging to verify hypotheses:
+```python
+# Python
+print(f"[DEBUG] Entering function_name, args={locals()}")
+print(f"[DEBUG] Variable state: {variable}")
+```
+```javascript
+// JavaScript
+console.log("[DEBUG] Entering function", arguments);
+console.log("[DEBUG] State:", variable);
+```
+
+### Phase 3: REPRODUCE & COLLECT
+- Ask user to reproduce the bug
+- Collect log output
+- Analyze actual behavior vs expected
+
+### Phase 4: FIX WITH EVIDENCE
+- Only fix based on evidence from logs, NOT guesses
+- Make targeted fixes addressing the root cause
+- Remove debug logs after fix is verified
+
+### NEVER:
+- Guess at fixes without evidence
+- Make broad changes hoping to fix the issue
+- Skip the hypothesis phase
+
+### Example:
+```
+Bug: "Login sometimes fails"
+
+Hypotheses:
+1. [HIGH] Race condition in async token validation
+2. [MEDIUM] Token expiration timing issue  
+3. [LOW] Network timeout on slow connections
+
+Instrumentation for #1:
+- Add log before/after await validateToken()
+- Log timestamp at each step
+
+After collecting logs:
+- Found: validateToken completes AFTER login check
+- Fix: Add proper await on line 45
+```
+</DEBUG_MODE>
+""")
+
+    # 3.9 SEMANTIC SEARCH - Búsqueda inteligente de código
+    suffix_parts.append("""
+<SEMANTIC_SEARCH>
+## Smart Code Search
+
+When the user asks questions like:
+- "¿Dónde está la autenticación?"
+- "¿Cómo funciona el login?"
+- "Encuentra código relacionado con pagos"
+
+Use semantic understanding, not just text matching:
+
+### Approach:
+1. **Understand intent** - What concept/functionality is the user looking for?
+2. **Search broadly** - Check multiple file types and patterns
+3. **Follow connections** - Trace imports, function calls, references
+
+### Search Strategy:
+```bash
+# For "authentication/login":
+grep -rn "auth|login|session|token|password" --include="*.py" --include="*.js"
+
+# For "database/storage":
+grep -rn "db|database|query|model|repository" --include="*.py"
+
+# For "API endpoints":
+grep -rn "@app.route|@router|endpoint|api" --include="*.py"
+```
+
+### Report findings organized by:
+1. **Definitions** - Where the concept is implemented
+2. **Usage** - Where it's called/referenced
+3. **Configuration** - Related settings/env vars
+</SEMANTIC_SEARCH>
+""")
+
+    # 3.10 PROJECT RULES - Cargar reglas del proyecto si existen
+    if workspace:
+        try:
+            rules = ProjectRules(workspace)
+            project_context = rules.get_full_context()
+            if project_context:
+                suffix_parts.append(f"""
+<PROJECT_SPECIFIC_RULES>
+{project_context}
+</PROJECT_SPECIFIC_RULES>
+""")
+                logger.info(f"[AGENT] Loaded project rules from {workspace}/.openhands/")
+        except Exception as e:
+            logger.debug(f"[AGENT] No project rules found: {e}")
+
+    # 3.11 CODEBASE MAPPING - Entender antes de modificar
+    suffix_parts.append("""
+<CODEBASE_UNDERSTANDING>
+## Map the Codebase First
+
+For complex tasks, map the codebase structure before making changes:
+
+### Quick Mapping Commands:
+```bash
+# Project structure
+find . -type f -name "*.py" | head -20
+tree -L 2 -I "node_modules|__pycache__|.git"
+
+# Main entry points
+grep -l "if __name__" *.py 2>/dev/null
+grep -l "app.run|main()" --include="*.py" -r
+
+# Configuration
+ls -la *.json *.yaml *.toml *.env* 2>/dev/null
+
+# Dependencies
+cat requirements.txt 2>/dev/null | head -20
+cat package.json 2>/dev/null | jq '.dependencies'
+```
+
+### Understanding Flow:
+1. **Entry Point** → What starts the application?
+2. **Routes/Handlers** → How are requests processed?
+3. **Business Logic** → Where are core operations?
+4. **Data Layer** → How is data stored/retrieved?
+5. **External Services** → What APIs/services are used?
+
+### Before Major Changes:
+- Draw mental map of affected components
+- Identify all files that will need changes
+- Consider impact on tests
+- Plan rollback strategy
+</CODEBASE_UNDERSTANDING>
+""")
+
+    # 3.12 BROWSER BEST PRACTICES - Scraping y navegación inteligente
+    suffix_parts.append("""
+<BROWSER_BEST_PRACTICES>
+## Smart Web Interaction
+
+When navigating websites or scraping data:
+
+### 1. Adapt to Failures
+If a selector fails:
+- Try alternative selectors (by text, aria-label, role)
+- Check if page structure changed
+- Look for dynamic content loading
+
+### 2. Handle Dynamic Content
+```
+- Wait for elements: page.wait_for_selector()
+- Wait for network: wait_until="networkidle"
+- Check for loading indicators
+```
+
+### 3. Session Management
+- Save cookies/storage for authenticated sessions
+- Reuse sessions to avoid repeated logins
+- Respect rate limits
+
+### 4. Content Extraction
+- Prefer structured data (JSON APIs) over scraping HTML
+- Clean extracted text (remove ads, navigation)
+- Validate extracted data before using
+</BROWSER_BEST_PRACTICES>
 """)
     
     system_suffix = "\n".join(suffix_parts)
