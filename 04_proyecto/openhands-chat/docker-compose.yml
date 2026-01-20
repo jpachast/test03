@@ -7,9 +7,20 @@ services:
     ports:
       - "80:12000"
     volumes:
+      # Datos persistentes
       - ./data:/app/data
       - ./projects:/app/projects
-      - ../../:/workspace/project/test03:rw  # Montar raíz del repo test03 (rw para poder editar)
+      
+      # Código fuente como volúmenes (cambios se reflejan inmediatamente)
+      - ./static:/app/static
+      - ./ui:/app/ui
+      - ./core:/app/core
+      - ./config:/app/config
+      - ./app.py:/app/app.py
+      - ./requirements.txt:/app/requirements.txt
+      
+      # Repo test03 para el agente
+      - ../../:/workspace/project/test03:rw
     restart: unless-stopped
     environment:
       - PYTHONUNBUFFERED=1
