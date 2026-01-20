@@ -708,16 +708,49 @@ async def stream_message(
         if conversation_id:
             active_sdk_conversations[conversation_id] = conv
         
+        # ============================================================
+        # HISTORIAL DE CONVERSACIÓN - El agente debe recordar mensajes previos
+        # ============================================================
+        conversation_history = ""
+        if conversation_id:
+            # Obtener últimos N mensajes de esta conversación (excluyendo el actual)
+            messages = db.get_messages(conversation_id)
+            # Filtrar: excluir el mensaje actual que acabamos de guardar
+            # y limitar a los últimos 10 mensajes para no sobrecargar
+            recent_messages = messages[:-1] if messages else []  # Excluir el actual
+            recent_messages = recent_messages[-10:]  # Últimos 10
+            
+            if recent_messages:
+                history_parts = []
+                for msg in recent_messages:
+                    role = "Usuario" if msg['role'] == 'user' else "Asistente"
+                    # Truncar mensajes muy largos
+                    content = msg['content'][:500] + "..." if len(msg['content']) > 500 else msg['content']
+                    history_parts.append(f"{role}: {content}")
+                
+                conversation_history = "\n\n".join(history_parts)
+                print(f"[HISTORY] Added {len(recent_messages)} previous messages to context")
+        
         # MEMORIA RAG: Recuperar contexto relevante del historial
         memory_context = get_context_for_message(message, project=project)
         
-        # Enriquecer mensaje con info del repo si es comando git
+        # Construir mensaje completo con historial y memoria
         actual_message = message
         
-        # Agregar contexto de memoria si existe
+        # Agregar historial de conversación (CRÍTICO para que el agente recuerde)
+        if conversation_history:
+            actual_message = f"""<CONVERSATION_HISTORY>
+Esta es nuestra conversación reciente. DEBES recordar este contexto:
+
+{conversation_history}
+</CONVERSATION_HISTORY>
+
+Mensaje actual del usuario: {message}"""
+        
+        # Agregar contexto de memoria RAG si existe
         if memory_context:
-            actual_message = f"{message}\n\n{memory_context}"
-            print(f"[MEMORY] Added context to message")
+            actual_message = f"{actual_message}\n\n{memory_context}"
+            print(f"[MEMORY] Added RAG context to message")
         if repo_info and repo_info.get('owner') and repo_info.get('name'):
             repo_owner = repo_info['owner']
             repo_name = repo_info['name']
