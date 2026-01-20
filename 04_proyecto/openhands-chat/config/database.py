@@ -199,7 +199,7 @@ class Database:
         if self._use_turso():
             return self._turso_conn, False  # No cerrar
         else:
-            conn, should_close = self._get_data_conn()
+            conn = sqlite3.connect(self.db_path)
             conn.row_factory = sqlite3.Row
             return conn, True  # Cerrar después de usar
     
@@ -236,8 +236,8 @@ class Database:
             return cipher
     
     def _init_db(self):
-        """Inicializar tablas"""
-        conn, should_close = self._get_data_conn()
+        """Inicializar tablas locales (siempre SQLite local)"""
+        conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
         
         # Tabla de configuración
@@ -303,7 +303,7 @@ class Database:
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_messages_created ON messages(created_at)')
         
         conn.commit()
-        if should_close: conn.close()
+        conn.close()
     
     def _migrate_tables(self, cursor):
         """Migrar tablas existentes - NUNCA borrar datos"""
@@ -422,7 +422,7 @@ class Database:
         project_id = cursor.lastrowid
         conn.commit()
         if should_close:
-            if should_close: conn.close()
+            conn.close()
         
         return project_id
     
@@ -439,7 +439,7 @@ class Database:
         
         rows = cursor.fetchall()
         if should_close:
-            if should_close: conn.close()
+            conn.close()
         
         return [
             {
@@ -463,7 +463,7 @@ class Database:
         ''', (project_id,))
         conn.commit()
         if should_close:
-            if should_close: conn.close()
+            conn.close()
 
     def get_project(self, project_id: int) -> dict:
         """Obtener proyecto por ID"""
