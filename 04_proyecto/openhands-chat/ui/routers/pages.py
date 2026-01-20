@@ -16,7 +16,7 @@ db = Database()
 templates_dir = Path(__file__).parent.parent / "templates"
 # OPTIMIZACIÓN: Desactivar auto_reload en producción (evita verificar cambios en cada request)
 is_production = os.environ.get("ENV", "production") != "development"
-templates = Jinja2Templates(directory=str(templates_dir), auto_reload=not is_production)
+templates = Jinja2Templates(directory=str(templates_dir), auto_reload=True)
 
 
 @router.get("/", response_class=HTMLResponse)

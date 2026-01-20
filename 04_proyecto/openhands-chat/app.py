@@ -343,7 +343,7 @@ def main():
         "ui.web:app",
         host=settings.host,
         port=settings.port,
-        reload=False,  # Desactivar reload para producción
+        reload=True,  # Activar reload para detectar cambios en archivos
         log_level="info"
     )
 

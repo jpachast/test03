@@ -795,6 +795,10 @@
             background: #21262d;
             color: #c9d1d9;
         }
+
+        #btn-limpiar {
+            color: white !important;
+        }
         
         .task-status {
             display: flex;
@@ -1326,3 +1330,4 @@
 .toast.toast-error {
     border-left: 4px solid #dc3545;
 }
+/* Test hot-reload Tue Jan 20 07:14:43 AM UTC 2026 */

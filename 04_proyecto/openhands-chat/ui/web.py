@@ -32,14 +32,13 @@ from ui.routers.browser import router as browser_router
 class CacheControlMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         response = await call_next(request)
-        # Cache para archivos estáticos (CSS, JS, imágenes)
+        # Cache solo para imágenes/fonts - NO para CSS/JS (permiten hot-reload del agente)
         if request.url.path.startswith("/static/"):
-            # Si tiene query string (cache-buster), cache muy largo (1 año)
-            # Si no tiene, cache corto (1 hora)
-            if request.url.query:
-                response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+            path = request.url.path.lower()
+            if any(ext in path for ext in ['.png', '.jpg', '.jpeg', '.gif', '.svg', '.ico', '.woff', '.woff2', '.ttf']):
+                response.headers["Cache-Control"] = "public, max-age=86400"  # 1 día para imágenes
             else:
-                response.headers["Cache-Control"] = "public, max-age=3600"
+                response.headers["Cache-Control"] = "no-cache, must-revalidate"  # Sin cache para CSS/JS
         return response
 
 # Inicializar
