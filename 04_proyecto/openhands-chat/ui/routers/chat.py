@@ -595,12 +595,17 @@ async def stream_message(
         return JSONResponse({"error": "API key no configurada"}, status_code=400)
     
     if project:
-        workspace = str(settings.projects_dir / project)
+        # Para test03, usar la raíz del repositorio montado (no crear carpeta en projects)
+        if "test03" in project.lower():
+            workspace = "/workspace/project/test03"
+        else:
+            workspace = str(settings.projects_dir / project)
     else:
         workspace = str(settings.projects_dir)
     
-    # Crear directorio si no existe
-    os.makedirs(workspace, exist_ok=True)
+    # Crear directorio si no existe (excepto test03 que ya está montado)
+    if "test03" not in workspace:
+        os.makedirs(workspace, exist_ok=True)
     current_workspace = workspace
     
     # Parsear imágenes si las hay

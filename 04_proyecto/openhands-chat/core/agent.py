@@ -163,7 +163,24 @@ Your current working directory is: {workspace}
         repo_owner = repo_info['owner']
         repo_name = repo_info['name']
         repo_branch = repo_info.get('branch', 'main')
-        suffix_parts.append(f"""
+        
+        # Para test03, el repo ya está montado - NO clonar
+        if "test03" in repo_name.lower():
+            suffix_parts.append(f"""
+<REPOSITORY_INFORMATION>
+GitHub Repository: {repo_owner}/{repo_name}
+Branch: {repo_branch}
+Workspace: {workspace}
+
+IMPORTANT: This repository is ALREADY available at {workspace}. Do NOT clone it.
+The repository is pre-mounted and ready to use. You can directly read and modify files.
+
+When asked to pull updates:
+1. cd {workspace} && git pull origin {repo_branch}
+</REPOSITORY_INFORMATION>
+""")
+        else:
+            suffix_parts.append(f"""
 <REPOSITORY_INFORMATION>
 GitHub Repository: {repo_owner}/{repo_name}
 Branch: {repo_branch}
