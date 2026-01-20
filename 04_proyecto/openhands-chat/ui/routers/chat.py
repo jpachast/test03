@@ -35,6 +35,8 @@ from core.memory import (
     save_file_change, save_command, save_agent_action,
     get_context_for_message, get_memory_stats
 )
+# Preprocesador de mensajes - análisis de impacto OBLIGATORIO
+from core.message_preprocessor import analyze_and_enrich_message
 
 router = APIRouter(prefix="/api/chat", tags=["chat"])
 db = Database()
@@ -742,8 +744,23 @@ async def stream_message(
         # MEMORIA RAG: Recuperar contexto relevante del historial
         memory_context = get_context_for_message(message, project=project)
         
+        # ============================================================
+        # ANÁLISIS DE IMPACTO OBLIGATORIO - Preprocesar mensaje
+        # ============================================================
+        # Esto detecta si el usuario quiere modificar CSS/código compartido
+        # y enriquece el mensaje con información de impacto para que el
+        # agente NO modifique selectores compartidos sin crear uno específico
+        try:
+            enriched_message, impact_metadata = analyze_and_enrich_message(message, workspace)
+            if impact_metadata.get("high_risk_changes"):
+                print(f"[IMPACT] ⚠️ High risk changes detected: {impact_metadata['high_risk_changes']}")
+                yield f"data: {json.dumps({'type': 'status', 'icon': '🔍', 'text': 'Analizando impacto...'})}\n\n"
+            actual_message = enriched_message
+        except Exception as e:
+            print(f"[IMPACT] Error in preprocessor: {e}")
+            actual_message = message
+        
         # Construir mensaje completo con historial y memoria
-        actual_message = message
         
         # Agregar historial de conversación (CRÍTICO para que el agente recuerde)
         if conversation_history:
