@@ -349,11 +349,28 @@ class Database:
         return None
 
     def get_project_by_name(self, name: str) -> dict:
-        """Obtener proyecto por nombre"""
+        """Obtener proyecto por nombre (exacto o parcial)"""
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
+        
+        # Primero buscar exacto
         cursor.execute('SELECT id, name, path, git_url, repo_owner, repo_name, branch FROM projects WHERE name = ?', (name,))
         row = cursor.fetchone()
+        
+        # Si no encuentra, buscar parcial (el nombre puede tener formato diferente)
+        if not row:
+            # Buscar proyectos que contengan el nombre (ej: "jpachast/test03" en "jpachast-test03/chat01")
+            search_name = name.replace('/', '-')  # Normalizar
+            cursor.execute('SELECT id, name, path, git_url, repo_owner, repo_name, branch FROM projects WHERE name LIKE ?', (f'%{search_name}%',))
+            row = cursor.fetchone()
+        
+        # También buscar por repo_owner/repo_name
+        if not row and '/' in name:
+            parts = name.split('/')
+            if len(parts) == 2:
+                cursor.execute('SELECT id, name, path, git_url, repo_owner, repo_name, branch FROM projects WHERE repo_owner = ? AND repo_name = ?', (parts[0], parts[1]))
+                row = cursor.fetchone()
+        
         conn.close()
         if row:
             return {
