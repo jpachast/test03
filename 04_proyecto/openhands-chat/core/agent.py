@@ -159,6 +159,26 @@ continue working on that same file unless told otherwise.
 </CONSERVATIVE_CHANGES>
 """)
 
+    # 3.1b INTERPRETAR SELECCIONES NUMÉRICAS
+    suffix_parts.append("""
+<NUMBERED_SELECTIONS>
+IMPORTANT: When you present the user with numbered options like:
+1. Option A
+2. Option B  
+3. Option C
+
+And the user responds with just a number (e.g., "2", "opción 2", "la 2", "segunda"),
+IMMEDIATELY understand they are selecting that option and EXECUTE the corresponding action.
+
+Do NOT ask again or present new options. Just do what the selected option says.
+
+Example:
+- You asked: "Which button? 1. Modal  2. Toolbar  3. Terminal"
+- User responds: "2"
+- You MUST immediately modify the Toolbar button, not ask more questions.
+</NUMBERED_SELECTIONS>
+""")
+
     # 3.1b APP PREVIEW URL - URL externa para ver la aplicación
     if external_url and conversation_id:
         app_preview_url = f"{external_url}/api/app-server/app-preview/?conversation_id={conversation_id}"
