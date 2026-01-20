@@ -1908,21 +1908,23 @@
                 
                 console.log('[STREAM END] finalMessage:', finalMessage ? finalMessage.substring(0, 100) + '...' : 'EMPTY');
                 console.log('[STREAM END] streamingText:', streamingText ? streamingText.substring(0, 100) + '...' : 'EMPTY');
+                console.log('[STREAM END] streamingDiv exists:', !!streamingDiv);
                 
                 // PRIORIDAD: usar streamingText si existe (ya se mostró en tiempo real)
                 // Si no hay streamingText, usar finalMessage del evento done
                 const messageToShow = streamingText || finalMessage;
                 
                 if (messageToShow) {
-                    // Si ya hay un div de streaming, convertirlo en mensaje permanente
-                    if (streamingDiv && streamingText) {
-                        streamingDiv.classList.remove('streaming');
-                        console.log('[STREAM END] Converted streaming div to permanent message');
-                    } else {
-                        // Si no hay streaming div, crear mensaje nuevo
-                        if (streamingDiv) streamingDiv.remove();
-                        addMessage(messageToShow, 'assistant');
+                    // SIEMPRE crear un mensaje nuevo con addMessage para garantizar que se muestre
+                    // Remover el div de streaming si existe (ya cumplió su función de preview)
+                    if (streamingDiv) {
+                        streamingDiv.remove();
+                        streamingDiv = null;
                     }
+                    
+                    // Agregar el mensaje final completo
+                    addMessage(messageToShow, 'assistant');
+                    console.log('[STREAM END] Added final message with addMessage()');
                     
                     setTaskStatus('completed', 'Tarea completada');
                     setTimeout(() => setTaskStatus('', 'Esperando tarea.'), 3000);
