@@ -1847,11 +1847,13 @@
                                 }
                                 
                                 if (data.type === 'done') {
+                                    console.log('[DONE EVENT]', data);
                                     finalMessage = data.message;
                                     // Si hay streaming activo, usar ese texto
                                     if (streamingText && !finalMessage) {
                                         finalMessage = streamingText;
                                     }
+                                    console.log('[FINAL MESSAGE LENGTH]', finalMessage ? finalMessage.length : 0);
                                 } else if (data.type === 'error') {
                                     progressDiv.querySelector('.progress-content').innerHTML = 
                                         `❌ Error: ${data.text}`;
@@ -1909,6 +1911,8 @@
                 // Remover progreso y mostrar mensaje final
                 progressDiv.remove();
                 
+                console.log('[STREAM END] finalMessage:', finalMessage ? finalMessage.substring(0, 100) + '...' : 'EMPTY');
+                
                 if (finalMessage) {
                     addMessage(finalMessage, 'assistant');
                     setTaskStatus('completed', 'Tarea completada');
@@ -1918,6 +1922,8 @@
                     if (currentConversationId) {
                         refreshBranchInfo(currentConversationId);
                     }
+                } else {
+                    console.warn('[STREAM END] No final message received!');
                 }
                 
             } catch (error) {
