@@ -334,9 +334,83 @@
             }
         }
         
+        // =============================================
+        // TURSO DATABASE
+        // =============================================
+        
+        async function checkTursoStatus() {
+            try {
+                const response = await fetch('/api/settings/turso');
+                const data = await response.json();
+                
+                if (data.connected) {
+                    document.getElementById('tursoNotConnected').style.display = 'none';
+                    document.getElementById('tursoConnected').style.display = 'flex';
+                    document.getElementById('tursoUrl').textContent = data.url || '';
+                } else {
+                    document.getElementById('tursoNotConnected').style.display = 'block';
+                    document.getElementById('tursoConnected').style.display = 'none';
+                    if (data.url) {
+                        document.getElementById('turso_url').value = data.url;
+                    }
+                }
+            } catch (error) {
+                console.error('Error checking Turso status:', error);
+            }
+        }
+        
+        async function saveTursoConfig() {
+            const url = document.getElementById('turso_url').value.trim();
+            const token = document.getElementById('turso_token').value.trim();
+            
+            if (!url || !token) {
+                alert('Por favor ingresa URL y Token');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/settings/turso', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url, token })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert('✅ Turso configurado correctamente');
+                    checkTursoStatus();
+                } else {
+                    alert('❌ Error: ' + (data.error || 'No se pudo conectar'));
+                }
+            } catch (error) {
+                alert('❌ Error: ' + error.message);
+            }
+        }
+        
+        async function disconnectTurso() {
+            if (!confirm('¿Desconectar Turso y volver a SQLite local?')) return;
+            
+            try {
+                const response = await fetch('/api/settings/turso', {
+                    method: 'DELETE'
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert('✅ Turso desconectado');
+                    checkTursoStatus();
+                }
+            } catch (error) {
+                alert('❌ Error: ' + error.message);
+            }
+        }
+        
         // Llamar checks al cargar
         document.addEventListener('DOMContentLoaded', () => {
             checkTavilyStatus();
             checkHetznerStatus();
             checkHetznerServerInfo();
+            checkTursoStatus();
         });

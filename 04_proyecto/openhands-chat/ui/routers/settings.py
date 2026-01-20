@@ -269,3 +269,63 @@ async def restart_hetzner_container():
         return JSONResponse({"success": True})
     except Exception as e:
         return JSONResponse({"error": f"Error reiniciando: {str(e)}"})
+
+
+# ============================================
+# Turso Database Endpoints
+# ============================================
+
+@router.get("/turso")
+async def get_turso_status():
+    """Verificar estado de conexión a Turso"""
+    url = db.get_setting('turso_url', '')
+    token = db.get_setting('turso_token', '')
+    
+    if not url or not token:
+        return JSONResponse({"connected": False, "url": url})
+    
+    # Verificar conexión
+    try:
+        import libsql_experimental as libsql
+        conn = libsql.connect("turso-test", sync_url=url, auth_token=token)
+        conn.execute("SELECT 1")
+        conn.close()
+        return JSONResponse({"connected": True, "url": url})
+    except Exception as e:
+        return JSONResponse({"connected": False, "url": url, "error": str(e)})
+
+
+@router.post("/turso")
+async def save_turso_config(request: Request):
+    """Guardar configuración de Turso y migrar datos"""
+    data = await request.json()
+    url = data.get('url', '').strip()
+    token = data.get('token', '').strip()
+    
+    if not url or not token:
+        return JSONResponse({"success": False, "error": "URL y Token requeridos"})
+    
+    # Validar conexión
+    try:
+        import libsql_experimental as libsql
+        conn = libsql.connect("turso-test", sync_url=url, auth_token=token)
+        conn.execute("SELECT 1")
+        conn.close()
+    except Exception as e:
+        return JSONResponse({"success": False, "error": f"No se pudo conectar: {str(e)}"})
+    
+    # Guardar credenciales
+    db.set_setting('turso_url', url)
+    db.set_setting('turso_token', token, encrypt=True)
+    
+    # TODO: Migrar datos existentes a Turso
+    
+    return JSONResponse({"success": True})
+
+
+@router.delete("/turso")
+async def delete_turso_config():
+    """Desconectar Turso y volver a SQLite local"""
+    db.set_setting('turso_url', '')
+    db.set_setting('turso_token', '')
+    return JSONResponse({"success": True})

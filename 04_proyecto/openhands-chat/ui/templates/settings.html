@@ -336,6 +336,47 @@
                     </div>
                 </div>
             </section>
+            
+            <!-- Turso Database -->
+            <section class="settings-section">
+                <h3>🗄️ Turso Database</h3>
+                <p class="section-description">Base de datos SQLite distribuida en la nube</p>
+                
+                <div class="github-card" id="tursoStatus">
+                    <div id="tursoNotConnected">
+                        <div class="github-form" style="display: flex; flex-direction: column; gap: 10px;">
+                            <input type="text" 
+                                id="turso_url"
+                                placeholder="URL (libsql://...turso.io)"
+                                value="{{ turso_url or '' }}"
+                                class="input-field">
+                            <input type="password" 
+                                id="turso_token"
+                                placeholder="Auth Token"
+                                class="input-field">
+                            <button class="btn-primary" onclick="saveTursoConfig()">
+                                💾 Guardar y Conectar
+                            </button>
+                        </div>
+                        <p class="help-text" style="margin-top: 10px;">
+                            <a href="https://turso.tech" target="_blank">
+                                Crear base de datos en Turso →
+                            </a>
+                        </p>
+                    </div>
+                    
+                    <div id="tursoConnected" class="github-connected" style="display:none;">
+                        <div class="github-info" style="margin-left: 0;">
+                            <h4>🗄️ Turso Database</h4>
+                            <p>✅ Conectado</p>
+                            <p id="tursoUrl" style="color: #888; font-size: 12px;"></p>
+                        </div>
+                        <button class="btn-disconnect" onclick="disconnectTurso()">
+                            Desconectar
+                        </button>
+                    </div>
+                </div>
+            </section>
         </div>
         
         <!-- Sección Aplicación -->
