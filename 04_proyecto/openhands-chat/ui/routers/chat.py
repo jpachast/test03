@@ -103,7 +103,7 @@ def _get_cached_agent(api_key: str, model: str, workspace: str, repo_info: dict 
                       external_url: str = None, conversation_id: int = None,
                       tavily_api_key: str = None, github_token: str = None,
                       vision_api_key: str = None, vision_model: str = None,
-                      base_url: str = None):
+                      base_url: str = None, user_message: str = None):
     """Obtiene un agente del cache o crea uno nuevo"""
     repo_key = f"{repo_info.get('owner', '')}/{repo_info.get('name', '')}" if repo_info else ""
     # Incluir external_url y conversation_id en cache key para que el agente tenga la URL correcta
@@ -122,7 +122,8 @@ def _get_cached_agent(api_key: str, model: str, workspace: str, repo_info: dict 
         api_key, model, base_url=base_url, workspace=workspace, repo_info=repo_info,
         external_url=external_url, conversation_id=conversation_id,
         tavily_api_key=tavily_api_key, github_token=github_token,
-        vision_api_key=db.get_api_key(), vision_model=vision_model
+        vision_api_key=db.get_api_key(), vision_model=vision_model,
+        user_message=user_message
     )
     _agent_cache[cache_key] = (agent, now)
     return agent, False  # Nuevo
@@ -725,7 +726,7 @@ async def stream_message(
             external_url=external_url, conversation_id=conversation_id,
             tavily_api_key=tavily_api_key, github_token=github_token,
             vision_api_key=db.get_api_key(), vision_model=settings.vision_model,
-            base_url=base_url
+            base_url=base_url, user_message=message
         )
         if from_cache:
             yield f"data: {json.dumps({'type': 'status', 'icon': '⚡', 'text': 'Listo!'})}\n\n"

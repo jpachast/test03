@@ -1,23 +1,18 @@
 """
-Agente OpenHands - Con análisis de impacto inteligente
+Agente OpenHands - Optimizado para eficiencia de tokens
 
-Usa los prompts oficiales de OpenHands + herramientas de análisis.
-Incluye TODAS las tools oficiales del SDK:
-- terminal, file_editor, task_tracker
-- browser tools (11 herramientas)
-- glob, grep, delegate
-- MCP tools (Tavily, GitHub) si están configurados
-- analyze_impact, find_references (NUEVAS - análisis antes de editar)
+ARQUITECTURA DE CAPAS:
+- CAPA 1: Core Universal (siempre) ~300 tokens
+- CAPA 2: Contexto Técnico (solo si aplica) ~500 tokens  
+- CAPA 3: Especializado (solo si aplica) ~200 tokens
 
-El agente DEBE usar analyze_impact ANTES de modificar código compartido.
-
-Referencia: https://docs.openhands.dev/sdk/getting-started
+Detecta el dominio del mensaje (técnico vs general) y envía SOLO
+el contexto necesario. Igual capacidad, menos tokens desperdiciados.
 """
 import os
+import re
 import logging
 
-# Configurar timeouts de browser-use para contenedores (antes de importar)
-# Estos valores aumentan los timeouts default de 30s a 120s
 os.environ.setdefault("TIMEOUT_BrowserStartEvent", "120.0")
 os.environ.setdefault("TIMEOUT_BrowserLaunchEvent", "120.0")
 os.environ.setdefault("TIMEOUT_BrowserConnectedEvent", "120.0")
@@ -29,39 +24,185 @@ from openhands.sdk.tool import Tool
 from openhands.sdk.context.condenser import LLMSummarizingCondenser
 from openhands.sdk.mcp import create_mcp_tools
 
-# Core tools - del paquete openhands-tools
 from openhands.tools.terminal import TerminalTool
 from openhands.tools.file_editor import FileEditorTool
 from openhands.tools.task_tracker import TaskTrackerTool
-
-# Browser tools - como OpenHands oficial
 from openhands.tools.browser_use import BrowserToolSet
-
-# Search tools - como OpenHands oficial
 from openhands.tools.glob import GlobTool
 from openhands.tools.grep import GrepTool
-
-# Delegate tool - para sub-agentes
 from openhands.tools.delegate import DelegateTool
 
-# Analysis tools - NUEVO: análisis de impacto antes de editar
 from .indexer import CodeIndexer, set_indexer
 from .analyzer import CodeAnalyzer
 
-# Directorio de la aplicación
 APP_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-
 logger = logging.getLogger(__name__)
 
 
-def get_mcp_tools(tavily_api_key: str = None, github_token: str = None) -> list:
+# ============================================================
+# DETECTOR DE DOMINIO - Técnico vs General
+# ============================================================
+
+def detect_domain(message: str) -> str:
     """
-    Crea MCP tools si las API keys están disponibles.
-    Igual que OpenHands Cloud.
-    """
-    mcp_tools = []
+    Detecta si el mensaje es técnico/código o general.
     
-    # Tavily MCP - búsquedas web en tiempo real
+    Returns:
+        "technical" - Para código, desarrollo, sistemas
+        "general" - Para cualquier otra cosa (vida, consejos, etc.)
+    """
+    if not message:
+        return "general"
+    
+    message_lower = message.lower()
+    
+    # Keywords técnicos
+    tech_keywords = [
+        # Acciones de código
+        'código', 'code', 'función', 'function', 'variable', 'clase', 'class',
+        'método', 'method', 'archivo', 'file', 'carpeta', 'folder', 'directorio',
+        # Lenguajes
+        'python', 'javascript', 'typescript', 'java', 'c#', 'csharp', '.net',
+        'dotnet', 'php', 'ruby', 'go', 'rust', 'html', 'css', 'sql',
+        # Frameworks
+        'react', 'vue', 'angular', 'django', 'flask', 'fastapi', 'spring',
+        'node', 'express', 'laravel', 'blazor', 'asp.net',
+        # Herramientas
+        'git', 'commit', 'push', 'pull', 'branch', 'merge', 'npm', 'pip',
+        'docker', 'kubernetes', 'deploy', 'servidor', 'server', 'api',
+        'database', 'base de datos', 'terminal', 'consola', 'comando',
+        # Acciones técnicas
+        'instalar', 'install', 'ejecutar', 'run', 'compilar', 'build',
+        'debugg', 'error', 'bug', 'fix', 'arregla', 'modifica', 'crea',
+        'elimina', 'borra', 'actualiza', 'refactoriza',
+        # UI/Frontend
+        'botón', 'button', 'formulario', 'form', 'estilo', 'style',
+        'componente', 'component', 'página', 'page', 'vista', 'view',
+    ]
+    
+    # Si contiene keywords técnicos
+    for kw in tech_keywords:
+        if kw in message_lower:
+            return "technical"
+    
+    # Patrones técnicos (rutas, extensiones, etc.)
+    tech_patterns = [
+        r'\.[a-z]{2,4}$',  # extensiones como .py, .js, .html
+        r'[/\\]',  # rutas de archivos
+        r'\{|\}|\[|\]',  # código
+        r'import |from |def |class |function',  # código
+        r'<[a-z]+>|</[a-z]+>',  # HTML tags
+    ]
+    
+    for pattern in tech_patterns:
+        if re.search(pattern, message_lower):
+            return "technical"
+    
+    return "general"
+
+
+# ============================================================
+# CAPAS DEL SYSTEM PROMPT
+# ============================================================
+
+def get_core_prompt() -> str:
+    """CAPA 1: Core Universal - Siempre se envía (~300 tokens)"""
+    return """
+<CORE>
+IMPORTANT: Always respond in Spanish (Latin American).
+Be concise and direct - go straight to the point.
+Adapt your tone to context (technical vs casual).
+If you don't know something, say it honestly.
+</CORE>
+"""
+
+
+def get_technical_context(workspace: str = None, repo_info: dict = None, 
+                          external_url: str = None) -> str:
+    """CAPA 2: Contexto Técnico - Solo para mensajes técnicos (~500 tokens)"""
+    parts = []
+    
+    # Información del workspace
+    if workspace:
+        parts.append(f"""
+<WORKSPACE>
+Working directory: {workspace}
+You have access to: terminal, file_editor, browser, git tools.
+</WORKSPACE>
+""")
+    
+    # Información del repositorio
+    if repo_info:
+        repo_owner = repo_info.get('owner', '')
+        repo_name = repo_info.get('name', '')
+        branch = repo_info.get('branch', 'main')
+        if repo_owner and repo_name:
+            parts.append(f"""
+<REPOSITORY>
+GitHub: {repo_owner}/{repo_name}
+Branch: {branch}
+</REPOSITORY>
+""")
+    
+    # URL de preview
+    if external_url:
+        parts.append(f"""
+<APP_URL>
+Application preview: {external_url}
+</APP_URL>
+""")
+    
+    # Reglas básicas de código
+    parts.append("""
+<CODE_RULES>
+- Write clean, efficient code with minimal comments
+- Make minimal changes to solve the problem
+- Don't modify more than what's requested
+- If editing shared code (generic classes), check impact first with grep -c
+- If editing specific code (IDs, unique classes), edit directly
+</CODE_RULES>
+""")
+    
+    return "\n".join(parts)
+
+
+def get_specialized_context(message: str) -> str:
+    """CAPA 3: Contexto Especializado - Solo cuando aplica (~200 tokens)"""
+    parts = []
+    message_lower = message.lower()
+    
+    # Si menciona CSS/estilos con clases genéricas
+    if any(kw in message_lower for kw in ['css', 'estilo', 'style', 'color', 'clase', '.btn', '.card']):
+        if '.' in message and '#' not in message:  # Clase genérica, no ID
+            parts.append("""
+<CSS_IMPACT>
+For generic CSS classes (.btn, .card, etc.): run grep -c first to check usage count.
+If 2+ uses: ask user or create specific ID/class.
+For IDs (#specific): edit directly.
+</CSS_IMPACT>
+""")
+    
+    # Si menciona git/deploy
+    if any(kw in message_lower for kw in ['git', 'commit', 'push', 'pull', 'deploy', 'pr', 'merge']):
+        parts.append("""
+<GIT_RULES>
+- Never push to main/master directly unless asked
+- Use descriptive commit messages
+- Add Co-authored-by: openhands <openhands@all-hands.dev>
+</GIT_RULES>
+""")
+    
+    return "\n".join(parts)
+
+
+# ============================================================
+# MCP TOOLS
+# ============================================================
+
+def get_mcp_tools(tavily_api_key: str = None, github_token: str = None) -> list:
+    """Crea MCP tools si las API keys están disponibles."""
+    mcp_tools = []
+
     if tavily_api_key:
         try:
             tavily_config = {
@@ -75,11 +216,9 @@ def get_mcp_tools(tavily_api_key: str = None, github_token: str = None) -> list:
             }
             tavily_tools = create_mcp_tools(tavily_config, timeout=30.0)
             mcp_tools.extend(tavily_tools)
-            logger.info(f"Tavily MCP tools loaded: {[t.name for t in tavily_tools]}")
         except Exception as e:
-            logger.warning(f"Failed to load Tavily MCP tools: {e}")
-    
-    # GitHub MCP - operaciones con GitHub API
+            logger.warning(f"Failed to load Tavily MCP: {e}")
+
     if github_token:
         try:
             github_config = {
@@ -93,322 +232,137 @@ def get_mcp_tools(tavily_api_key: str = None, github_token: str = None) -> list:
             }
             github_tools = create_mcp_tools(github_config, timeout=30.0)
             mcp_tools.extend(github_tools)
-            logger.info(f"GitHub MCP tools loaded: {[t.name for t in github_tools]}")
         except Exception as e:
-            logger.warning(f"Failed to load GitHub MCP tools: {e}")
-    
+            logger.warning(f"Failed to load GitHub MCP: {e}")
+
     return mcp_tools
 
 
+# ============================================================
+# CREAR AGENTE
+# ============================================================
+
 def create_agent(api_key: str, model: str = "deepseek/deepseek-chat", base_url: str = None,
-                 workspace: str = None, repo_info: dict = None, 
+                 workspace: str = None, repo_info: dict = None,
                  external_url: str = None, conversation_id: int = None,
                  tavily_api_key: str = None, github_token: str = None,
-                 vision_api_key: str = None, vision_model: str = "gemini/gemini-2.0-flash") -> Agent:
+                 vision_api_key: str = None, vision_model: str = "gemini/gemini-2.0-flash",
+                 user_message: str = None) -> Agent:
     """
-    Crea el agente OpenHands usando la configuración oficial del SDK.
+    Crea el agente OpenHands con contexto optimizado.
     
-    Modelo híbrido:
-    - DeepSeek V3 para código (api_key)
-    - Gemini Flash para visión (vision_api_key)
-    
-    El agente usa los prompts oficiales en inglés (mejor rendimiento),
-    pero responde en español según la instrucción en system_message_suffix.
+    Detecta el dominio del mensaje y envía SOLO el contexto necesario:
+    - General: ~300 tokens (core)
+    - Técnico: ~800-1000 tokens (core + técnico + especializado)
     """
-    
-    # 1. Configurar LLM principal (DeepSeek para código)
+
+    # 1. LLM principal
     llm = LLM(
         model=model,
         api_key=SecretStr(api_key),
         base_url=base_url,
-        temperature=0.7,  # Respuestas más determinísticas
+        temperature=0.7,
     )
-    
-    # 2. Condenser para contextos largos - IGUAL QUE OPENHANDS OFICIAL
+
+    # 2. Condenser optimizado (15 mensajes en vez de 80)
     condenser = LLMSummarizingCondenser(
         llm=llm.model_copy(update={"usage_id": "condenser"}),
-        max_size=80,   # Oficial: 80
-        keep_first=4,  # Oficial: 4
+        max_size=15,   # Optimizado: 15 (antes 80)
+        keep_first=3,  # Mantener contexto inicial
     )
+
+    # 3. Detectar dominio del mensaje
+    domain = detect_domain(user_message) if user_message else "technical"
     
-    # 3. Construir el suffix con contexto adicional
+    # 4. Construir system prompt por capas
     suffix_parts = []
     
-    # 3.1 IDIOMA - Instrucción para responder en español
-    suffix_parts.append("""
-<LANGUAGE>
-IMPORTANT: Always respond in Spanish (Latin American). 
-All messages to the user must be in Spanish.
-Code comments can be in English if the project requires it.
-</LANGUAGE>
-""")
-
-    # 3.1a ANÁLISIS DE IMPACTO OBLIGATORIO - Understand Before Modify
-    suffix_parts.append("""
-<SMART_EDITING>
-## Best Practice: Analyze Only When There's Risk
-
-### DECISION TREE:
-```
-Is the selector SPECIFIC (ID or unique class)?
-├── YES (#my-button, .unique-component)
-│   └── EDIT DIRECTLY - Safe, only affects one element
-│
-└── NO (generic: .btn, .card, .text-muted)
-    └── QUICK CHECK: grep -c "selector" to count
-        ├── 1 occurrence → EDIT DIRECTLY
-        └── 2+ occurrences → Ask user or create specific ID
-```
-
-### Examples:
-1. "Change #btn-limpiar to yellow" → DIRECT (ID = unique)
-2. "Change .tool-btn color" → CHECK first, then ask if multiple
-3. Already edited in this conversation → DIRECT (you know the location)
-
-### EFFICIENCY:
-- Maximum 1 grep for impact check
-- Never view a file you just edited
-- Never grep twice for the same thing
-- Go direct when safe, check when risky
-</SMART_EDITING>
-""")
-
-    # 3.1b CAMBIOS CONSERVADORES - No modificar más de lo pedido
-    suffix_parts.append("""
-<CONSERVATIVE_CHANGES>
-CRITICAL: Make ONLY the changes the user explicitly requests. Do NOT:
-- Modify multiple files when the user asks about one specific element
-- Change ALL instances of something when user asks about ONE specific instance
-- Add extra features or modifications not requested
-- Refactor code unless explicitly asked
-
-If there are multiple instances of something (like a button name appearing in several places),
-ASK the user which specific instance they want to modify.
-
-Example:
-- User asks: "make the Limpiar button text bold"
-- BAD: Change ALL "Limpiar" text in the entire project
-- GOOD: Ask "I found 'Limpiar' in 3 places. Which one should I modify?" OR 
-        modify only the ONE button you discussed previously in the conversation
-
-ALWAYS follow the conversation context. If you were just modifying a specific file,
-continue working on that same file unless told otherwise.
-</CONSERVATIVE_CHANGES>
-""")
-
-    # 3.1b INTERPRETAR SELECCIONES NUMÉRICAS
-    suffix_parts.append("""
-<NUMBERED_SELECTIONS>
-IMPORTANT: When you present the user with numbered options like:
-1. Option A
-2. Option B  
-3. Option C
-
-And the user responds with just a number (e.g., "2", "opción 2", "la 2", "segunda"),
-IMMEDIATELY understand they are selecting that option and EXECUTE the corresponding action.
-
-Do NOT ask again or present new options. Just do what the selected option says.
-
-Example:
-- You asked: "Which button? 1. Modal  2. Toolbar  3. Terminal"
-- User responds: "2"
-- You MUST immediately modify the Toolbar button, not ask more questions.
-</NUMBERED_SELECTIONS>
-""")
-
-    # 3.1b APP PREVIEW URL - URL externa para ver la aplicación
-    if external_url and conversation_id:
-        app_preview_url = f"{external_url}/api/app-server/app-preview/?conversation_id={conversation_id}"
-        suffix_parts.append(f"""
-<APP_PREVIEW_URL>
-When the user asks for the URL to view the application, provide this URL:
-{app_preview_url}
-
-This is the external URL where the user can see any web application you start.
-When you start a web server (npm start, python -m http.server, etc.), 
-tell the user they can view it at: {app_preview_url}
-</APP_PREVIEW_URL>
-""")
+    # CAPA 1: Core Universal (siempre)
+    suffix_parts.append(get_core_prompt())
     
-    # 3.2 RUNTIME INFO - Working directory
-    if workspace:
-        suffix_parts.append(f"""
-<RUNTIME_INFORMATION>
-Your current working directory is: {workspace}
-</RUNTIME_INFORMATION>
-""")
-    
-    # 3.3 REPO INFO - Información del repositorio GitHub
-    if repo_info and repo_info.get('owner') and repo_info.get('name'):
-        repo_owner = repo_info['owner']
-        repo_name = repo_info['name']
-        repo_branch = repo_info.get('branch', 'main')
+    # CAPA 2: Contexto Técnico (solo si es técnico)
+    if domain == "technical":
+        suffix_parts.append(get_technical_context(workspace, repo_info, external_url))
         
-        # Para test03, el repo ya está montado - NO clonar
-        if "test03" in repo_name.lower():
-            suffix_parts.append(f"""
-<REPOSITORY_INFORMATION>
-GitHub Repository: {repo_owner}/{repo_name}
-Branch: {repo_branch}
-Workspace: {workspace}
-
-IMPORTANT: This repository is ALREADY available at {workspace}. Do NOT clone it.
-The repository is pre-mounted and ready to use. You can directly read and modify files.
-
-When asked to pull updates:
-1. cd {workspace} && git pull origin {repo_branch}
-</REPOSITORY_INFORMATION>
-""")
-        else:
-            suffix_parts.append(f"""
-<REPOSITORY_INFORMATION>
-GitHub Repository: {repo_owner}/{repo_name}
-Branch: {repo_branch}
-Clone URL: https://github.com/{repo_owner}/{repo_name}.git
-Workspace: {workspace}
-
-When asked to pull/clone the repository:
-1. Check if .git exists: ls {workspace}/.git 2>/dev/null && echo "GIT_EXISTS" || echo "NO_GIT"
-2. If NO_GIT: git clone https://github.com/{repo_owner}/{repo_name}.git {workspace} --branch {repo_branch}
-3. If GIT_EXISTS: cd {workspace} && git pull origin {repo_branch}
-</REPOSITORY_INFORMATION>
-""")
-    
-    # 3.4 ENVIRONMENT_SETUP - Exactamente como OpenHands oficial
-    suffix_parts.append("""
-<ENVIRONMENT_SETUP>
-* When user asks you to run an application, don't stop if the application is not installed. Instead, please install the application and run the command again.
-* If you encounter missing dependencies:
-  1. First, look around in the repository for existing dependency files (requirements.txt, pyproject.toml, package.json, Gemfile, etc.)
-  2. If dependency files exist, use them to install all dependencies at once (e.g., `pip install -r requirements.txt`, `npm install`, etc.)
-  3. Only install individual packages directly if no dependency files are found or if only specific packages are needed
-* Similarly, if you encounter missing dependencies for essential tools requested by the user, install them when possible.
-
-## Server Management (IMPORTANT):
-* Before starting ANY web server (node, python http.server, npm start, etc.), ALWAYS kill existing processes on the same port:
-  - For Node.js: pkill -f "node server" || true
-  - For Python: pkill -f "python.*http.server" || true  
-  - For specific port: fuser -k 3000/tcp 2>/dev/null || true
-* When cleaning a directory to start fresh, also kill any running servers from that project.
-* Use these common ports: 3000 (Node), 5000 (Flask), 8000 (Python http.server), 8080 (general)
-* Always use CDN links for external libraries (Bootstrap, jQuery, etc.) instead of local paths.
-* IMPORTANT: Always start servers with nohup to keep them running:
-  - Node.js: nohup node server.js > server.log 2>&1 &
-  - Python: nohup python -m http.server 8000 > server.log 2>&1 &
-  - npm: nohup npm start > server.log 2>&1 &
-
-## Available base tools:
-- Python 3.12+ with pip, pipenv, poetry
-- Node.js 22+ with npm, yarn, corepack
-- git, curl, wget
-
-## On-demand installation examples:
-- .NET/Blazor: curl -sSL https://dot.net/v1/dotnet-install.sh | bash -s -- --channel 8.0 --install-dir $HOME/.dotnet && export PATH="$HOME/.dotnet:$PATH" && export DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1
-- Ruby: apt-get update && apt-get install -y ruby-full
-- Go: wget https://go.dev/dl/go1.21.0.linux-amd64.tar.gz && tar -C /usr/local -xzf go1.21.0.linux-amd64.tar.gz && export PATH=$PATH:/usr/local/go/bin
-</ENVIRONMENT_SETUP>
-""")
-    
-
-    
-    # 3.5 FILE_SYSTEM_GUIDELINES - Exactamente como OpenHands oficial
-    suffix_parts.append("""
-<FILE_SYSTEM_GUIDELINES>
-* When a user provides a file path, do NOT assume it's relative to the current working directory. First explore the file system to locate the file before working on it.
-* If asked to edit a file, edit the file directly, rather than creating a new file with a different filename.
-* For global search-and-replace operations, consider using `sed` instead of opening file editors multiple times.
-* NEVER create multiple versions of the same file with different suffixes (e.g., file_test.py, file_fix.py, file_simple.py). Instead:
-  - Always modify the original file directly when making changes
-  - If you need to create a temporary file for testing, delete it once you've confirmed your solution works
-  - If you decide a file you created is no longer useful, delete it instead of creating a new version
-* Do NOT include documentation files explaining your changes in version control unless the user explicitly requests it
-* When reproducing bugs or implementing fixes, use a single file rather than creating multiple files with different versions
-</FILE_SYSTEM_GUIDELINES>
-""")
-
-    # 3.6 CODE_QUALITY - Exactamente como OpenHands oficial
-    suffix_parts.append("""
-<CODE_QUALITY>
-* Write clean, efficient code with minimal comments. Avoid redundancy in comments: Do not repeat information that can be easily inferred from the code itself.
-* When implementing solutions, focus on making the minimal changes needed to solve the problem.
-* Before implementing any changes, first thoroughly understand the codebase through exploration.
-* If you are adding a lot of code to a function or file, consider splitting the function or file into smaller pieces when appropriate.
-* Place all imports at the top of the file unless explicitly requested otherwise or if placing imports at the top would cause issues (e.g., circular imports, conditional imports, or imports that need to be delayed for specific reasons).
-</CODE_QUALITY>
-""")
-
-    # 3.7 TROUBLESHOOTING - Exactamente como OpenHands oficial
-    suffix_parts.append("""
-<TROUBLESHOOTING>
-* If you've made repeated attempts to solve a problem but tests still fail or the user reports it's still broken:
-  1. Step back and reflect on 5-7 different possible sources of the problem
-  2. Assess the likelihood of each possible cause
-  3. Methodically address the most likely causes, starting with the highest probability
-  4. Explain your reasoning process in your response to the user
-* When you run into any major issue while executing a plan from the user, please don't try to directly work around it. Instead, propose a new plan and confirm with the user before proceeding.
-</TROUBLESHOOTING>
-""")
+        # CAPA 3: Especializado (solo si aplica)
+        if user_message:
+            specialized = get_specialized_context(user_message)
+            if specialized:
+                suffix_parts.append(specialized)
     
     system_suffix = "\n".join(suffix_parts)
-    
-    # 4. AgentContext - Solo agrega contexto, NO reemplaza prompts oficiales
-    agent_context = AgentContext(
-        system_message_suffix=system_suffix,
-        load_public_skills=True,  # Carga skills públicos de OpenHands
-    )
-    
-    # 5. Tools base del SDK - IGUAL QUE OPENHANDS OFICIAL
-    # Configuración para browser en contenedor (sin display)
-    # Parámetros que van a BrowserToolExecutor y luego a BrowserProfile
-    browser_config = {
-        "headless": True,
-        "init_timeout_seconds": 120,  # Más tiempo para inicializar en contenedor
-        "session_timeout_minutes": 30,
-        # Estos parámetros van directo a BrowserProfile via **config
-        "executable_path": "/usr/bin/chromium",  # Ruta explícita al binario
-        "keep_alive": True,  # Mantener browser vivo entre operaciones
-        "args": [
-            "--no-sandbox",
-            "--disable-dev-shm-usage", 
-            "--disable-gpu",
-            "--disable-software-rasterizer",
-            "--disable-setuid-sandbox",
-            "--headless=new",  # Nuevo modo headless (más estable)
-        ],
-        "chromium_sandbox": False,  # Desactivar sandbox en contenedor
-        "disable_security": True,   # Permite más flexibilidad en contenedor
-    }
-    
+
+    # 5. Tools
     tools = [
-        # Core tools - IGUAL QUE OFICIAL
-        Tool(name=TerminalTool.name),
-        Tool(name=FileEditorTool.name),
-        Tool(name=TaskTrackerTool.name),
-        
-        # Browser tools - Con configuración para contenedores
-        Tool(name=BrowserToolSet.name, params=browser_config),
-        
-        # Search tools - IGUAL QUE OPENHANDS CLOUD
-        Tool(name=GlobTool.name),
-        Tool(name=GrepTool.name),
-        
-        # Delegate tool - para sub-agentes
-        Tool(name=DelegateTool.name),
+        TerminalTool(),
+        FileEditorTool(),
+        TaskTrackerTool(),
+        GlobTool(),
+        GrepTool(),
+        DelegateTool(),
     ]
     
-    # 6. MCP Tools (Tavily, GitHub) - si están configurados
-    mcp_tools = get_mcp_tools(
-        tavily_api_key=tavily_api_key,
-        github_token=github_token
-    )
+    # Browser tools
+    try:
+        browser_toolset = BrowserToolSet()
+        tools.extend(browser_toolset.get_tools())
+    except Exception as e:
+        logger.warning(f"Browser tools not available: {e}")
     
-    # 7. Crear agente con todas las tools
+    # MCP tools
+    mcp_tools = get_mcp_tools(tavily_api_key, github_token)
+    tools.extend(mcp_tools)
+    
+    # Analysis tools
+    try:
+        if workspace:
+            indexer = CodeIndexer(workspace)
+            set_indexer(indexer)
+            analyzer = CodeAnalyzer(workspace, indexer)
+            
+            analyze_tool = Tool(
+                name="analyze_impact",
+                description="Analyze the impact of modifying a CSS selector, function, or variable. Use BEFORE modifying shared code.",
+                parameters={
+                    "type": "object",
+                    "properties": {
+                        "symbol": {"type": "string", "description": "The symbol to analyze (e.g., '.btn-primary', 'myFunction')"},
+                        "file_types": {"type": "array", "items": {"type": "string"}, "description": "File extensions to search"}
+                    },
+                    "required": ["symbol"]
+                },
+                func=lambda symbol, file_types=None: analyzer.analyze_symbol_impact(symbol, file_types)
+            )
+            
+            find_refs_tool = Tool(
+                name="find_references",
+                description="Find all references to a symbol in the codebase.",
+                parameters={
+                    "type": "object",
+                    "properties": {
+                        "symbol": {"type": "string", "description": "The symbol to find"},
+                        "file_types": {"type": "array", "items": {"type": "string"}}
+                    },
+                    "required": ["symbol"]
+                },
+                func=lambda symbol, file_types=None: analyzer.find_all_references(symbol, file_types)
+            )
+            
+            tools.extend([analyze_tool, find_refs_tool])
+    except Exception as e:
+        logger.warning(f"Analysis tools not available: {e}")
+
+    # 6. Context
+    agent_context = AgentContext(
+        system_message_suffix=system_suffix,
+        condenser=condenser,
+    )
+
+    # 7. Crear agente
     agent = Agent(
         llm=llm,
-        condenser=condenser,
-        agent_context=agent_context,
         tools=tools,
-        mcp_tools=mcp_tools if mcp_tools else None,
+        agent_context=agent_context,
     )
-    
+
     return agent
