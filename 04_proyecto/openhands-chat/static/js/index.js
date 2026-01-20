@@ -1903,18 +1903,27 @@
                     }
                 }
                 
-                // Limpiar div de streaming si existe (se reemplazará por el mensaje final)
-                if (streamingDiv) {
-                    streamingDiv.remove();
-                }
-                
-                // Remover progreso y mostrar mensaje final
+                // Remover progreso
                 progressDiv.remove();
                 
                 console.log('[STREAM END] finalMessage:', finalMessage ? finalMessage.substring(0, 100) + '...' : 'EMPTY');
+                console.log('[STREAM END] streamingText:', streamingText ? streamingText.substring(0, 100) + '...' : 'EMPTY');
                 
-                if (finalMessage) {
-                    addMessage(finalMessage, 'assistant');
+                // PRIORIDAD: usar streamingText si existe (ya se mostró en tiempo real)
+                // Si no hay streamingText, usar finalMessage del evento done
+                const messageToShow = streamingText || finalMessage;
+                
+                if (messageToShow) {
+                    // Si ya hay un div de streaming, convertirlo en mensaje permanente
+                    if (streamingDiv && streamingText) {
+                        streamingDiv.classList.remove('streaming');
+                        console.log('[STREAM END] Converted streaming div to permanent message');
+                    } else {
+                        // Si no hay streaming div, crear mensaje nuevo
+                        if (streamingDiv) streamingDiv.remove();
+                        addMessage(messageToShow, 'assistant');
+                    }
+                    
                     setTaskStatus('completed', 'Tarea completada');
                     setTimeout(() => setTaskStatus('', 'Esperando tarea.'), 3000);
                     
@@ -1923,7 +1932,8 @@
                         refreshBranchInfo(currentConversationId);
                     }
                 } else {
-                    console.warn('[STREAM END] No final message received!');
+                    console.warn('[STREAM END] No message to show!');
+                    if (streamingDiv) streamingDiv.remove();
                 }
                 
             } catch (error) {
