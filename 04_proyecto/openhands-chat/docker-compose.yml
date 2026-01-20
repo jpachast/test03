@@ -9,7 +9,7 @@ services:
     volumes:
       - ./data:/app/data
       - ./projects:/app/projects
-      - ../../:/workspace/project/test03:ro  # Montar raíz del repo test03
+      - ../../:/workspace/project/test03:rw  # Montar raíz del repo test03 (rw para poder editar)
     restart: unless-stopped
     environment:
       - PYTHONUNBUFFERED=1
