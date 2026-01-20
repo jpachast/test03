@@ -37,6 +37,10 @@ from core.memory import (
 )
 # Preprocesador de mensajes - análisis de impacto OBLIGATORIO
 from core.message_preprocessor import analyze_and_enrich_message
+from core.smart_chat import (
+    process_message as smart_process_message,
+    create_checkpoint, get_suggestions, detect_intention
+)
 
 import re as re_module
 
@@ -779,26 +783,44 @@ async def stream_message(
         memory_context = get_context_for_message(message, project=project)
         
         # ============================================================
-        # ANÁLISIS DE IMPACTO CONDICIONAL - Solo para clases CSS genéricas
+        # SMART PROCESSING - Inteligencia como los TOP del mercado
         # ============================================================
-        # Best practice: Solo analizar cuando hay RIESGO REAL (clases genéricas)
-        # Si es un ID (#btn-limpiar) o consulta general, ir directo
         actual_message = message
+        smart_analysis = None
         
-        # Solo activar preprocessor si menciona clase CSS genérica (. sin #)
+        try:
+            smart_analysis = smart_process_message(message, workspace)
+            
+            # Enviar thinking steps al frontend
+            for step in smart_analysis.get('thinking_steps', []):
+                yield f"data: {json.dumps({'type': 'thinking', 'icon': step['icon'], 'text': step['text']})}\n\n"
+            
+            # Crear checkpoint si es operación riesgosa
+            if smart_analysis.get('should_checkpoint'):
+                try:
+                    checkpoint = create_checkpoint(workspace)
+                    print(f"[CHECKPOINT] Created: {checkpoint.get('id', '')}")
+                except:
+                    pass
+            
+            # Mostrar archivos detectados
+            if smart_analysis.get('files'):
+                files_text = ', '.join([f['file'].split('/')[-1] for f in smart_analysis['files'][:3]])
+                yield f"data: {json.dumps({'type': 'status', 'icon': '📂', 'text': 'Archivos detectados'})}\n\n"
+        except Exception as e:
+            print(f"[SMART] Error: {e}")
+        
+        # CSS genérico check
         has_generic_css = '.' in message and '#' not in message and any(
-            kw in message.lower() for kw in ['css', 'estilo', 'style', 'color', 'clase', 'class']
+            kw in message.lower() for kw in ['css', 'estilo', 'style', 'color']
         )
-        
         if has_generic_css:
             try:
                 enriched_message, impact_metadata = analyze_and_enrich_message(message, workspace)
                 if impact_metadata.get("high_risk_changes"):
-                    print(f"[IMPACT] ⚠️ High risk: {impact_metadata['high_risk_changes']}")
-                    yield f"data: {json.dumps({'type': 'status', 'icon': '🔍', 'text': 'Analizando impacto...'})}\n\n"
                     actual_message = enriched_message
-            except Exception as e:
-                print(f"[IMPACT] Preprocessor skipped: {e}")
+            except:
+                pass
         
         # Construir mensaje completo con historial y memoria
         

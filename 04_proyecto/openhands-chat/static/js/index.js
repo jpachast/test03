@@ -1825,6 +1825,29 @@
                                     continue;
                                 }
                                 
+                                // THINKING STEPS - Streaming del pensamiento (como Cursor/Devin)
+                                if (data.type === 'thinking') {
+                                    const thinkingText = data.icon ? `${data.icon} ${data.text}` : data.text;
+                                    progressDiv.querySelector('.progress-content').innerHTML = thinkingText;
+                                    setTaskStatus('processing', data.text || 'Pensando...');
+                                    continue;
+                                }
+                                
+                                // STATUS - Actualizaciones de estado
+                                if (data.type === 'status') {
+                                    const statusText = data.icon ? `${data.icon} ${data.text}` : data.text;
+                                    progressDiv.querySelector('.progress-content').innerHTML = statusText;
+                                    setTaskStatus('processing', data.text || 'Procesando...');
+                                    continue;
+                                }
+                                
+                                // CHECKPOINT - Notificación de checkpoint creado
+                                if (data.type === 'checkpoint') {
+                                    progressDiv.querySelector('.progress-content').innerHTML = 
+                                        `💾 ${data.text || 'Checkpoint creado'}`;
+                                    continue;
+                                }
+                                
                                 // STREAMING DE TOKENS - Mostrar texto en tiempo real
                                 if (data.type === 'token' && data.content) {
                                     streamingText += data.content;
