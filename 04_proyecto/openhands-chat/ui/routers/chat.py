@@ -772,14 +772,19 @@ async def stream_message(
             
             if recent_messages:
                 history_parts = []
-                for msg in recent_messages:
-                    role = "Usuario" if msg['role'] == 'user' else "Asistente"
-                    # Truncar mensajes muy largos
-                    content = msg['content'][:500] + "..." if len(msg['content']) > 500 else msg['content']
-                    history_parts.append(f"{role}: {content}")
+                for i, msg in enumerate(recent_messages, 1):
+                    role = "👤 USUARIO" if msg['role'] == 'user' else "🤖 TÚ (ASISTENTE)"
+                    # Truncar mensajes muy largos pero mantener info clave
+                    content = msg['content'][:800] + "..." if len(msg['content']) > 800 else msg['content']
+                    # Formato más claro con separadores
+                    history_parts.append(f"[Mensaje {i}] {role}:\n{content}")
                 
-                conversation_history = "\n\n".join(history_parts)
+                conversation_history = "\n\n" + "="*50 + "\n\n".join(history_parts) + "\n\n" + "="*50
                 print(f"[HISTORY] Added {len(recent_messages)} previous messages to context")
+                # Debug: mostrar primeros mensajes del historial
+                if recent_messages:
+                    print(f"[HISTORY DEBUG] First message: {recent_messages[0]['role']}: {recent_messages[0]['content'][:100]}...")
+                    print(f"[HISTORY DEBUG] Last message: {recent_messages[-1]['role']}: {recent_messages[-1]['content'][:100]}...")
         
         # MEMORIA RAG: Recuperar contexto relevante del historial
         memory_context = get_context_for_message(message, project=project)
@@ -835,9 +840,22 @@ async def stream_message(
         
         # Construir mensaje completo con historial y memoria
         
-        # OPTIMIZADO: El condenser del SDK ya maneja el historial automáticamente
-        # No duplicamos el historial en el mensaje (best practice de LLMs top)
-        pass  # El historial ya está en el sistema de mensajes del SDK
+        # Agregar historial de conversación (CRÍTICO para que el agente recuerde)
+        # NOTA: El condenser del SDK maneja eventos, NO mensajes del usuario
+        # Por eso debemos incluir el historial explícitamente en el mensaje
+        # FORMATO MEJORADO: Más claro y directo para que el LLM lo entienda
+        if conversation_history:
+            actual_message = f"""## HISTORIAL DE NUESTRA CONVERSACIÓN (RECUERDA ESTO):
+
+{conversation_history}
+
+---
+
+## MENSAJE ACTUAL DEL USUARIO:
+{message}
+
+IMPORTANTE: Usa la información del historial de arriba para responder. Si el usuario mencionó su nombre, recuérdalo. Si dio contexto previo, úsalo."""
+            print(f"[HISTORY DEBUG] Final message with history:\n{actual_message[:500]}...")
         
         # Agregar contexto de memoria RAG si existe (limitado a ~500 tokens)
         if memory_context:
