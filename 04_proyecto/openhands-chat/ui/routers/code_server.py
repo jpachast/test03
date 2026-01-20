@@ -31,24 +31,29 @@ _CURRENT_WORKSPACE_PATH = ""
 def _get_workspace_for_codeserver(conv_data: dict) -> str:
     """
     Obtiene el directorio de trabajo para code-server.
-    Usa el workspace_path de la conversación si existe y tiene .git.
-    Si no, intenta clonar el repositorio automáticamente.
+    Para test03: siempre usa la raíz del repositorio /workspace/project/test03
+    Para otros proyectos: usa el workspace_path de la conversación.
     """
     global _CURRENT_WORKSPACE_PATH
     
+    repo_name = conv_data.get("repo_name", "") or ""
+    
+    # Si es test03, SIEMPRE usar la raíz del repositorio
+    if "test03" in repo_name.lower():
+        # Ruta que funciona tanto en local como en Docker (montada en docker-compose)
+        workspace_path = "/workspace/project/test03"
+        if os.path.isdir(workspace_path):
+            _CURRENT_WORKSPACE_PATH = workspace_path
+            return workspace_path
+    
+    # Para otros proyectos, usar workspace_path de la conversación
     workspace_path = conv_data.get("workspace_path", "")
     
-    # Si el workspace existe y tiene .git, usarlo
     if workspace_path and os.path.isdir(workspace_path):
         git_path = os.path.join(workspace_path, ".git")
         if os.path.isdir(git_path):
             _CURRENT_WORKSPACE_PATH = workspace_path
             return workspace_path
-    
-    # Si no existe, verificar si hay que crearlo/clonarlo
-    # El workspace_path típico es: .../projects/owner-repo/chatXX
-    if workspace_path and not os.path.isdir(workspace_path):
-        os.makedirs(workspace_path, exist_ok=True)
     
     # Guardar para uso del proxy
     _CURRENT_WORKSPACE_PATH = workspace_path
