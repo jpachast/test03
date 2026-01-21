@@ -1868,7 +1868,9 @@
             if (container) {
                 const msgDiv = document.createElement('div');
                 msgDiv.className = 'message assistant';
-                msgDiv.innerHTML = `<div class="message-content">${markdownToHtml(summary)}</div>`;
+                // Usar marked.parse() para convertir Markdown a HTML
+                const htmlContent = typeof marked !== 'undefined' ? marked.parse(summary) : summary.replace(/\n/g, '<br>');
+                msgDiv.innerHTML = `<div class="message-content">${htmlContent}</div>`;
                 container.appendChild(msgDiv);
                 container.scrollTop = container.scrollHeight;
                 
