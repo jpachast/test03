@@ -1979,9 +1979,193 @@
             if (modal) modal.classList.remove('show');
         }
         
+        // ============================================
+        // TEST GENERATOR - Genera tests + cobertura
+        // ============================================
+        function openTestGenerator() {
+            toggleToolsMenu(); // Cerrar dropdown
+            
+            // Crear modal si no existe
+            let modal = document.getElementById('testGeneratorModal');
+            if (!modal) {
+                modal = document.createElement('div');
+                modal.id = 'testGeneratorModal';
+                modal.className = 'multiagent-modal';
+                modal.innerHTML = `
+                    <div class="multiagent-content" style="max-width: 700px;">
+                        <div class="multiagent-header">
+                            <h3>🧪 Test Generator</h3>
+                            <button class="multiagent-close" onclick="closeTestGeneratorModal()">&times;</button>
+                        </div>
+                        <div class="multiagent-body" id="testGenBody">
+                            <p style="color: #999; margin-bottom: 15px;">Pega tu código Python para generar tests automáticos y analizar cobertura.</p>
+                            <textarea id="testGenCode" placeholder="def suma(a, b):\n    return a + b" 
+                                style="width: 100%; height: 200px; background: #1e1e1e; color: #d4d4d4; border: 1px solid #444; border-radius: 8px; padding: 12px; font-family: monospace; font-size: 13px; resize: vertical;"></textarea>
+                            <div style="display: flex; gap: 10px; margin-top: 15px;">
+                                <button onclick="runTestGenerator()" class="tools-btn" style="flex: 1; padding: 12px;">
+                                    ▶️ Generar Tests
+                                </button>
+                            </div>
+                            <div id="testGenResults" style="margin-top: 20px;"></div>
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(modal);
+            }
+            
+            modal.classList.add('show');
+        }
+        
+        async function runTestGenerator() {
+            const code = document.getElementById('testGenCode').value.trim();
+            if (!code) {
+                showToast('Por favor ingresa código para analizar', 'error');
+                return;
+            }
+            
+            const resultsDiv = document.getElementById('testGenResults');
+            resultsDiv.innerHTML = '<div style="text-align: center; padding: 20px;"><div class="loading-spinner"></div><p style="color: #999; margin-top: 10px;">Generando tests y analizando cobertura...</p></div>';
+            
+            try {
+                const response = await fetch('/api/tests/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ code, language: 'python', with_coverage: true })
+                });
+                
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(data.detail || 'Error generando tests');
+                }
+                
+                showTestResults(data);
+                
+                // Guardar en chat también
+                saveTestResultsToChat(code, data);
+                
+            } catch (error) {
+                console.error('Test Generator error:', error);
+                resultsDiv.innerHTML = `<div style="color: #ff6b6b; padding: 15px; background: rgba(255,0,0,0.1); border-radius: 8px;">❌ ${error.message}</div>`;
+            }
+        }
+        
+        function showTestResults(data) {
+            const resultsDiv = document.getElementById('testGenResults');
+            const coverage = data.coverage_report || {};
+            const coveragePercent = coverage.coverage_percent || data.coverage_estimate || 0;
+            const coverageColor = coveragePercent >= 80 ? '#4caf50' : coveragePercent >= 50 ? '#ff9800' : '#f44336';
+            
+            let html = `
+                <div class="multiagent-stats">
+                    <div class="stat-item">
+                        <div class="stat-value" style="color: ${coverageColor}">${coveragePercent}%</div>
+                        <div class="stat-label">Cobertura</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" style="color: #4caf50">${data.passed || 0}</div>
+                        <div class="stat-label">Tests pasados</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" style="color: ${data.failed > 0 ? '#f44336' : '#666'}">${data.failed || 0}</div>
+                        <div class="stat-label">Tests fallidos</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value">${data.tests_count || 0}</div>
+                        <div class="stat-label">Total tests</div>
+                    </div>
+                </div>
+            `;
+            
+            // Detalles de cobertura
+            if (coverage.total_lines > 0) {
+                html += `
+                    <div style="background: #2d2d2d; border-radius: 8px; padding: 15px; margin-top: 15px;">
+                        <h4 style="margin: 0 0 10px 0; color: #fff;">📊 Detalles de Cobertura</h4>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 13px;">
+                            <div><span style="color: #999;">Líneas totales:</span> <span style="color: #fff;">${coverage.total_lines}</span></div>
+                            <div><span style="color: #999;">Líneas cubiertas:</span> <span style="color: #4caf50;">${coverage.covered_lines}</span></div>
+                            <div><span style="color: #999;">Líneas faltantes:</span> <span style="color: #f44336;">${coverage.missed_lines}</span></div>
+                            <div><span style="color: #999;">Funciones:</span> <span style="color: #fff;">${(coverage.functions_covered || []).length} cubiertas</span></div>
+                        </div>
+                        ${coverage.functions_covered?.length > 0 ? `<div style="margin-top: 10px;"><span style="color: #999;">✅ Funciones cubiertas:</span> <code style="color: #4caf50;">${coverage.functions_covered.join(', ')}</code></div>` : ''}
+                        ${coverage.functions_missed?.length > 0 ? `<div style="margin-top: 5px;"><span style="color: #999;">❌ Funciones sin tests:</span> <code style="color: #f44336;">${coverage.functions_missed.join(', ')}</code></div>` : ''}
+                    </div>
+                `;
+            }
+            
+            // Resultados de tests individuales
+            html += '<div style="margin-top: 15px;"><h4 style="color: #fff; margin-bottom: 10px;">📝 Resultados de Tests</h4>';
+            
+            for (const result of (data.results || [])) {
+                const statusIcon = result.passed ? '✅' : '❌';
+                const statusClass = result.passed ? '' : 'failed';
+                
+                html += `
+                    <div class="agent-result ${statusClass}" style="margin-bottom: 8px;">
+                        <div class="agent-result-header">
+                            <span class="agent-role">${statusIcon} ${result.name}</span>
+                            <span class="agent-time">${result.execution_time?.toFixed(2) || 0}s</span>
+                        </div>
+                        <div class="agent-response" style="font-size: 12px; max-height: 100px; overflow: auto;">${result.passed ? (result.output || 'OK').substring(0, 500) : (result.error || 'Error').substring(0, 500)}</div>
+                    </div>
+                `;
+            }
+            
+            html += '</div>';
+            resultsDiv.innerHTML = html;
+        }
+        
+        async function saveTestResultsToChat(code, data) {
+            if (!window.conversationId) return;
+            
+            const coverage = data.coverage_report || {};
+            const coveragePercent = coverage.coverage_percent || data.coverage_estimate || 0;
+            
+            // Crear mensaje resumen para el chat
+            let summary = `## 🧪 Test Generator - Análisis de Cobertura\n\n`;
+            summary += `**Cobertura:** ${coveragePercent}%\n`;
+            summary += `**Tests:** ${data.passed || 0} pasados, ${data.failed || 0} fallidos\n\n`;
+            
+            if (coverage.functions_covered?.length > 0) {
+                summary += `**✅ Funciones cubiertas:** ${coverage.functions_covered.join(', ')}\n`;
+            }
+            if (coverage.functions_missed?.length > 0) {
+                summary += `**❌ Funciones sin tests:** ${coverage.functions_missed.join(', ')}\n`;
+            }
+            
+            summary += `\n*[Ver modal para detalles completos]*`;
+            
+            try {
+                await fetch(`/api/chat/message/${window.conversationId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        role: 'assistant',
+                        content: summary
+                    })
+                });
+                
+                // Recargar mensajes
+                if (typeof loadMessages === 'function') {
+                    loadMessages(window.conversationId);
+                }
+            } catch (error) {
+                console.error('Error guardando en chat:', error);
+            }
+        }
+        
+        function closeTestGeneratorModal() {
+            const modal = document.getElementById('testGeneratorModal');
+            if (modal) modal.classList.remove('show');
+        }
+        
         // Cerrar modal con Escape
         document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape') closeMultiAgentModal();
+            if (e.key === 'Escape') {
+                closeMultiAgentModal();
+                closeTestGeneratorModal();
+            }
         });
         
         // Legacy function for backwards compatibility
