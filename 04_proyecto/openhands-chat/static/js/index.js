@@ -3156,6 +3156,271 @@
             }
         }
         
+        // ============================================
+        // CODEMAPS - Grafo de dependencias visual AST
+        // ============================================
+        function openCodemaps() {
+            toggleToolsMenu();
+            
+            let modal = document.getElementById('codemapModal');
+            if (!modal) {
+                modal = document.createElement('div');
+                modal.id = 'codemapModal';
+                modal.className = 'multiagent-modal';
+                modal.innerHTML = `
+                    <div class="multiagent-content" style="max-width: 95vw; width: 1100px; max-height: 90vh;">
+                        <div class="multiagent-header">
+                            <h3>🗺️ Codemaps - Grafo de Dependencias</h3>
+                            <button class="multiagent-close" onclick="closeCodemapModal()">&times;</button>
+                        </div>
+                        <div class="multiagent-body" id="codemapBody" style="padding: 15px;">
+                            <p style="color: #999; margin-bottom: 15px;">Analiza AST y visualiza dependencias entre archivos.</p>
+                            
+                            <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                                <button onclick="scanCodemap()" class="tools-btn" style="padding: 10px 20px;">
+                                    🔍 Escanear Proyecto
+                                </button>
+                            </div>
+                            
+                            <div id="codemapStats" style="margin-bottom: 15px;"></div>
+                            
+                            <div id="codemapGraph" style="background: #1a1a1a; border-radius: 8px; height: 450px; position: relative; overflow: hidden;">
+                                <div style="text-align: center; padding: 180px 20px; color: #666;">
+                                    Haz clic en "Escanear Proyecto" para generar el grafo
+                                </div>
+                            </div>
+                            
+                            <div id="codemapDetails" style="margin-top: 15px;"></div>
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(modal);
+            }
+            
+            modal.classList.add('show');
+        }
+        
+        async function scanCodemap() {
+            const graphDiv = document.getElementById('codemapGraph');
+            const statsDiv = document.getElementById('codemapStats');
+            
+            graphDiv.innerHTML = '<div style="text-align: center; padding: 180px 20px;"><div class="loading-spinner"></div><p style="color: #999; margin-top: 10px;">Analizando código con AST...</p></div>';
+            statsDiv.innerHTML = '';
+            
+            try {
+                const workspace = getWorkspacePath();
+                const response = await fetch('/api/codemap/scan', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ workspace, max_files: 150 })
+                });
+                
+                const data = await response.json();
+                
+                if (!data.success) {
+                    throw new Error(data.error || 'Error escaneando');
+                }
+                
+                renderCodemapStats(data.stats);
+                renderCodemapGraph(data.graph);
+                
+            } catch (error) {
+                console.error('Error:', error);
+                graphDiv.innerHTML = `<div style="text-align: center; padding: 180px 20px; color: #ff6b6b;">❌ ${error.message}</div>`;
+            }
+        }
+        
+        function renderCodemapStats(stats) {
+            const container = document.getElementById('codemapStats');
+            if (!container || !stats) return;
+            
+            container.innerHTML = `
+                <div style="background: #2d2d2d; border-radius: 8px; padding: 15px;">
+                    <h4 style="color: #fff; margin: 0 0 10px 0;">📊 Análisis AST</h4>
+                    <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; text-align: center;">
+                        <div style="background: #1a1a1a; padding: 12px; border-radius: 6px;">
+                            <div style="font-size: 20px; color: #4caf50; font-weight: bold;">${stats.total_files || 0}</div>
+                            <div style="color: #999; font-size: 11px;">Archivos</div>
+                        </div>
+                        <div style="background: #1a1a1a; padding: 12px; border-radius: 6px;">
+                            <div style="font-size: 20px; color: #2196f3; font-weight: bold;">${stats.total_functions || 0}</div>
+                            <div style="color: #999; font-size: 11px;">Funciones</div>
+                        </div>
+                        <div style="background: #1a1a1a; padding: 12px; border-radius: 6px;">
+                            <div style="font-size: 20px; color: #ff9800; font-weight: bold;">${stats.total_classes || 0}</div>
+                            <div style="color: #999; font-size: 11px;">Clases</div>
+                        </div>
+                        <div style="background: #1a1a1a; padding: 12px; border-radius: 6px;">
+                            <div style="font-size: 20px; color: #9c27b0; font-weight: bold;">${stats.total_imports || 0}</div>
+                            <div style="color: #999; font-size: 11px;">Imports</div>
+                        </div>
+                        <div style="background: #1a1a1a; padding: 12px; border-radius: 6px;">
+                            <div style="font-size: 20px; color: #e91e63; font-weight: bold;">${stats.total_edges || 0}</div>
+                            <div style="color: #999; font-size: 11px;">Conexiones</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        function renderCodemapGraph(graph) {
+            const container = document.getElementById('codemapGraph');
+            if (!container || !graph) return;
+            
+            const nodes = graph.nodes || [];
+            const edges = graph.edges || [];
+            
+            if (nodes.length === 0) {
+                container.innerHTML = '<div style="text-align: center; padding: 180px 20px; color: #999;">No se encontraron archivos para analizar</div>';
+                return;
+            }
+            
+            // Crear SVG para el grafo
+            const width = container.offsetWidth || 1060;
+            const height = 450;
+            
+            container.innerHTML = '';
+            
+            // Crear SVG con D3-like manual (sin librería externa)
+            const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+            svg.setAttribute('width', width);
+            svg.setAttribute('height', height);
+            svg.style.background = '#1a1a1a';
+            container.appendChild(svg);
+            
+            // Colores por grupo
+            const colors = {
+                1: '#4caf50',  // Python
+                2: '#f7df1e',  // JavaScript
+                3: '#3178c6',  // TypeScript
+                4: '#999999'   // Otros
+            };
+            
+            // Layout simple: círculo
+            const centerX = width / 2;
+            const centerY = height / 2;
+            const radius = Math.min(width, height) * 0.35;
+            
+            // Posicionar nodos en círculo
+            nodes.forEach((node, i) => {
+                const angle = (2 * Math.PI * i) / nodes.length - Math.PI / 2;
+                node.x = centerX + radius * Math.cos(angle);
+                node.y = centerY + radius * Math.sin(angle);
+            });
+            
+            // Crear mapa de nodos por ID
+            const nodeMap = {};
+            nodes.forEach(n => nodeMap[n.id] = n);
+            
+            // Dibujar edges
+            edges.forEach(edge => {
+                const source = nodeMap[edge.source];
+                const target = nodeMap[edge.target];
+                
+                if (source && target) {
+                    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                    line.setAttribute('x1', source.x);
+                    line.setAttribute('y1', source.y);
+                    line.setAttribute('x2', target.x);
+                    line.setAttribute('y2', target.y);
+                    line.setAttribute('stroke', '#444');
+                    line.setAttribute('stroke-width', '1');
+                    line.setAttribute('opacity', '0.6');
+                    svg.appendChild(line);
+                }
+            });
+            
+            // Dibujar nodos
+            nodes.forEach(node => {
+                const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                group.setAttribute('transform', `translate(${node.x}, ${node.y})`);
+                group.style.cursor = 'pointer';
+                
+                // Círculo del nodo
+                const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                const nodeSize = Math.max(6, Math.min(15, node.functions + node.classes + 5));
+                circle.setAttribute('r', nodeSize);
+                circle.setAttribute('fill', colors[node.group] || '#999');
+                circle.setAttribute('stroke', '#fff');
+                circle.setAttribute('stroke-width', '1');
+                
+                // Texto del nombre
+                const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                text.setAttribute('dy', nodeSize + 12);
+                text.setAttribute('text-anchor', 'middle');
+                text.setAttribute('fill', '#ccc');
+                text.setAttribute('font-size', '9px');
+                text.textContent = node.name.length > 15 ? node.name.substring(0, 15) + '...' : node.name;
+                
+                group.appendChild(circle);
+                group.appendChild(text);
+                
+                // Tooltip al hover
+                group.addEventListener('mouseenter', () => {
+                    circle.setAttribute('stroke-width', '3');
+                    circle.setAttribute('stroke', colors[node.group]);
+                    showNodeDetails(node);
+                });
+                
+                group.addEventListener('mouseleave', () => {
+                    circle.setAttribute('stroke-width', '1');
+                    circle.setAttribute('stroke', '#fff');
+                });
+                
+                svg.appendChild(group);
+            });
+            
+            // Leyenda
+            const legend = document.createElement('div');
+            legend.style.cssText = 'position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.7); padding: 10px; border-radius: 6px; font-size: 11px;';
+            legend.innerHTML = `
+                <div style="margin-bottom: 5px;"><span style="display: inline-block; width: 12px; height: 12px; background: #4caf50; border-radius: 50%; margin-right: 5px;"></span>Python</div>
+                <div style="margin-bottom: 5px;"><span style="display: inline-block; width: 12px; height: 12px; background: #f7df1e; border-radius: 50%; margin-right: 5px;"></span>JavaScript</div>
+                <div><span style="display: inline-block; width: 12px; height: 12px; background: #3178c6; border-radius: 50%; margin-right: 5px;"></span>TypeScript</div>
+            `;
+            container.appendChild(legend);
+        }
+        
+        function showNodeDetails(node) {
+            const container = document.getElementById('codemapDetails');
+            if (!container) return;
+            
+            const funcs = node.details?.functions || [];
+            const classes = node.details?.classes || [];
+            const imports = node.details?.imports || [];
+            
+            container.innerHTML = `
+                <div style="background: #2d2d2d; border-radius: 8px; padding: 15px;">
+                    <h4 style="color: #fff; margin: 0 0 10px 0;">📄 ${node.name}</h4>
+                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; font-size: 12px;">
+                        <div>
+                            <div style="color: #2196f3; margin-bottom: 5px;">Funciones (${funcs.length})</div>
+                            <div style="color: #999; max-height: 80px; overflow-y: auto;">
+                                ${funcs.length > 0 ? funcs.map(f => `<div>• ${f}</div>`).join('') : '<div>-</div>'}
+                            </div>
+                        </div>
+                        <div>
+                            <div style="color: #ff9800; margin-bottom: 5px;">Clases (${classes.length})</div>
+                            <div style="color: #999; max-height: 80px; overflow-y: auto;">
+                                ${classes.length > 0 ? classes.map(c => `<div>• ${c}</div>`).join('') : '<div>-</div>'}
+                            </div>
+                        </div>
+                        <div>
+                            <div style="color: #9c27b0; margin-bottom: 5px;">Imports (${imports.length})</div>
+                            <div style="color: #999; max-height: 80px; overflow-y: auto;">
+                                ${imports.length > 0 ? imports.map(i => `<div>• ${i}</div>`).join('') : '<div>-</div>'}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        function closeCodemapModal() {
+            const modal = document.getElementById('codemapModal');
+            if (modal) modal.classList.remove('show');
+        }
+        
         // Cerrar modal con Escape
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
@@ -3165,6 +3430,7 @@
                 closeSemanticModal();
                 closeDiffModal();
                 closeBackgroundModal();
+                closeCodemapModal();
             }
         });
         
