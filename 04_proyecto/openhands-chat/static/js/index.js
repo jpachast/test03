@@ -3960,6 +3960,399 @@
             if (modal) modal.classList.remove('show');
         }
         
+        // ============================================
+        // CODE PARSER - AST, Themes, Autocompletado
+        // ============================================
+        let currentTheme = 'dark';
+        
+        function openCodeParser() {
+            toggleToolsMenu();
+            
+            let modal = document.getElementById('codeParserModal');
+            if (!modal) {
+                modal = document.createElement('div');
+                modal.id = 'codeParserModal';
+                modal.className = 'multiagent-modal';
+                modal.innerHTML = `
+                    <div class="multiagent-content" style="max-width: 950px; max-height: 85vh;">
+                        <div class="multiagent-header">
+                            <h3>🎨 Code Parser - Chat Sandbox Integration</h3>
+                            <button class="multiagent-close" onclick="closeCodeParserModal()">&times;</button>
+                        </div>
+                        <div class="multiagent-body" id="codeParserBody" style="overflow-y: auto; max-height: calc(85vh - 120px);">
+                            <p style="color: #999; margin-bottom: 15px;">Parser AST real, syntax highlighting con themes, y autocompletado.</p>
+                            
+                            <!-- Tabs -->
+                            <div style="display: flex; gap: 5px; margin-bottom: 15px; border-bottom: 1px solid #444; padding-bottom: 10px;">
+                                <button id="tabAST" onclick="showCodeParserTab('ast')" class="tools-btn" style="padding: 8px 15px;">
+                                    🔍 Parser AST
+                                </button>
+                                <button id="tabThemes" onclick="showCodeParserTab('themes')" class="tools-btn" style="padding: 8px 15px; background: #444;">
+                                    🎨 Themes
+                                </button>
+                                <button id="tabAutocomplete" onclick="showCodeParserTab('autocomplete')" class="tools-btn" style="padding: 8px 15px; background: #444;">
+                                    ⌨️ Autocompletado
+                                </button>
+                            </div>
+                            
+                            <!-- AST Tab -->
+                            <div id="tabContentAST">
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                                    <div>
+                                        <label style="color: #fff; display: block; margin-bottom: 5px;">Código a analizar:</label>
+                                        <textarea id="codeInput" style="width: 100%; height: 200px; background: #1a1a1a; color: #fff; border: 1px solid #444; border-radius: 6px; padding: 10px; font-family: monospace; font-size: 13px; resize: vertical;">def suma(a, b):
+    """Suma dos números"""
+    return a + b
+
+class Calculadora:
+    def multiplicar(self, x, y):
+        return x * y
+
+import math
+from typing import List</textarea>
+                                    </div>
+                                    <div>
+                                        <label style="color: #fff; display: block; margin-bottom: 5px;">Resultado AST:</label>
+                                        <div id="astResult" style="background: #1a1a1a; border: 1px solid #444; border-radius: 6px; padding: 10px; height: 200px; overflow-y: auto; font-family: monospace; font-size: 12px;"></div>
+                                    </div>
+                                </div>
+                                <div style="margin-top: 10px;">
+                                    <button onclick="parseCodeAST()" class="tools-btn" style="padding: 10px 20px;">
+                                        🔍 Analizar con AST
+                                    </button>
+                                    <button onclick="detectLanguage()" class="tools-btn" style="padding: 10px 20px; background: #9c27b0;">
+                                        🔮 Detectar Lenguaje
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <!-- Themes Tab -->
+                            <div id="tabContentThemes" style="display: none;">
+                                <div id="themesGrid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px;"></div>
+                                <div style="margin-top: 15px;">
+                                    <label style="color: #fff; display: block; margin-bottom: 10px;">Vista previa con tema seleccionado:</label>
+                                    <div id="themePreview" style="border-radius: 8px; padding: 15px; font-family: monospace; font-size: 13px;"></div>
+                                </div>
+                            </div>
+                            
+                            <!-- Autocomplete Tab -->
+                            <div id="tabContentAutocomplete" style="display: none;">
+                                <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 15px;">
+                                    <div>
+                                        <label style="color: #fff; display: block; margin-bottom: 5px;">Escribe código (posiciona cursor y presiona Ctrl+Space):</label>
+                                        <textarea id="autocompleteInput" style="width: 100%; height: 150px; background: #1a1a1a; color: #fff; border: 1px solid #444; border-radius: 6px; padding: 10px; font-family: monospace; font-size: 13px;" placeholder="Escribe 'pr' y presiona Ctrl+Space para ver sugerencias...">pr</textarea>
+                                        <div style="margin-top: 10px;">
+                                            <select id="autocompleteLanguage" style="padding: 8px; background: #2d2d2d; color: #fff; border: 1px solid #444; border-radius: 4px;">
+                                                <option value="python">Python</option>
+                                                <option value="javascript">JavaScript</option>
+                                            </select>
+                                            <button onclick="getAutocompleteSuggestions()" class="tools-btn" style="padding: 8px 15px; margin-left: 10px;">
+                                                ⌨️ Obtener Sugerencias
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label style="color: #fff; display: block; margin-bottom: 5px;">Sugerencias:</label>
+                                        <div id="autocompleteSuggestions" style="background: #1a1a1a; border: 1px solid #444; border-radius: 6px; padding: 10px; height: 200px; overflow-y: auto;"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(modal);
+            }
+            
+            modal.classList.add('show');
+            loadThemes();
+            showCodeParserTab('ast');
+        }
+        
+        function showCodeParserTab(tab) {
+            // Ocultar todos
+            document.getElementById('tabContentAST').style.display = 'none';
+            document.getElementById('tabContentThemes').style.display = 'none';
+            document.getElementById('tabContentAutocomplete').style.display = 'none';
+            
+            // Reset buttons
+            document.getElementById('tabAST').style.background = '#444';
+            document.getElementById('tabThemes').style.background = '#444';
+            document.getElementById('tabAutocomplete').style.background = '#444';
+            
+            // Mostrar seleccionado
+            if (tab === 'ast') {
+                document.getElementById('tabContentAST').style.display = 'block';
+                document.getElementById('tabAST').style.background = '#4caf50';
+            } else if (tab === 'themes') {
+                document.getElementById('tabContentThemes').style.display = 'block';
+                document.getElementById('tabThemes').style.background = '#4caf50';
+            } else if (tab === 'autocomplete') {
+                document.getElementById('tabContentAutocomplete').style.display = 'block';
+                document.getElementById('tabAutocomplete').style.background = '#4caf50';
+            }
+        }
+        
+        async function parseCodeAST() {
+            const code = document.getElementById('codeInput').value;
+            const resultDiv = document.getElementById('astResult');
+            
+            resultDiv.innerHTML = '<div style="color: #999;">Analizando...</div>';
+            
+            try {
+                const response = await fetch('/api/codeparser/parse', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ code })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    const r = data.result;
+                    let html = `
+                        <div style="margin-bottom: 10px;">
+                            <span style="color: ${r.is_valid ? '#4caf50' : '#f44336'}; font-weight: bold;">
+                                ${r.is_valid ? '✅ Válido' : '❌ Errores'}
+                            </span>
+                            <span style="color: #2196f3; margin-left: 15px;">📝 ${r.language}</span>
+                            <span style="color: #999; margin-left: 15px;">${r.line_count} líneas</span>
+                        </div>
+                    `;
+                    
+                    if (r.errors && r.errors.length > 0) {
+                        html += '<div style="color: #f44336; margin-bottom: 10px;">';
+                        r.errors.forEach(e => html += `<div>⚠️ ${e}</div>`);
+                        html += '</div>';
+                    }
+                    
+                    const ast = r.ast_info || {};
+                    
+                    if (ast.functions && ast.functions.length > 0) {
+                        html += '<div style="color: #dcdcaa; margin-top: 10px;"><strong>Funciones:</strong></div>';
+                        ast.functions.forEach(f => {
+                            html += `<div style="color: #dcdcaa; padding-left: 15px;">• ${f.name}(${f.args?.join(', ') || ''})</div>`;
+                        });
+                    }
+                    
+                    if (ast.classes && ast.classes.length > 0) {
+                        html += '<div style="color: #4ec9b0; margin-top: 10px;"><strong>Clases:</strong></div>';
+                        ast.classes.forEach(c => {
+                            html += `<div style="color: #4ec9b0; padding-left: 15px;">• ${c.name}</div>`;
+                        });
+                    }
+                    
+                    if (ast.imports && ast.imports.length > 0) {
+                        html += '<div style="color: #c586c0; margin-top: 10px;"><strong>Imports:</strong></div>';
+                        ast.imports.forEach(i => {
+                            html += `<div style="color: #c586c0; padding-left: 15px;">• ${i}</div>`;
+                        });
+                    }
+                    
+                    if (ast.variables && ast.variables.length > 0) {
+                        html += '<div style="color: #9cdcfe; margin-top: 10px;"><strong>Variables:</strong></div>';
+                        html += `<div style="color: #9cdcfe; padding-left: 15px;">${ast.variables.join(', ')}</div>`;
+                    }
+                    
+                    resultDiv.innerHTML = html;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div style="color: #f44336;">Error: ${error.message}</div>`;
+            }
+        }
+        
+        async function detectLanguage() {
+            const code = document.getElementById('codeInput').value;
+            
+            try {
+                const response = await fetch('/api/codeparser/detect-language', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ code })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showToast(`Lenguaje detectado: ${data.language} (${data.confidence})`, 'success');
+                }
+            } catch (error) {
+                showToast('Error detectando lenguaje', 'error');
+            }
+        }
+        
+        async function loadThemes() {
+            try {
+                const response = await fetch('/api/codeparser/themes');
+                const data = await response.json();
+                
+                if (data.success) {
+                    renderThemes(data.themes);
+                }
+            } catch (error) {
+                console.error('Error loading themes:', error);
+            }
+        }
+        
+        function renderThemes(themes) {
+            const grid = document.getElementById('themesGrid');
+            if (!grid) return;
+            
+            let html = '';
+            
+            for (const [id, theme] of Object.entries(themes)) {
+                const isSelected = id === currentTheme;
+                html += `
+                    <div onclick="selectTheme('${id}')" style="background: ${theme.background}; border: 2px solid ${isSelected ? '#4caf50' : '#444'}; border-radius: 8px; padding: 15px; cursor: pointer; transition: all 0.2s;">
+                        <div style="color: ${theme.text}; font-weight: bold; margin-bottom: 10px;">${theme.name}</div>
+                        <div style="font-family: monospace; font-size: 11px;">
+                            <span style="color: ${theme.keyword};">function</span>
+                            <span style="color: ${theme.function};">test</span>
+                            <span style="color: ${theme.text};">(</span>
+                            <span style="color: ${theme.variable};">x</span>
+                            <span style="color: ${theme.text};">) {</span><br>
+                            <span style="color: ${theme.comment};">&nbsp;&nbsp;// comment</span><br>
+                            <span style="color: ${theme.keyword};">&nbsp;&nbsp;return</span>
+                            <span style="color: ${theme.string};">"hello"</span>
+                            <span style="color: ${theme.text};">;</span><br>
+                            <span style="color: ${theme.text};">}</span>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            grid.innerHTML = html;
+            updateThemePreview(themes[currentTheme]);
+        }
+        
+        function selectTheme(themeId) {
+            currentTheme = themeId;
+            loadThemes();
+            showToast(`Tema seleccionado: ${themeId}`, 'success');
+        }
+        
+        function updateThemePreview(theme) {
+            const preview = document.getElementById('themePreview');
+            if (!preview || !theme) return;
+            
+            preview.style.background = theme.background;
+            preview.innerHTML = `
+                <div style="color: ${theme.comment};">// Ejemplo de código con tema ${theme.name}</div>
+                <div>
+                    <span style="color: ${theme.keyword};">class</span>
+                    <span style="color: ${theme.class};"> Calculator</span>
+                    <span style="color: ${theme.text};"> {</span>
+                </div>
+                <div>
+                    <span style="color: ${theme.text};">&nbsp;&nbsp;</span>
+                    <span style="color: ${theme.function};">add</span>
+                    <span style="color: ${theme.text};">(</span>
+                    <span style="color: ${theme.variable};">a</span>
+                    <span style="color: ${theme.text};">, </span>
+                    <span style="color: ${theme.variable};">b</span>
+                    <span style="color: ${theme.text};">) {</span>
+                </div>
+                <div>
+                    <span style="color: ${theme.text};">&nbsp;&nbsp;&nbsp;&nbsp;</span>
+                    <span style="color: ${theme.keyword};">return</span>
+                    <span style="color: ${theme.variable};"> a</span>
+                    <span style="color: ${theme.operator};"> +</span>
+                    <span style="color: ${theme.variable};"> b</span>
+                    <span style="color: ${theme.text};">;</span>
+                </div>
+                <div>
+                    <span style="color: ${theme.text};">&nbsp;&nbsp;}</span>
+                </div>
+                <div>
+                    <span style="color: ${theme.text};">}</span>
+                </div>
+                <div style="margin-top: 10px;">
+                    <span style="color: ${theme.keyword};">const</span>
+                    <span style="color: ${theme.variable};"> result</span>
+                    <span style="color: ${theme.operator};"> =</span>
+                    <span style="color: ${theme.number};"> 42</span>
+                    <span style="color: ${theme.text};">;</span>
+                </div>
+                <div>
+                    <span style="color: ${theme.keyword};">const</span>
+                    <span style="color: ${theme.variable};"> message</span>
+                    <span style="color: ${theme.operator};"> =</span>
+                    <span style="color: ${theme.string};"> "Hello World"</span>
+                    <span style="color: ${theme.text};">;</span>
+                </div>
+            `;
+        }
+        
+        async function getAutocompleteSuggestions() {
+            const code = document.getElementById('autocompleteInput').value;
+            const language = document.getElementById('autocompleteLanguage').value;
+            const cursorPos = document.getElementById('autocompleteInput').selectionStart;
+            
+            const suggestionsDiv = document.getElementById('autocompleteSuggestions');
+            suggestionsDiv.innerHTML = '<div style="color: #999;">Buscando sugerencias...</div>';
+            
+            try {
+                const response = await fetch('/api/codeparser/autocomplete', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        code: code,
+                        cursor_position: cursorPos,
+                        language: language
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    if (data.suggestions.length === 0) {
+                        suggestionsDiv.innerHTML = '<div style="color: #999;">No hay sugerencias</div>';
+                        return;
+                    }
+                    
+                    let html = '';
+                    data.suggestions.forEach(s => {
+                        const typeColor = s.type === 'keyword' ? '#569cd6' : s.type === 'builtin' ? '#dcdcaa' : '#4ec9b0';
+                        html += `
+                            <div style="padding: 8px; border-bottom: 1px solid #333; cursor: pointer;" onmouseover="this.style.background='#333'" onmouseout="this.style.background='transparent'" onclick="insertSuggestion('${s.text}')">
+                                <span style="color: ${typeColor}; font-weight: bold;">${s.text}</span>
+                                <span style="color: #888; font-size: 11px; margin-left: 10px;">${s.type}</span>
+                                <div style="color: #666; font-size: 10px;">${s.description}</div>
+                            </div>
+                        `;
+                    });
+                    suggestionsDiv.innerHTML = html;
+                }
+            } catch (error) {
+                suggestionsDiv.innerHTML = `<div style="color: #f44336;">Error: ${error.message}</div>`;
+            }
+        }
+        
+        function insertSuggestion(text) {
+            const input = document.getElementById('autocompleteInput');
+            const cursorPos = input.selectionStart;
+            const before = input.value.substring(0, cursorPos);
+            const after = input.value.substring(cursorPos);
+            
+            // Encontrar inicio de palabra actual
+            let wordStart = cursorPos;
+            for (let i = cursorPos - 1; i >= 0; i--) {
+                if (!/[a-zA-Z_]/.test(before[i])) {
+                    wordStart = i + 1;
+                    break;
+                }
+                if (i === 0) wordStart = 0;
+            }
+            
+            input.value = before.substring(0, wordStart) + text + after;
+            input.focus();
+            showToast(`Insertado: ${text}`, 'success');
+        }
+        
+        function closeCodeParserModal() {
+            const modal = document.getElementById('codeParserModal');
+            if (modal) modal.classList.remove('show');
+        }
+        
         // Cerrar modal con Escape
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
@@ -3972,6 +4365,7 @@
                 closeCodemapModal();
                 closeMCPModal();
                 closeCheckpointModal();
+                closeCodeParserModal();
             }
         });
         
