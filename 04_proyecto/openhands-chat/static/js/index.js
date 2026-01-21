@@ -2612,6 +2612,303 @@
             if (modal) modal.classList.remove('show');
         }
         
+        // ============================================
+        // DIFF PREVIEW - Vista previa visual de cambios
+        // ============================================
+        function openDiffPreview() {
+            toggleToolsMenu(); // Cerrar dropdown
+            
+            let modal = document.getElementById('diffModal');
+            if (!modal) {
+                modal = document.createElement('div');
+                modal.id = 'diffModal';
+                modal.className = 'multiagent-modal';
+                modal.innerHTML = `
+                    <div class="multiagent-content" style="max-width: 900px; max-height: 85vh;">
+                        <div class="multiagent-header">
+                            <h3>📊 Diff Preview</h3>
+                            <button class="multiagent-close" onclick="closeDiffModal()">&times;</button>
+                        </div>
+                        <div class="multiagent-body" id="diffBody" style="overflow-y: auto; max-height: calc(85vh - 120px);">
+                            <p style="color: #999; margin-bottom: 15px;">Vista previa visual de cambios en Git.</p>
+                            
+                            <div style="display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap;">
+                                <button onclick="loadDiffStatus()" class="tools-btn" style="padding: 10px 15px;">
+                                    📋 Estado Git
+                                </button>
+                                <button onclick="loadUnstagedDiff()" class="tools-btn" style="padding: 10px 15px;">
+                                    📝 Cambios Sin Stage
+                                </button>
+                                <button onclick="loadStagedDiff()" class="tools-btn" style="padding: 10px 15px;">
+                                    ✅ Cambios Staged
+                                </button>
+                                <button onclick="loadCommitHistory()" class="tools-btn" style="padding: 10px 15px; background: #6c757d;">
+                                    📜 Historial
+                                </button>
+                            </div>
+                            
+                            <div id="diffResults" style="margin-top: 15px;"></div>
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(modal);
+            }
+            
+            modal.classList.add('show');
+            loadDiffStatus(); // Cargar estado inicial
+        }
+        
+        async function loadDiffStatus() {
+            const resultsDiv = document.getElementById('diffResults');
+            resultsDiv.innerHTML = '<div style="text-align: center; padding: 20px;"><div class="loading-spinner"></div><p style="color: #999; margin-top: 10px;">Cargando estado...</p></div>';
+            
+            try {
+                const workspace = getWorkspacePath();
+                const response = await fetch(`/api/diff/status?workspace=${encodeURIComponent(workspace)}`);
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(data.detail || 'Error obteniendo estado');
+                }
+                
+                const files = data.files || {};
+                const summary = data.summary || {};
+                
+                let html = `
+                    <div style="background: #2d2d2d; border-radius: 8px; padding: 15px; margin-bottom: 15px;">
+                        <h4 style="color: #fff; margin: 0 0 10px 0;">📋 Estado del Repositorio</h4>
+                        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; text-align: center;">
+                            <div style="background: #1a1a1a; padding: 15px; border-radius: 6px;">
+                                <div style="font-size: 24px; color: #4caf50; font-weight: bold;">${summary.staged || 0}</div>
+                                <div style="color: #999; font-size: 12px;">Staged</div>
+                            </div>
+                            <div style="background: #1a1a1a; padding: 15px; border-radius: 6px;">
+                                <div style="font-size: 24px; color: #ff9800; font-weight: bold;">${summary.unstaged || 0}</div>
+                                <div style="color: #999; font-size: 12px;">Sin Stage</div>
+                            </div>
+                            <div style="background: #1a1a1a; padding: 15px; border-radius: 6px;">
+                                <div style="font-size: 24px; color: #9e9e9e; font-weight: bold;">${summary.untracked || 0}</div>
+                                <div style="color: #999; font-size: 12px;">Sin Seguimiento</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                // Archivos staged
+                if (files.staged && files.staged.length > 0) {
+                    html += renderFileList('✅ Staged', files.staged, '#4caf50');
+                }
+                
+                // Archivos unstaged
+                if (files.unstaged && files.unstaged.length > 0) {
+                    html += renderFileList('📝 Sin Stage', files.unstaged, '#ff9800');
+                }
+                
+                // Archivos untracked
+                if (files.untracked && files.untracked.length > 0) {
+                    html += renderFileList('❓ Sin Seguimiento', files.untracked, '#9e9e9e');
+                }
+                
+                if (!files.staged?.length && !files.unstaged?.length && !files.untracked?.length) {
+                    html += '<div style="text-align: center; padding: 30px; color: #4caf50;">✨ Directorio de trabajo limpio</div>';
+                }
+                
+                resultsDiv.innerHTML = html;
+                
+            } catch (error) {
+                console.error('Error:', error);
+                resultsDiv.innerHTML = `<div style="color: #ff6b6b; padding: 15px; background: rgba(255,0,0,0.1); border-radius: 8px;">❌ ${error.message}</div>`;
+            }
+        }
+        
+        function renderFileList(title, files, color) {
+            let html = `
+                <div style="background: #2d2d2d; border-radius: 8px; padding: 15px; margin-bottom: 10px;">
+                    <h5 style="color: ${color}; margin: 0 0 10px 0;">${title} (${files.length})</h5>
+                    <div style="font-size: 13px;">
+            `;
+            
+            for (const file of files) {
+                const statusIcon = {
+                    'modified': '📝',
+                    'added': '➕',
+                    'deleted': '🗑️',
+                    'renamed': '📛',
+                    'untracked': '❓'
+                }[file.status] || '📄';
+                
+                html += `<div style="padding: 5px 0; border-bottom: 1px solid #3a3a3a;">
+                    ${statusIcon} <span style="color: #d4d4d4;">${file.file}</span>
+                    <span style="color: ${color}; font-size: 11px; margin-left: 10px;">${file.status}</span>
+                </div>`;
+            }
+            
+            html += '</div></div>';
+            return html;
+        }
+        
+        async function loadUnstagedDiff() {
+            await loadDiff('unstaged', '📝 Cambios Sin Stage');
+        }
+        
+        async function loadStagedDiff() {
+            await loadDiff('staged', '✅ Cambios Staged');
+        }
+        
+        async function loadDiff(type, title) {
+            const resultsDiv = document.getElementById('diffResults');
+            resultsDiv.innerHTML = '<div style="text-align: center; padding: 20px;"><div class="loading-spinner"></div><p style="color: #999; margin-top: 10px;">Cargando diff...</p></div>';
+            
+            try {
+                const workspace = getWorkspacePath();
+                const response = await fetch(`/api/diff/${type}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ workspace })
+                });
+                
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(data.detail || 'Error obteniendo diff');
+                }
+                
+                const files = data.files || [];
+                const summary = data.summary || {};
+                
+                if (files.length === 0) {
+                    resultsDiv.innerHTML = `<div style="text-align: center; padding: 30px; color: #999;">No hay cambios ${type === 'staged' ? 'staged' : 'sin stage'}</div>`;
+                    return;
+                }
+                
+                let html = `
+                    <div style="background: #2d2d2d; border-radius: 8px; padding: 15px; margin-bottom: 15px;">
+                        <h4 style="color: #fff; margin: 0 0 10px 0;">${title}</h4>
+                        <div style="display: flex; gap: 20px; font-size: 13px;">
+                            <span style="color: #999;">Archivos: <strong style="color: #fff;">${summary.total_files}</strong></span>
+                            <span style="color: #4caf50;">+${summary.additions}</span>
+                            <span style="color: #f44336;">-${summary.deletions}</span>
+                        </div>
+                    </div>
+                `;
+                
+                for (const file of files) {
+                    html += renderFileDiff(file);
+                }
+                
+                resultsDiv.innerHTML = html;
+                
+            } catch (error) {
+                console.error('Error:', error);
+                resultsDiv.innerHTML = `<div style="color: #ff6b6b; padding: 15px; background: rgba(255,0,0,0.1); border-radius: 8px;">❌ ${error.message}</div>`;
+            }
+        }
+        
+        function renderFileDiff(file) {
+            const statusColor = {
+                'modified': '#ff9800',
+                'added': '#4caf50',
+                'deleted': '#f44336'
+            }[file.status] || '#999';
+            
+            let html = `
+                <div style="background: #1e1e1e; border-radius: 8px; margin-bottom: 15px; overflow: hidden; border: 1px solid #3a3a3a;">
+                    <div style="background: #2d2d2d; padding: 10px 15px; display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <span style="color: ${statusColor}; font-weight: bold;">${file.file}</span>
+                            <span style="color: #999; font-size: 12px; margin-left: 10px;">${file.status}</span>
+                        </div>
+                        <div style="font-size: 12px;">
+                            <span style="color: #4caf50;">+${file.additions}</span>
+                            <span style="color: #f44336; margin-left: 10px;">-${file.deletions}</span>
+                        </div>
+                    </div>
+                    <div style="font-family: 'Monaco', 'Menlo', monospace; font-size: 12px; overflow-x: auto;">
+            `;
+            
+            for (const chunk of file.chunks || []) {
+                html += `<div style="background: #252526; color: #569cd6; padding: 5px 15px; font-size: 11px;">${escapeHtml(chunk.header)}</div>`;
+                
+                for (const line of chunk.lines || []) {
+                    let bgColor = 'transparent';
+                    let textColor = '#d4d4d4';
+                    let prefix = ' ';
+                    
+                    if (line.type === 'addition') {
+                        bgColor = 'rgba(76, 175, 80, 0.15)';
+                        textColor = '#4caf50';
+                        prefix = '+';
+                    } else if (line.type === 'deletion') {
+                        bgColor = 'rgba(244, 67, 54, 0.15)';
+                        textColor = '#f44336';
+                        prefix = '-';
+                    }
+                    
+                    html += `<div style="background: ${bgColor}; padding: 2px 15px; white-space: pre-wrap; word-break: break-all;">
+                        <span style="color: ${textColor};">${prefix}</span>
+                        <span style="color: ${textColor};">${escapeHtml(line.content)}</span>
+                    </div>`;
+                }
+            }
+            
+            html += '</div></div>';
+            return html;
+        }
+        
+        async function loadCommitHistory() {
+            const resultsDiv = document.getElementById('diffResults');
+            resultsDiv.innerHTML = '<div style="text-align: center; padding: 20px;"><div class="loading-spinner"></div><p style="color: #999; margin-top: 10px;">Cargando historial...</p></div>';
+            
+            try {
+                const workspace = getWorkspacePath();
+                const response = await fetch(`/api/diff/history?workspace=${encodeURIComponent(workspace)}&limit=15`);
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(data.detail || 'Error obteniendo historial');
+                }
+                
+                const commits = data.commits || [];
+                
+                if (commits.length === 0) {
+                    resultsDiv.innerHTML = '<div style="text-align: center; padding: 30px; color: #999;">No hay commits</div>';
+                    return;
+                }
+                
+                let html = `
+                    <div style="background: #2d2d2d; border-radius: 8px; padding: 15px;">
+                        <h4 style="color: #fff; margin: 0 0 15px 0;">📜 Historial de Commits (${commits.length})</h4>
+                `;
+                
+                for (const commit of commits) {
+                    html += `
+                        <div style="border-left: 3px solid #4caf50; padding: 10px 15px; margin-bottom: 10px; background: #1a1a1a; border-radius: 0 6px 6px 0;">
+                            <div style="display: flex; justify-content: space-between; align-items: start;">
+                                <div>
+                                    <code style="color: #ff9800; font-size: 12px;">${commit.short_hash}</code>
+                                    <span style="color: #d4d4d4; margin-left: 10px;">${escapeHtml(commit.message)}</span>
+                                </div>
+                                <span style="color: #999; font-size: 11px; white-space: nowrap;">${commit.date}</span>
+                            </div>
+                            <div style="color: #999; font-size: 11px; margin-top: 5px;">👤 ${escapeHtml(commit.author)}</div>
+                        </div>
+                    `;
+                }
+                
+                html += '</div>';
+                resultsDiv.innerHTML = html;
+                
+            } catch (error) {
+                console.error('Error:', error);
+                resultsDiv.innerHTML = `<div style="color: #ff6b6b; padding: 15px; background: rgba(255,0,0,0.1); border-radius: 8px;">❌ ${error.message}</div>`;
+            }
+        }
+        
+        function closeDiffModal() {
+            const modal = document.getElementById('diffModal');
+            if (modal) modal.classList.remove('show');
+        }
+        
         // Cerrar modal con Escape
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
@@ -2619,6 +2916,7 @@
                 closeTestGeneratorModal();
                 closeMCTSModal();
                 closeSemanticModal();
+                closeDiffModal();
             }
         });
         
