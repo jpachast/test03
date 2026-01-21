@@ -2160,11 +2160,228 @@
             if (modal) modal.classList.remove('show');
         }
         
+        // ============================================
+        // MCTS OPTIMIZER - Monte Carlo Tree Search
+        // ============================================
+        function openMCTSOptimizer() {
+            toggleToolsMenu(); // Cerrar dropdown
+            
+            let modal = document.getElementById('mctsModal');
+            if (!modal) {
+                modal = document.createElement('div');
+                modal.id = 'mctsModal';
+                modal.className = 'multiagent-modal';
+                modal.innerHTML = `
+                    <div class="multiagent-content" style="max-width: 750px;">
+                        <div class="multiagent-header">
+                            <h3>🎯 MCTS Optimizer</h3>
+                            <button class="multiagent-close" onclick="closeMCTSModal()">&times;</button>
+                        </div>
+                        <div class="multiagent-body" id="mctsBody">
+                            <p style="color: #999; margin-bottom: 15px;">Monte Carlo Tree Search para optimización de parámetros.</p>
+                            
+                            <div style="margin-bottom: 15px;">
+                                <label style="color: #ccc; font-size: 13px;">Función Objetivo (lambda):</label>
+                                <input type="text" id="mctsObjective" 
+                                    placeholder="lambda p: -(p['x']**2 + p['y']**2)"
+                                    value="lambda p: -(p['x']**2 + p['y']**2)"
+                                    style="width: 100%; background: #1e1e1e; color: #d4d4d4; border: 1px solid #444; border-radius: 6px; padding: 10px; font-family: monospace; margin-top: 5px;">
+                            </div>
+                            
+                            <div style="margin-bottom: 15px;">
+                                <label style="color: #ccc; font-size: 13px;">Rangos de Parámetros (JSON):</label>
+                                <textarea id="mctsParams" 
+                                    style="width: 100%; height: 80px; background: #1e1e1e; color: #d4d4d4; border: 1px solid #444; border-radius: 6px; padding: 10px; font-family: monospace; margin-top: 5px; resize: vertical;">{"x": [-10, 10], "y": [-10, 10]}</textarea>
+                            </div>
+                            
+                            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 15px;">
+                                <div>
+                                    <label style="color: #999; font-size: 12px;">Iteraciones</label>
+                                    <input type="number" id="mctsIterations" value="500" min="100" max="5000"
+                                        style="width: 100%; background: #1e1e1e; color: #fff; border: 1px solid #444; border-radius: 6px; padding: 8px;">
+                                </div>
+                                <div>
+                                    <label style="color: #999; font-size: 12px;">Exploración (UCB1)</label>
+                                    <input type="number" id="mctsExploration" value="1.41" step="0.1" min="0.1" max="3"
+                                        style="width: 100%; background: #1e1e1e; color: #fff; border: 1px solid #444; border-radius: 6px; padding: 8px;">
+                                </div>
+                                <div>
+                                    <label style="color: #999; font-size: 12px;">Discretización</label>
+                                    <input type="number" id="mctsDiscretization" value="10" min="5" max="50"
+                                        style="width: 100%; background: #1e1e1e; color: #fff; border: 1px solid #444; border-radius: 6px; padding: 8px;">
+                                </div>
+                            </div>
+                            
+                            <button onclick="runMCTSOptimizer()" class="tools-btn" style="width: 100%; padding: 12px;">
+                                🚀 Ejecutar MCTS
+                            </button>
+                            
+                            <div id="mctsResults" style="margin-top: 20px;"></div>
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(modal);
+            }
+            
+            modal.classList.add('show');
+        }
+        
+        async function runMCTSOptimizer() {
+            const objective = document.getElementById('mctsObjective').value.trim();
+            const paramsJson = document.getElementById('mctsParams').value.trim();
+            const iterations = parseInt(document.getElementById('mctsIterations').value);
+            const exploration = parseFloat(document.getElementById('mctsExploration').value);
+            const discretization = parseInt(document.getElementById('mctsDiscretization').value);
+            
+            if (!objective || !paramsJson) {
+                showToast('Completa todos los campos', 'error');
+                return;
+            }
+            
+            let paramRanges;
+            try {
+                paramRanges = JSON.parse(paramsJson);
+            } catch (e) {
+                showToast('JSON de parámetros inválido', 'error');
+                return;
+            }
+            
+            const resultsDiv = document.getElementById('mctsResults');
+            resultsDiv.innerHTML = '<div style="text-align: center; padding: 20px;"><div class="loading-spinner"></div><p style="color: #999; margin-top: 10px;">Ejecutando MCTS...</p></div>';
+            
+            try {
+                const response = await fetch('/api/mcts/optimize', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        objective_code: objective,
+                        param_ranges: paramRanges,
+                        iterations: iterations,
+                        exploration_weight: exploration,
+                        discretization: discretization
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(data.detail || 'Error en MCTS');
+                }
+                
+                showMCTSResults(data);
+                saveMCTSResultsToChat(data);
+                
+            } catch (error) {
+                console.error('MCTS error:', error);
+                resultsDiv.innerHTML = `<div style="color: #ff6b6b; padding: 15px; background: rgba(255,0,0,0.1); border-radius: 8px;">❌ ${error.message}</div>`;
+            }
+        }
+        
+        function showMCTSResults(data) {
+            const resultsDiv = document.getElementById('mctsResults');
+            
+            let html = `
+                <div class="multiagent-stats">
+                    <div class="stat-item">
+                        <div class="stat-value" style="color: #4caf50">${data.best_value}</div>
+                        <div class="stat-label">Mejor Valor</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value">${data.root_visits}</div>
+                        <div class="stat-label">Visitas Raíz</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value">${data.tree_depth}</div>
+                        <div class="stat-label">Profundidad</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value">${data.execution_time}s</div>
+                        <div class="stat-label">Tiempo</div>
+                    </div>
+                </div>
+                
+                <div style="background: #2d2d2d; border-radius: 8px; padding: 15px; margin-top: 15px;">
+                    <h4 style="margin: 0 0 10px 0; color: #fff;">🎯 Mejor Acción Encontrada</h4>
+                    <code style="color: #4caf50; font-size: 14px;">${data.best_action || 'N/A'}</code>
+                </div>
+            `;
+            
+            // Top acciones
+            if (data.action_scores && data.action_scores.length > 0) {
+                html += `
+                    <div style="margin-top: 15px;">
+                        <h4 style="color: #fff; margin-bottom: 10px;">📊 Top Acciones (por visitas)</h4>
+                        <table style="width: 100%; font-size: 12px; border-collapse: collapse;">
+                            <tr style="color: #999; border-bottom: 1px solid #444;">
+                                <th style="text-align: left; padding: 8px;">Acción</th>
+                                <th style="text-align: right; padding: 8px;">Visitas</th>
+                                <th style="text-align: right; padding: 8px;">Valor Avg</th>
+                                <th style="text-align: right; padding: 8px;">UCB1</th>
+                            </tr>
+                `;
+                
+                for (const action of data.action_scores.slice(0, 5)) {
+                    html += `
+                        <tr style="border-bottom: 1px solid #333;">
+                            <td style="padding: 8px; color: #fff;">${action.action}</td>
+                            <td style="padding: 8px; text-align: right; color: #4caf50;">${action.visits}</td>
+                            <td style="padding: 8px; text-align: right; color: #fff;">${action.avg_value}</td>
+                            <td style="padding: 8px; text-align: right; color: #999;">${action.ucb1}</td>
+                        </tr>
+                    `;
+                }
+                
+                html += '</table></div>';
+            }
+            
+            resultsDiv.innerHTML = html;
+        }
+        
+        async function saveMCTSResultsToChat(data) {
+            if (!window.conversationId) return;
+            
+            let summary = `## 🎯 MCTS Optimizer - Resultados\n\n`;
+            summary += `**Mejor Valor:** ${data.best_value}\n`;
+            summary += `**Mejor Acción:** ${data.best_action || 'N/A'}\n`;
+            summary += `**Iteraciones:** ${data.total_simulations}\n`;
+            summary += `**Profundidad Árbol:** ${data.tree_depth}\n`;
+            summary += `**Tiempo:** ${data.execution_time}s\n\n`;
+            
+            if (data.action_scores && data.action_scores.length > 0) {
+                summary += `**Top 3 Acciones:**\n`;
+                for (const action of data.action_scores.slice(0, 3)) {
+                    summary += `- ${action.action}: ${action.visits} visitas, valor ${action.avg_value}\n`;
+                }
+            }
+            
+            summary += `\n*[Ver modal para detalles completos]*`;
+            
+            try {
+                await fetch(`/api/chat/message/${window.conversationId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ role: 'assistant', content: summary })
+                });
+                
+                if (typeof loadMessages === 'function') {
+                    loadMessages(window.conversationId);
+                }
+            } catch (error) {
+                console.error('Error guardando en chat:', error);
+            }
+        }
+        
+        function closeMCTSModal() {
+            const modal = document.getElementById('mctsModal');
+            if (modal) modal.classList.remove('show');
+        }
+        
         // Cerrar modal con Escape
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
                 closeMultiAgentModal();
                 closeTestGeneratorModal();
+                closeMCTSModal();
             }
         });
         

@@ -1,13 +1,88 @@
 """
-ML & Simulations - Machine Learning básico y simulaciones
+ML & Simulations - Machine Learning y simulaciones avanzadas
+Incluye: Monte Carlo Tree Search (MCTS) completo con evaluación UCB1
 """
 
 import random
 import math
 import asyncio
-from typing import Dict, Any, Optional, List, Callable
+from typing import Dict, Any, Optional, List, Callable, Tuple
 from dataclasses import dataclass, field
 from datetime import datetime
+from copy import deepcopy
+
+
+# ============================================
+# MCTS - Monte Carlo Tree Search
+# ============================================
+
+@dataclass
+class MCTSNode:
+    """Nodo del árbol MCTS"""
+    state: Any
+    parent: Optional['MCTSNode'] = None
+    action: Any = None  # Acción que llevó a este estado
+    children: List['MCTSNode'] = field(default_factory=list)
+    visits: int = 0
+    value: float = 0.0
+    untried_actions: List[Any] = field(default_factory=list)
+    
+    def ucb1(self, exploration_weight: float = 1.41) -> float:
+        """Calcula UCB1 (Upper Confidence Bound)"""
+        if self.visits == 0:
+            return float('inf')
+        
+        exploitation = self.value / self.visits
+        exploration = exploration_weight * math.sqrt(math.log(self.parent.visits) / self.visits)
+        return exploitation + exploration
+    
+    def best_child(self, exploration_weight: float = 1.41) -> 'MCTSNode':
+        """Selecciona el mejor hijo según UCB1"""
+        return max(self.children, key=lambda c: c.ucb1(exploration_weight))
+    
+    def is_fully_expanded(self) -> bool:
+        return len(self.untried_actions) == 0
+    
+    def is_terminal(self) -> bool:
+        return len(self.children) == 0 and len(self.untried_actions) == 0
+    
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "visits": self.visits,
+            "value": round(self.value, 4),
+            "avg_value": round(self.value / self.visits, 4) if self.visits > 0 else 0,
+            "children_count": len(self.children),
+            "action": str(self.action) if self.action else None
+        }
+
+
+@dataclass
+class MCTSResult:
+    """Resultado de búsqueda MCTS"""
+    id: str
+    best_action: Any
+    best_value: float
+    root_visits: int
+    total_simulations: int
+    tree_depth: int
+    exploration_weight: float
+    action_scores: List[Dict[str, Any]]
+    execution_time: float
+    created_at: str
+    
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "id": self.id,
+            "best_action": self.best_action,
+            "best_value": round(self.best_value, 4),
+            "root_visits": self.root_visits,
+            "total_simulations": self.total_simulations,
+            "tree_depth": self.tree_depth,
+            "exploration_weight": self.exploration_weight,
+            "action_scores": self.action_scores[:10],  # Top 10 acciones
+            "execution_time": self.execution_time,
+            "created_at": self.created_at
+        }
 
 
 @dataclass
@@ -36,11 +111,233 @@ class SimulationResult:
 class MLSimulator:
     """
     Simulador para ML y optimización.
-    Incluye: Monte Carlo, Grid Search, optimización evolutiva.
+    Incluye: Monte Carlo, MCTS completo, Grid Search, optimización evolutiva.
     """
     
     def __init__(self):
         self.simulations: Dict[str, SimulationResult] = {}
+        self.mcts_results: Dict[str, MCTSResult] = {}
+    
+    # ============================================
+    # MCTS - Monte Carlo Tree Search COMPLETO
+    # ============================================
+    
+    async def mcts_search(
+        self,
+        initial_state: Any,
+        get_actions: Callable[[Any], List[Any]],
+        apply_action: Callable[[Any, Any], Any],
+        evaluate: Callable[[Any], float],
+        is_terminal: Callable[[Any], bool] = None,
+        iterations: int = 1000,
+        exploration_weight: float = 1.41,
+        max_depth: int = 50,
+        simulation_depth: int = 10
+    ) -> MCTSResult:
+        """
+        Monte Carlo Tree Search completo con UCB1.
+        
+        Args:
+            initial_state: Estado inicial del problema
+            get_actions: Función que retorna acciones posibles desde un estado
+            apply_action: Función que aplica una acción a un estado y retorna nuevo estado
+            evaluate: Función heurística que evalúa un estado (retorna valor numérico)
+            is_terminal: Función que determina si un estado es terminal
+            iterations: Número de iteraciones MCTS
+            exploration_weight: Peso de exploración en UCB1 (√2 ≈ 1.41 por defecto)
+            max_depth: Profundidad máxima del árbol
+            simulation_depth: Profundidad de simulación rollout
+            
+        Returns:
+            MCTSResult con mejor acción y estadísticas
+        """
+        import uuid
+        import time
+        
+        start_time = time.time()
+        
+        # Función terminal por defecto
+        if is_terminal is None:
+            is_terminal = lambda s: len(get_actions(s)) == 0
+        
+        # Crear nodo raíz
+        root = MCTSNode(
+            state=deepcopy(initial_state),
+            untried_actions=list(get_actions(initial_state))
+        )
+        
+        max_tree_depth = 0
+        
+        for iteration in range(iterations):
+            node = root
+            current_depth = 0
+            
+            # 1. SELECCIÓN - Bajar por el árbol usando UCB1
+            while node.is_fully_expanded() and node.children:
+                node = node.best_child(exploration_weight)
+                current_depth += 1
+                if current_depth > max_depth:
+                    break
+            
+            # 2. EXPANSIÓN - Expandir si no es terminal y hay acciones sin probar
+            if node.untried_actions and current_depth < max_depth:
+                action = random.choice(node.untried_actions)
+                node.untried_actions.remove(action)
+                
+                new_state = apply_action(deepcopy(node.state), action)
+                child = MCTSNode(
+                    state=new_state,
+                    parent=node,
+                    action=action,
+                    untried_actions=list(get_actions(new_state)) if not is_terminal(new_state) else []
+                )
+                node.children.append(child)
+                node = child
+                current_depth += 1
+            
+            max_tree_depth = max(max_tree_depth, current_depth)
+            
+            # 3. SIMULACIÓN (Rollout) - Simular hasta terminal o max depth
+            sim_state = deepcopy(node.state)
+            sim_depth = 0
+            
+            while not is_terminal(sim_state) and sim_depth < simulation_depth:
+                actions = get_actions(sim_state)
+                if not actions:
+                    break
+                action = random.choice(actions)
+                sim_state = apply_action(sim_state, action)
+                sim_depth += 1
+            
+            # 4. EVALUACIÓN - Evaluar estado final
+            value = evaluate(sim_state)
+            
+            # 5. BACKPROPAGATION - Propagar valor hacia arriba
+            while node is not None:
+                node.visits += 1
+                node.value += value
+                node = node.parent
+        
+        execution_time = time.time() - start_time
+        
+        # Obtener mejor acción (la más visitada desde la raíz)
+        if root.children:
+            # Ordenar por visitas (no por UCB1 para la selección final)
+            sorted_children = sorted(root.children, key=lambda c: c.visits, reverse=True)
+            best_child = sorted_children[0]
+            best_action = best_child.action
+            best_value = best_child.value / best_child.visits if best_child.visits > 0 else 0
+            
+            # Scores de todas las acciones
+            action_scores = [
+                {
+                    "action": str(c.action),
+                    "visits": c.visits,
+                    "avg_value": round(c.value / c.visits, 4) if c.visits > 0 else 0,
+                    "ucb1": round(c.ucb1(exploration_weight), 4) if c.visits > 0 else float('inf')
+                }
+                for c in sorted_children
+            ]
+        else:
+            best_action = None
+            best_value = evaluate(initial_state)
+            action_scores = []
+        
+        result = MCTSResult(
+            id=str(uuid.uuid4())[:8],
+            best_action=best_action,
+            best_value=best_value,
+            root_visits=root.visits,
+            total_simulations=iterations,
+            tree_depth=max_tree_depth,
+            exploration_weight=exploration_weight,
+            action_scores=action_scores,
+            execution_time=round(execution_time, 3),
+            created_at=datetime.now().isoformat()
+        )
+        
+        self.mcts_results[result.id] = result
+        return result
+    
+    async def mcts_optimize(
+        self,
+        evaluate_func: Callable[[Dict[str, float]], float],
+        param_ranges: Dict[str, Tuple[float, float]],
+        iterations: int = 500,
+        exploration_weight: float = 1.41,
+        discretization: int = 10
+    ) -> MCTSResult:
+        """
+        MCTS para optimización de parámetros continuos.
+        Discretiza el espacio de búsqueda y usa MCTS para encontrar óptimos.
+        
+        Args:
+            evaluate_func: Función objetivo que recibe dict de parámetros
+            param_ranges: Rangos de parámetros {"param": (min, max)}
+            iterations: Iteraciones MCTS
+            exploration_weight: Peso UCB1
+            discretization: Número de divisiones por parámetro
+        """
+        param_names = list(param_ranges.keys())
+        
+        # Discretizar rangos
+        param_values = {}
+        for name, (min_val, max_val) in param_ranges.items():
+            step = (max_val - min_val) / discretization
+            param_values[name] = [min_val + i * step for i in range(discretization + 1)]
+        
+        # Estado = índices actuales de parámetros
+        initial_state = {name: discretization // 2 for name in param_names}  # Empezar en el medio
+        
+        def get_actions(state):
+            """Acciones: incrementar/decrementar cada parámetro"""
+            actions = []
+            for name in param_names:
+                if state[name] > 0:
+                    actions.append((name, -1))  # Decrementar
+                if state[name] < discretization:
+                    actions.append((name, +1))  # Incrementar
+            return actions
+        
+        def apply_action(state, action):
+            new_state = state.copy()
+            param_name, delta = action
+            new_state[param_name] = max(0, min(discretization, state[param_name] + delta))
+            return new_state
+        
+        def evaluate(state):
+            # Convertir índices a valores reales
+            params = {
+                name: param_values[name][state[name]]
+                for name in param_names
+            }
+            try:
+                return evaluate_func(params)
+            except:
+                return float('-inf')
+        
+        def is_terminal(state):
+            return False  # Nunca terminal en optimización
+        
+        return await self.mcts_search(
+            initial_state=initial_state,
+            get_actions=get_actions,
+            apply_action=apply_action,
+            evaluate=evaluate,
+            is_terminal=is_terminal,
+            iterations=iterations,
+            exploration_weight=exploration_weight,
+            max_depth=50,
+            simulation_depth=5
+        )
+    
+    def get_mcts_result(self, result_id: str) -> Optional[MCTSResult]:
+        return self.mcts_results.get(result_id)
+    
+    def list_mcts_results(self, limit: int = 20) -> List[MCTSResult]:
+        results = list(self.mcts_results.values())
+        results.sort(key=lambda x: x.created_at, reverse=True)
+        return results[:limit]
     
     async def monte_carlo(
         self,
