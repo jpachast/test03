@@ -2425,13 +2425,8 @@
         }
         
         function getWorkspacePath() {
-            // Obtener workspace del repositorio actual
-            const repoLink = document.querySelector('a[href*="github.com"]');
-            if (repoLink) {
-                const repoName = repoLink.textContent.split('/').pop();
-                return `/opt/openhands-chat/projects/${repoName}`;
-            }
-            return '/opt/openhands-chat';
+            // Path del código de la aplicación en producción
+            return '/opt/openhands-chat/04_proyecto/openhands-chat';
         }
         
         async function indexWorkspace() {
