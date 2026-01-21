@@ -266,9 +266,18 @@ class CodeSandbox {
         resultDiv.className = 'sandbox-result';
         
         const isSuccess = result.status === 'success';
-        const statusColor = isSuccess ? '#22c55e' : '#ef4444';
-        const statusIcon = isSuccess ? '✅' : '❌';
-        const statusText = this.getStatusText(result.status);
+        const wasAutoFixed = result.auto_fixed === true;
+        
+        // Si fue auto-fixed, mostrar color especial (azul/cyan)
+        let statusColor = isSuccess ? '#22c55e' : '#ef4444';
+        let statusIcon = isSuccess ? '✅' : '❌';
+        let statusText = this.getStatusText(result.status);
+        
+        if (wasAutoFixed) {
+            statusColor = '#06b6d4'; // Cyan para auto-fix
+            statusIcon = '🔧';
+            statusText = `Auto-Fix aplicado (${result.fix_iterations} iteraciones)`;
+        }
 
         resultDiv.innerHTML = `
             <div style="
@@ -294,8 +303,24 @@ class CodeSandbox {
                     </span>
                 </div>
                 
-                ${result.stdout ? `
+                ${wasAutoFixed ? `
                     <div style="padding: 12px;">
+                        <div style="
+                            background: #083344;
+                            border: 1px solid #06b6d4;
+                            border-radius: 4px;
+                            padding: 10px;
+                            color: #67e8f9;
+                            font-size: 13px;
+                        ">
+                            <strong>🔧 Auto-Fix:</strong> ${result.fix_applied || 'Corrección aplicada automáticamente'}
+                            <br><span style="color: #a5f3fc; font-size: 11px;">El código tenía un error que fue corregido y re-ejecutado automáticamente.</span>
+                        </div>
+                    </div>
+                ` : ''}
+                
+                ${result.stdout ? `
+                    <div style="padding: 12px; padding-top: ${wasAutoFixed ? '0' : '12px'};">
                         <div style="color: #22c55e; font-size: 11px; margin-bottom: 4px;">📤 Output:</div>
                         <pre style="
                             background: #0d0d0d;
@@ -324,7 +349,7 @@ class CodeSandbox {
                     </div>
                 ` : ''}
                 
-                ${result.error_analysis ? `
+                ${result.error_analysis && !wasAutoFixed ? `
                     <div style="padding: 12px; padding-top: 0;">
                         <div style="
                             background: #fef3c7;
@@ -340,7 +365,7 @@ class CodeSandbox {
                     </div>
                 ` : ''}
                 
-                ${!result.stdout && !result.stderr ? `
+                ${!result.stdout && !result.stderr && !wasAutoFixed ? `
                     <div style="padding: 12px; color: #888; font-style: italic;">
                         (Sin output)
                     </div>

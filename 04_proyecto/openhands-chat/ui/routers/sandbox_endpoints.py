@@ -1,5 +1,6 @@
 """
 Endpoints API para el Sandbox de Ejecución de Código
+CON AUTO-FIX INTEGRADO: Cuando hay error, intenta corregir automáticamente
 """
 
 from fastapi import APIRouter, HTTPException
@@ -23,6 +24,7 @@ class ExecuteCodeRequest(BaseModel):
     timeout: Optional[int] = None
     env: Optional[Dict[str, str]] = None
     cwd: Optional[str] = None
+    auto_fix: bool = True  # Auto-fix habilitado por defecto
 
 
 class InstallPackageRequest(BaseModel):
@@ -42,6 +44,11 @@ class ExecutionResponse(BaseModel):
     execution_time: float
     error_analysis: Optional[str] = None
     suggested_fix: Optional[str] = None
+    # Campos de Auto-Fix
+    auto_fixed: bool = False
+    original_code: Optional[str] = None
+    fix_applied: Optional[str] = None
+    fix_iterations: int = 0
 
 
 @router.post("/execute", response_model=ExecutionResponse)
@@ -52,6 +59,8 @@ async def execute_code(request: ExecuteCodeRequest):
     Soporta: Python, JavaScript, TypeScript, Bash, Shell
     
     El lenguaje se auto-detecta si no se especifica.
+    
+    AUTO-FIX: Si hay error y auto_fix=True, intenta corregir automáticamente.
     """
     try:
         sandbox = get_sandbox()
@@ -63,6 +72,50 @@ async def execute_code(request: ExecuteCodeRequest):
             cwd=request.cwd
         )
         
+        auto_fixed = False
+        original_code = None
+        fix_applied = None
+        fix_iterations = 0
+        
+        # Si hay error y auto_fix está habilitado, intentar corregir
+        if result.status == ExecutionStatus.ERROR and request.auto_fix:
+            try:
+                from core.auto_fix import get_auto_fixer
+                
+                fixer = get_auto_fixer(sandbox)
+                fix_result = await fixer.auto_fix(
+                    code=request.code,
+                    language=result.language,
+                    timeout=request.timeout or 30,
+                    apply_fixes=True,
+                    verify_fixes=True
+                )
+                
+                # Si el auto-fix tuvo éxito, usar el resultado corregido
+                if fix_result.status.value in ['success', 'partial_success']:
+                    auto_fixed = True
+                    original_code = request.code
+                    fix_applied = fix_result.iterations[-1].fix_description if fix_result.iterations else "Auto-fix aplicado"
+                    fix_iterations = len(fix_result.iterations)
+                    
+                    # Actualizar result con los valores del código corregido
+                    result = ExecutionResult(
+                        id=result.id,
+                        language=result.language,
+                        code=fix_result.final_code,
+                        stdout=fix_result.final_output,
+                        stderr="" if fix_result.verified else fix_result.error_message,
+                        exit_code=0 if fix_result.verified else 1,
+                        status=ExecutionStatus.SUCCESS if fix_result.verified else ExecutionStatus.ERROR,
+                        execution_time=fix_result.total_time,
+                        created_at=result.created_at,
+                        error_analysis=f"Auto-fix aplicado: {fix_applied}",
+                        suggested_fix=None
+                    )
+            except Exception as fix_error:
+                # Si falla el auto-fix, continuar con el resultado original
+                pass
+        
         return ExecutionResponse(
             id=result.id,
             language=result.language,
@@ -72,7 +125,11 @@ async def execute_code(request: ExecuteCodeRequest):
             status=result.status.value,
             execution_time=result.execution_time,
             error_analysis=result.error_analysis,
-            suggested_fix=result.suggested_fix
+            suggested_fix=result.suggested_fix,
+            auto_fixed=auto_fixed,
+            original_code=original_code,
+            fix_applied=fix_applied,
+            fix_iterations=fix_iterations
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
