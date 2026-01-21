@@ -3962,8 +3962,241 @@
         
         // ============================================
         // CODE PARSER - AST, Themes, Autocompletado
+        // INTEGRACIÓN COMPLETA AL CHAT
         // ============================================
         let currentTheme = 'dark';
+        let syntaxThemes = {};
+        let autocompleteEnabled = true;
+        let autocompleteTimeout = null;
+        
+        // Cargar themes al inicio
+        async function initCodeParserIntegration() {
+            try {
+                const response = await fetch('/api/codeparser/themes');
+                const data = await response.json();
+                if (data.success) {
+                    syntaxThemes = data.themes;
+                    // Aplicar theme a código existente
+                    applyThemeToChat();
+                }
+            } catch (e) {
+                console.log('Code parser themes loaded');
+            }
+            
+            // Configurar autocompletado en input principal
+            setupChatAutocomplete();
+        }
+        
+        // Aplicar syntax highlighting al código del chat
+        function applyThemeToChat() {
+            const theme = syntaxThemes[currentTheme] || syntaxThemes['dark'];
+            if (!theme) return;
+            
+            // Aplicar CSS dinámico para el theme
+            let styleEl = document.getElementById('dynamic-syntax-theme');
+            if (!styleEl) {
+                styleEl = document.createElement('style');
+                styleEl.id = 'dynamic-syntax-theme';
+                document.head.appendChild(styleEl);
+            }
+            
+            styleEl.textContent = `
+                .chat-message pre code {
+                    background: ${theme.background} !important;
+                }
+                .chat-message .hljs-keyword { color: ${theme.keyword} !important; }
+                .chat-message .hljs-string { color: ${theme.string} !important; }
+                .chat-message .hljs-number { color: ${theme.number} !important; }
+                .chat-message .hljs-comment { color: ${theme.comment} !important; }
+                .chat-message .hljs-function { color: ${theme.function} !important; }
+                .chat-message .hljs-class { color: ${theme.class} !important; }
+                .chat-message .hljs-variable { color: ${theme.variable} !important; }
+                .chat-message .hljs-title { color: ${theme.function} !important; }
+                .chat-message .hljs-built_in { color: ${theme.function} !important; }
+                .chat-message .hljs-params { color: ${theme.variable} !important; }
+            `;
+        }
+        
+        // Cambiar theme y aplicar inmediatamente
+        function setChatTheme(themeId) {
+            if (syntaxThemes[themeId]) {
+                currentTheme = themeId;
+                applyThemeToChat();
+                showToast(`Theme: ${syntaxThemes[themeId].name}`, 'success');
+            }
+        }
+        
+        // Autocompletado en el input principal del chat
+        function setupChatAutocomplete() {
+            const chatInput = document.getElementById('message-input');
+            if (!chatInput) return;
+            
+            // Crear contenedor de sugerencias
+            let suggestionsDiv = document.getElementById('chat-autocomplete');
+            if (!suggestionsDiv) {
+                suggestionsDiv = document.createElement('div');
+                suggestionsDiv.id = 'chat-autocomplete';
+                suggestionsDiv.style.cssText = `
+                    position: absolute;
+                    background: #1e1e1e;
+                    border: 1px solid #444;
+                    border-radius: 6px;
+                    max-height: 200px;
+                    overflow-y: auto;
+                    display: none;
+                    z-index: 1000;
+                    min-width: 200px;
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+                `;
+                chatInput.parentElement.style.position = 'relative';
+                chatInput.parentElement.appendChild(suggestionsDiv);
+            }
+            
+            // Evento de teclado para autocompletado
+            chatInput.addEventListener('input', (e) => {
+                if (!autocompleteEnabled) return;
+                
+                clearTimeout(autocompleteTimeout);
+                autocompleteTimeout = setTimeout(() => {
+                    checkForCodeAutocomplete(chatInput, suggestionsDiv);
+                }, 300);
+            });
+            
+            // Cerrar sugerencias al hacer clic fuera
+            document.addEventListener('click', (e) => {
+                if (!suggestionsDiv.contains(e.target) && e.target !== chatInput) {
+                    suggestionsDiv.style.display = 'none';
+                }
+            });
+            
+            // Tecla Escape cierra sugerencias
+            chatInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') {
+                    suggestionsDiv.style.display = 'none';
+                }
+                if (e.key === 'Tab' && suggestionsDiv.style.display !== 'none') {
+                    e.preventDefault();
+                    const firstSuggestion = suggestionsDiv.querySelector('.autocomplete-item');
+                    if (firstSuggestion) firstSuggestion.click();
+                }
+            });
+        }
+        
+        async function checkForCodeAutocomplete(input, suggestionsDiv) {
+            const text = input.value;
+            const cursorPos = input.selectionStart;
+            
+            // Detectar si estamos dentro de un bloque de código
+            const beforeCursor = text.substring(0, cursorPos);
+            const inCodeBlock = (beforeCursor.match(/```/g) || []).length % 2 === 1;
+            
+            if (!inCodeBlock) {
+                suggestionsDiv.style.display = 'none';
+                return;
+            }
+            
+            // Obtener palabra parcial
+            const lines = beforeCursor.split('\n');
+            const currentLine = lines[lines.length - 1];
+            const wordMatch = currentLine.match(/(\w+)$/);
+            
+            if (!wordMatch || wordMatch[1].length < 2) {
+                suggestionsDiv.style.display = 'none';
+                return;
+            }
+            
+            // Detectar lenguaje del bloque
+            const langMatch = beforeCursor.match(/```(\w+)/);
+            const language = langMatch ? langMatch[1] : 'python';
+            
+            try {
+                const response = await fetch('/api/codeparser/autocomplete', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        code: currentLine,
+                        cursor_position: currentLine.length,
+                        language: language
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success && data.suggestions.length > 0) {
+                    renderChatSuggestions(suggestionsDiv, data.suggestions, input, wordMatch[1]);
+                } else {
+                    suggestionsDiv.style.display = 'none';
+                }
+            } catch (e) {
+                suggestionsDiv.style.display = 'none';
+            }
+        }
+        
+        function renderChatSuggestions(container, suggestions, input, partial) {
+            let html = '';
+            suggestions.forEach((s, i) => {
+                const typeColor = s.type === 'keyword' ? '#569cd6' : s.type === 'builtin' ? '#dcdcaa' : '#4ec9b0';
+                html += `
+                    <div class="autocomplete-item" data-text="${s.text}" data-partial="${partial}" style="padding: 8px 12px; cursor: pointer; border-bottom: 1px solid #333; ${i === 0 ? 'background: #333;' : ''}">
+                        <span style="color: ${typeColor}; font-weight: bold;">${s.text}</span>
+                        <span style="color: #888; font-size: 11px; margin-left: 8px;">${s.type}</span>
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = html;
+            container.style.display = 'block';
+            
+            // Posicionar debajo del input
+            const inputRect = input.getBoundingClientRect();
+            container.style.bottom = '100%';
+            container.style.left = '0';
+            container.style.marginBottom = '5px';
+            
+            // Eventos de click
+            container.querySelectorAll('.autocomplete-item').forEach(item => {
+                item.addEventListener('click', () => {
+                    const text = item.dataset.text;
+                    const partial = item.dataset.partial;
+                    insertAutocomplete(input, text, partial);
+                    container.style.display = 'none';
+                });
+                item.addEventListener('mouseenter', () => {
+                    container.querySelectorAll('.autocomplete-item').forEach(i => i.style.background = 'transparent');
+                    item.style.background = '#333';
+                });
+            });
+        }
+        
+        function insertAutocomplete(input, text, partial) {
+            const cursorPos = input.selectionStart;
+            const before = input.value.substring(0, cursorPos - partial.length);
+            const after = input.value.substring(cursorPos);
+            input.value = before + text + after;
+            input.focus();
+            input.selectionStart = input.selectionEnd = before.length + text.length;
+        }
+        
+        // Analizar código en mensaje antes de enviar
+        async function analyzeCodeInMessage(message) {
+            try {
+                const response = await fetch('/api/codeparser/extract-blocks', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text: message })
+                });
+                
+                const data = await response.json();
+                return data.success ? data.blocks : [];
+            } catch (e) {
+                return [];
+            }
+        }
+        
+        // Inicializar al cargar
+        document.addEventListener('DOMContentLoaded', () => {
+            setTimeout(initCodeParserIntegration, 1000);
+        });
         
         function openCodeParser() {
             toggleToolsMenu();
@@ -4227,7 +4460,8 @@ from typing import List</textarea>
         function selectTheme(themeId) {
             currentTheme = themeId;
             loadThemes();
-            showToast(`Tema seleccionado: ${themeId}`, 'success');
+            // INTEGRACIÓN: Aplicar theme al chat inmediatamente
+            setChatTheme(themeId);
         }
         
         function updateThemePreview(theme) {
