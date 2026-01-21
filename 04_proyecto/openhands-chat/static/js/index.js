@@ -2425,8 +2425,8 @@
         }
         
         function getWorkspacePath() {
-            // Path del código de la aplicación en producción
-            return '/opt/openhands-chat/04_proyecto/openhands-chat';
+            // Path del código dentro del contenedor Docker
+            return '/app';
         }
         
         async function indexWorkspace() {
