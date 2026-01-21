@@ -439,17 +439,14 @@ print("COVERAGE_JSON:" + json.dumps(result))
         if suite.tests:
             suite.coverage_estimate = round(passed / len(suite.tests) * 100, 1)
         
-        # Análisis de cobertura real (solo Python por ahora)
+        # Análisis de cobertura (solo Python por ahora)
         if language == "python" and with_coverage:
-            try:
-                suite.coverage_report = await self.run_with_coverage(code, all_test_code)
-                # Usar el porcentaje real si está disponible
-                if suite.coverage_report and suite.coverage_report.coverage_percent > 0:
-                    suite.coverage_estimate = suite.coverage_report.coverage_percent
-            except Exception as e:
-                print(f"[TestGenerator] Coverage analysis failed: {e}")
-                # Usar análisis estático como fallback
-                suite.coverage_report = self._static_coverage_analysis(code, all_test_code)
+            # Usar análisis estático que es más confiable
+            suite.coverage_report = self._static_coverage_analysis(code, all_test_code)
+            
+            # Usar el porcentaje calculado si es válido
+            if suite.coverage_report and suite.coverage_report.coverage_percent > 0:
+                suite.coverage_estimate = suite.coverage_report.coverage_percent
         
         self.suites[suite.id] = suite
         return suite
