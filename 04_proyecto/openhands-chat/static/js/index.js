@@ -1737,13 +1737,181 @@
             if (el) el.textContent = value;
         }
         
-        function toggleTools() {
+        // ============================================
+        // Multi-Agent Tools Menu
+        // ============================================
+        function toggleToolsMenu() {
+            const menu = document.getElementById('toolsMenu');
+            menu.classList.toggle('show');
+        }
+        
+        // Cerrar menú al hacer click fuera
+        document.addEventListener('click', (e) => {
+            const dropdown = document.querySelector('.tools-dropdown');
+            const menu = document.getElementById('toolsMenu');
+            if (dropdown && menu && !dropdown.contains(e.target)) {
+                menu.classList.remove('show');
+            }
+        });
+        
+        function showToolsInfo() {
+            toggleToolsMenu();
             alert('🔧 Herramientas disponibles:\n\n' +
                 '• Terminal - Ejecutar comandos bash\n' +
                 '• Editor - Crear y editar archivos\n' +
                 '• Git - Pull, Push, crear PR\n' +
-                '• Tareas - Organizar trabajo\n\n' +
+                '• Tareas - Organizar trabajo\n' +
+                '• Multi-Agent - Análisis paralelo con múltiples LLMs\n\n' +
                 'Escribe tu solicitud y el agente usará las herramientas necesarias.');
+        }
+        
+        async function runMultiAgent(mode) {
+            toggleToolsMenu();
+            
+            // Buscar el último bloque de código en el chat
+            const codeBlocks = document.querySelectorAll('#chatMessages pre code');
+            let code = '';
+            let language = 'python';
+            
+            if (codeBlocks.length > 0) {
+                const lastBlock = codeBlocks[codeBlocks.length - 1];
+                code = lastBlock.textContent || lastBlock.innerText;
+                // Detectar lenguaje de la clase
+                const classList = lastBlock.className || '';
+                if (classList.includes('javascript') || classList.includes('js')) language = 'javascript';
+                else if (classList.includes('python') || classList.includes('py')) language = 'python';
+                else if (classList.includes('typescript') || classList.includes('ts')) language = 'typescript';
+            }
+            
+            if (!code.trim()) {
+                // Si no hay código, pedir al usuario
+                code = prompt('No se encontró código en el chat.\n\nPega el código a analizar:', '');
+                if (!code || !code.trim()) {
+                    showToast('Se requiere código para el análisis', 'error');
+                    return;
+                }
+            }
+            
+            // Mostrar loading
+            const statusText = document.getElementById('statusText');
+            const originalStatus = statusText.textContent;
+            statusText.textContent = `🤖 Multi-Agent ${mode === 'full' ? 'Completo' : 'Rápido'}...`;
+            
+            try {
+                const endpoint = mode === 'full' 
+                    ? '/api/advanced/multiagent/full-analysis'
+                    : '/api/advanced/multiagent/quick-review';
+                
+                const roles = mode === 'full' 
+                    ? undefined  // usa todos los roles
+                    : ['reviewer', 'tester', 'documenter'];
+                
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ code, language, roles })
+                });
+                
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(data.detail || 'Error en Multi-Agent');
+                }
+                
+                // Mostrar resultados
+                showMultiAgentResults(data);
+                
+            } catch (error) {
+                console.error('Multi-Agent error:', error);
+                showToast(error.message || 'Error ejecutando Multi-Agent', 'error');
+            } finally {
+                statusText.textContent = originalStatus;
+            }
+        }
+        
+        function showMultiAgentResults(data) {
+            // Crear modal si no existe
+            let modal = document.getElementById('multiagentModal');
+            if (!modal) {
+                modal = document.createElement('div');
+                modal.id = 'multiagentModal';
+                modal.className = 'multiagent-modal';
+                modal.innerHTML = `
+                    <div class="multiagent-content">
+                        <div class="multiagent-header">
+                            <h3>🤖 Resultados Multi-Agent</h3>
+                            <button class="multiagent-close" onclick="closeMultiAgentModal()">&times;</button>
+                        </div>
+                        <div class="multiagent-body" id="multiagentBody"></div>
+                    </div>
+                `;
+                document.body.appendChild(modal);
+            }
+            
+            // Llenar contenido
+            const body = document.getElementById('multiagentBody');
+            const completed = data.progress?.completed || 0;
+            const total = data.progress?.total || 0;
+            const failed = data.progress?.failed || 0;
+            
+            let html = `
+                <div class="multiagent-stats">
+                    <div class="stat-item">
+                        <div class="stat-value">${completed}/${total}</div>
+                        <div class="stat-label">Agentes completados</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value">${data.total_tokens || 0}</div>
+                        <div class="stat-label">Tokens usados</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value">${(data.total_time || 0).toFixed(1)}s</div>
+                        <div class="stat-label">Tiempo total</div>
+                    </div>
+                </div>
+            `;
+            
+            // Resultados de cada agente
+            for (const task of (data.tasks || [])) {
+                const isSuccess = task.status === 'completed';
+                const roleEmoji = {
+                    'reviewer': '📋',
+                    'tester': '🧪',
+                    'documenter': '📚',
+                    'security': '🔒',
+                    'architect': '🏗️',
+                    'coder': '💻',
+                    'researcher': '🔍'
+                }[task.role] || '🤖';
+                
+                html += `
+                    <div class="agent-result ${isSuccess ? '' : 'failed'}">
+                        <div class="agent-result-header">
+                            <span class="agent-role">${roleEmoji} ${task.role}</span>
+                            <span class="agent-time">${task.execution_time?.toFixed(1) || 0}s · ${task.tokens_used || 0} tokens</span>
+                        </div>
+                        <div class="agent-response">${isSuccess ? (task.llm_response || 'Sin respuesta').substring(0, 2000) : ('Error: ' + (task.error || 'Desconocido'))}</div>
+                    </div>
+                `;
+            }
+            
+            body.innerHTML = html;
+            modal.classList.add('show');
+        }
+        
+        function closeMultiAgentModal() {
+            const modal = document.getElementById('multiagentModal');
+            if (modal) modal.classList.remove('show');
+        }
+        
+        // Cerrar modal con Escape
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeMultiAgentModal();
+        });
+        
+        // Legacy function for backwards compatibility
+        function toggleTools() {
+            toggleToolsMenu();
         }
 
         // ============================================

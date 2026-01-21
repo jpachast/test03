@@ -654,3 +654,191 @@
 .message pre code span[class^="hljs-"] {
     color: inherit;
 }
+
+/* ============================================
+   Multi-Agent Tools Dropdown
+   ============================================ */
+.tools-dropdown {
+    position: relative;
+    display: inline-block;
+}
+
+.tools-menu {
+    display: none;
+    position: absolute;
+    bottom: 100%;
+    left: 0;
+    background: #1e1e2e;
+    border: 1px solid #3d3d5c;
+    border-radius: 8px;
+    padding: 8px 0;
+    min-width: 220px;
+    box-shadow: 0 -4px 12px rgba(0,0,0,0.3);
+    z-index: 1000;
+    margin-bottom: 8px;
+}
+
+.tools-menu.show {
+    display: block;
+    animation: slideUp 0.2s ease;
+}
+
+@keyframes slideUp {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.tool-item {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    width: 100%;
+    padding: 10px 16px;
+    background: transparent;
+    border: none;
+    color: #e0e0e0;
+    font-size: 14px;
+    cursor: pointer;
+    text-align: left;
+    transition: background 0.2s;
+}
+
+.tool-item:hover {
+    background: #2d2d4a;
+}
+
+.tool-desc {
+    font-size: 11px;
+    color: #888;
+    margin-top: 2px;
+}
+
+.tool-separator {
+    height: 1px;
+    background: #3d3d5c;
+    margin: 8px 0;
+}
+
+/* Multi-Agent Results Modal */
+.multiagent-modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.7);
+    z-index: 2000;
+    justify-content: center;
+    align-items: center;
+}
+
+.multiagent-modal.show {
+    display: flex;
+}
+
+.multiagent-content {
+    background: #1e1e2e;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 800px;
+    max-height: 80vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.multiagent-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    border-bottom: 1px solid #3d3d5c;
+}
+
+.multiagent-header h3 {
+    margin: 0;
+    color: #fff;
+    font-size: 18px;
+}
+
+.multiagent-close {
+    background: transparent;
+    border: none;
+    color: #888;
+    font-size: 24px;
+    cursor: pointer;
+}
+
+.multiagent-close:hover {
+    color: #fff;
+}
+
+.multiagent-body {
+    padding: 20px;
+    overflow-y: auto;
+    flex: 1;
+}
+
+.multiagent-stats {
+    display: flex;
+    gap: 20px;
+    margin-bottom: 20px;
+    padding: 12px;
+    background: #2d2d4a;
+    border-radius: 8px;
+}
+
+.stat-item {
+    text-align: center;
+}
+
+.stat-value {
+    font-size: 24px;
+    font-weight: bold;
+    color: #4ade80;
+}
+
+.stat-label {
+    font-size: 12px;
+    color: #888;
+}
+
+.agent-result {
+    margin-bottom: 16px;
+    padding: 16px;
+    background: #252538;
+    border-radius: 8px;
+    border-left: 4px solid #4ade80;
+}
+
+.agent-result.failed {
+    border-left-color: #ef4444;
+}
+
+.agent-result-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.agent-role {
+    font-weight: bold;
+    color: #fff;
+    text-transform: uppercase;
+}
+
+.agent-time {
+    font-size: 12px;
+    color: #888;
+}
+
+.agent-response {
+    color: #ccc;
+    font-size: 14px;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    max-height: 300px;
+    overflow-y: auto;
+}

@@ -180,9 +180,25 @@
             
             <!-- Barra inferior con herramientas y estado -->
             <div class="chat-toolbar">
-                <button class="tools-btn" onclick="toggleTools()" title="Herramientas">
-                    🔧 Herramientas
-                </button>
+                <div class="tools-dropdown">
+                    <button class="tools-btn" onclick="toggleToolsMenu()" title="Herramientas">
+                        🔧 Herramientas
+                    </button>
+                    <div class="tools-menu" id="toolsMenu">
+                        <button class="tool-item" onclick="runMultiAgent('quick')">
+                            🤖 Multi-Agent Rápido
+                            <span class="tool-desc">3 agentes: review, test, docs</span>
+                        </button>
+                        <button class="tool-item" onclick="runMultiAgent('full')">
+                            🧠 Multi-Agent Completo
+                            <span class="tool-desc">5 agentes + seguridad</span>
+                        </button>
+                        <div class="tool-separator"></div>
+                        <button class="tool-item" onclick="showToolsInfo()">
+                            ℹ️ Ver todas las herramientas
+                        </button>
+                    </div>
+                </div>
                 <button class="tools-btn" id="btn-limpiar" onclick="clearHistory()" title="Limpiar historial de chat" style="margin-left: 8px; background: #dc3545;">
                     🗑️ Limpiar
                 </button>
