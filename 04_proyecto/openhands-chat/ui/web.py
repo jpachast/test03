@@ -36,6 +36,7 @@ from ui.routers.tavily_endpoints import router as tavily_router
 from ui.routers.mcts_endpoints import router as mcts_router
 from ui.routers.semantic_endpoints import router as semantic_router
 from ui.routers.diff_endpoints import router as diff_router
+from ui.routers.background_endpoints import router as background_router
 
 # OPTIMIZACIÓN: Middleware para cache de archivos estáticos
 class CacheControlMiddleware(BaseHTTPMiddleware):
@@ -90,6 +91,7 @@ app.include_router(tavily_router)
 app.include_router(mcts_router)
 app.include_router(semantic_router)
 app.include_router(diff_router)
+app.include_router(background_router)
 
 
 # === RUTAS DE PROYECTOS (legacy) ===

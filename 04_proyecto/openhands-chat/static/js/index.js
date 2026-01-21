@@ -2909,6 +2909,253 @@
             if (modal) modal.classList.remove('show');
         }
         
+        // ============================================
+        // BACKGROUND AGENTS - Ejecución paralela de tareas
+        // ============================================
+        let backgroundRefreshInterval = null;
+        
+        function openBackgroundAgents() {
+            toggleToolsMenu();
+            
+            let modal = document.getElementById('backgroundModal');
+            if (!modal) {
+                modal = document.createElement('div');
+                modal.id = 'backgroundModal';
+                modal.className = 'multiagent-modal';
+                modal.innerHTML = `
+                    <div class="multiagent-content" style="max-width: 900px; max-height: 85vh;">
+                        <div class="multiagent-header">
+                            <h3>⚡ Background Agents</h3>
+                            <button class="multiagent-close" onclick="closeBackgroundModal()">&times;</button>
+                        </div>
+                        <div class="multiagent-body" id="backgroundBody" style="overflow-y: auto; max-height: calc(85vh - 120px);">
+                            <p style="color: #999; margin-bottom: 15px;">Ejecuta tareas en paralelo con múltiples workers.</p>
+                            
+                            <div style="display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap;">
+                                <button onclick="submitBackgroundTask('slow', {seconds: 3, name: 'Test 3s'})" class="tools-btn" style="padding: 10px 15px;">
+                                    ⏳ Task 3s
+                                </button>
+                                <button onclick="submitBackgroundTask('slow', {seconds: 5, name: 'Test 5s'})" class="tools-btn" style="padding: 10px 15px;">
+                                    ⏳ Task 5s
+                                </button>
+                                <button onclick="submitBackgroundTask('compute', {n: 5000000})" class="tools-btn" style="padding: 10px 15px;">
+                                    🔢 Compute 5M
+                                </button>
+                                <button onclick="refreshBackgroundStatus()" class="tools-btn" style="padding: 10px 15px; background: #6c757d;">
+                                    🔄 Refresh
+                                </button>
+                                <button onclick="clearCompletedTasks()" class="tools-btn" style="padding: 10px 15px; background: #dc3545;">
+                                    🗑️ Clear
+                                </button>
+                            </div>
+                            
+                            <div id="backgroundStats" style="margin-bottom: 15px;"></div>
+                            <div id="backgroundWorkers" style="margin-bottom: 15px;"></div>
+                            <div id="backgroundTasks"></div>
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(modal);
+            }
+            
+            modal.classList.add('show');
+            refreshBackgroundStatus();
+            
+            // Auto-refresh cada 2 segundos
+            if (backgroundRefreshInterval) clearInterval(backgroundRefreshInterval);
+            backgroundRefreshInterval = setInterval(refreshBackgroundStatus, 2000);
+        }
+        
+        async function refreshBackgroundStatus() {
+            try {
+                // Obtener stats
+                const statsResponse = await fetch('/api/background/stats');
+                const statsData = await statsResponse.json();
+                
+                // Obtener workers
+                const workersResponse = await fetch('/api/background/workers');
+                const workersData = await workersResponse.json();
+                
+                // Obtener tareas
+                const tasksResponse = await fetch('/api/background/tasks?limit=20');
+                const tasksData = await tasksResponse.json();
+                
+                renderBackgroundStats(statsData.stats);
+                renderBackgroundWorkers(workersData.workers);
+                renderBackgroundTasks(tasksData.tasks);
+                
+            } catch (error) {
+                console.error('Error refreshing background status:', error);
+            }
+        }
+        
+        function renderBackgroundStats(stats) {
+            const container = document.getElementById('backgroundStats');
+            if (!container || !stats) return;
+            
+            container.innerHTML = `
+                <div style="background: #2d2d2d; border-radius: 8px; padding: 15px;">
+                    <h4 style="color: #fff; margin: 0 0 10px 0;">📊 Estado del Sistema</h4>
+                    <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; text-align: center;">
+                        <div style="background: #1a1a1a; padding: 12px; border-radius: 6px;">
+                            <div style="font-size: 20px; color: #9e9e9e; font-weight: bold;">${stats.pending || 0}</div>
+                            <div style="color: #999; font-size: 11px;">Pendientes</div>
+                        </div>
+                        <div style="background: #1a1a1a; padding: 12px; border-radius: 6px;">
+                            <div style="font-size: 20px; color: #2196f3; font-weight: bold;">${stats.running || 0}</div>
+                            <div style="color: #999; font-size: 11px;">Ejecutando</div>
+                        </div>
+                        <div style="background: #1a1a1a; padding: 12px; border-radius: 6px;">
+                            <div style="font-size: 20px; color: #4caf50; font-weight: bold;">${stats.completed || 0}</div>
+                            <div style="color: #999; font-size: 11px;">Completadas</div>
+                        </div>
+                        <div style="background: #1a1a1a; padding: 12px; border-radius: 6px;">
+                            <div style="font-size: 20px; color: #f44336; font-weight: bold;">${stats.failed || 0}</div>
+                            <div style="color: #999; font-size: 11px;">Fallidas</div>
+                        </div>
+                        <div style="background: #1a1a1a; padding: 12px; border-radius: 6px;">
+                            <div style="font-size: 20px; color: #ff9800; font-weight: bold;">${stats.queue_size || 0}</div>
+                            <div style="color: #999; font-size: 11px;">En Cola</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        function renderBackgroundWorkers(workers) {
+            const container = document.getElementById('backgroundWorkers');
+            if (!container || !workers) return;
+            
+            let html = `
+                <div style="background: #2d2d2d; border-radius: 8px; padding: 15px;">
+                    <h4 style="color: #fff; margin: 0 0 10px 0;">👷 Workers (${workers.length})</h4>
+                    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;">
+            `;
+            
+            for (const worker of workers) {
+                const statusColor = worker.status === 'working' ? '#2196f3' : '#4caf50';
+                const statusIcon = worker.status === 'working' ? '🔄' : '✅';
+                
+                html += `
+                    <div style="background: #1a1a1a; padding: 10px; border-radius: 6px; border-left: 3px solid ${statusColor};">
+                        <div style="font-size: 12px; font-weight: bold; color: #fff;">${statusIcon} ${worker.name}</div>
+                        <div style="font-size: 11px; color: ${statusColor}; margin-top: 5px;">${worker.status}</div>
+                        <div style="font-size: 10px; color: #999; margin-top: 3px;">Completadas: ${worker.tasks_completed}</div>
+                    </div>
+                `;
+            }
+            
+            html += '</div></div>';
+            container.innerHTML = html;
+        }
+        
+        function renderBackgroundTasks(tasks) {
+            const container = document.getElementById('backgroundTasks');
+            if (!container) return;
+            
+            if (!tasks || tasks.length === 0) {
+                container.innerHTML = '<div style="text-align: center; padding: 30px; color: #999;">No hay tareas</div>';
+                return;
+            }
+            
+            let html = `
+                <div style="background: #2d2d2d; border-radius: 8px; padding: 15px;">
+                    <h4 style="color: #fff; margin: 0 0 10px 0;">📋 Tareas Recientes (${tasks.length})</h4>
+            `;
+            
+            for (const task of tasks) {
+                const statusColors = {
+                    'pending': '#9e9e9e',
+                    'running': '#2196f3',
+                    'completed': '#4caf50',
+                    'failed': '#f44336',
+                    'cancelled': '#ff9800'
+                };
+                const statusIcons = {
+                    'pending': '⏳',
+                    'running': '🔄',
+                    'completed': '✅',
+                    'failed': '❌',
+                    'cancelled': '🚫'
+                };
+                
+                const color = statusColors[task.status] || '#999';
+                const icon = statusIcons[task.status] || '❓';
+                const duration = task.duration ? `${task.duration.toFixed(2)}s` : '-';
+                
+                html += `
+                    <div style="background: #1a1a1a; padding: 10px 15px; margin-bottom: 8px; border-radius: 6px; border-left: 3px solid ${color};">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <span style="color: ${color}; font-weight: bold;">${icon} ${task.name}</span>
+                                <code style="color: #999; font-size: 11px; margin-left: 10px;">${task.id}</code>
+                            </div>
+                            <div style="font-size: 11px;">
+                                <span style="color: ${color};">${task.status}</span>
+                                ${task.duration ? `<span style="color: #999; margin-left: 10px;">⏱️ ${duration}</span>` : ''}
+                            </div>
+                        </div>
+                        ${task.result ? `<div style="font-size: 11px; color: #999; margin-top: 5px; max-height: 40px; overflow: hidden;">${JSON.stringify(task.result).substring(0, 100)}...</div>` : ''}
+                        ${task.error ? `<div style="font-size: 11px; color: #f44336; margin-top: 5px;">${task.error}</div>` : ''}
+                    </div>
+                `;
+            }
+            
+            html += '</div>';
+            container.innerHTML = html;
+        }
+        
+        async function submitBackgroundTask(type, params) {
+            try {
+                const response = await fetch('/api/background/submit', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        task_type: type,
+                        params: params,
+                        priority: 'NORMAL'
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showToast(`Tarea enviada: ${data.task_id}`, 'success');
+                    setTimeout(refreshBackgroundStatus, 500);
+                } else {
+                    showToast('Error enviando tarea', 'error');
+                }
+                
+            } catch (error) {
+                console.error('Error:', error);
+                showToast('Error enviando tarea', 'error');
+            }
+        }
+        
+        async function clearCompletedTasks() {
+            try {
+                const response = await fetch('/api/background/clear', { method: 'POST' });
+                const data = await response.json();
+                
+                if (data.success) {
+                    showToast(`${data.cleared} tareas limpiadas`, 'success');
+                    refreshBackgroundStatus();
+                }
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+        
+        function closeBackgroundModal() {
+            const modal = document.getElementById('backgroundModal');
+            if (modal) modal.classList.remove('show');
+            
+            if (backgroundRefreshInterval) {
+                clearInterval(backgroundRefreshInterval);
+                backgroundRefreshInterval = null;
+            }
+        }
+        
         // Cerrar modal con Escape
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
@@ -2917,6 +3164,7 @@
                 closeMCTSModal();
                 closeSemanticModal();
                 closeDiffModal();
+                closeBackgroundModal();
             }
         });
         
