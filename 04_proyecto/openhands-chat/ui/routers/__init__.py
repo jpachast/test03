@@ -8,3 +8,4 @@ from .git import router as git_router
 from .code_server import router as code_server_router
 from .projects_server import router as projects_server_router
 from .browser import router as browser_router
+from .autofix_endpoints import router as autofix_router

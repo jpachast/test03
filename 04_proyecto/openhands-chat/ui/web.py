@@ -41,6 +41,7 @@ from ui.routers.codemap_endpoints import router as codemap_router
 from ui.routers.mcp_endpoints import router as mcp_router
 from ui.routers.checkpoint_endpoints import router as checkpoint_router
 from ui.routers.codeparser_endpoints import router as codeparser_router
+from ui.routers.autofix_endpoints import router as autofix_router
 
 # OPTIMIZACIÓN: Middleware para cache de archivos estáticos
 class CacheControlMiddleware(BaseHTTPMiddleware):
@@ -100,6 +101,7 @@ app.include_router(codemap_router)
 app.include_router(mcp_router)
 app.include_router(checkpoint_router)
 app.include_router(codeparser_router)
+app.include_router(autofix_router)
 
 
 # === RUTAS DE PROYECTOS (legacy) ===

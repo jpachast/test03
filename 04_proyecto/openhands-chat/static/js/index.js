@@ -3691,6 +3691,307 @@
         // ============================================
         // CHECKPOINTS - Sistema de snapshots
         // ============================================
+        // ============================================================
+        // AUTO-FIX - Loop completo: detectar → corregir → verificar
+        // ============================================================
+        
+        function openAutoFix() {
+            toggleToolsMenu();
+            
+            let modal = document.getElementById('autofixModal');
+            if (!modal) {
+                modal = document.createElement('div');
+                modal.id = 'autofixModal';
+                modal.className = 'multiagent-modal';
+                modal.innerHTML = `
+                    <div class="multiagent-content" style="max-width: 900px; max-height: 85vh;">
+                        <div class="multiagent-header">
+                            <h3>🔧 Auto-Fix - Loop Completo de Corrección</h3>
+                            <button class="multiagent-close" onclick="closeAutoFixModal()">&times;</button>
+                        </div>
+                        <div class="multiagent-body" id="autofixBody" style="overflow-y: auto; max-height: calc(85vh - 120px);">
+                            <p style="color: #999; margin-bottom: 15px;">
+                                Sistema de corrección automática con verificación.<br>
+                                <strong>Loop:</strong> Detectar error → Analizar causa → Aplicar fix → Re-ejecutar → Verificar
+                            </p>
+                            
+                            <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                                <select id="autofixLanguage" style="padding: 8px 12px; background: #2d2d2d; border: 1px solid #444; border-radius: 4px; color: #e0e0e0;">
+                                    <option value="python">Python</option>
+                                    <option value="javascript">JavaScript</option>
+                                    <option value="bash">Bash</option>
+                                </select>
+                                <label style="display: flex; align-items: center; gap: 5px; color: #888;">
+                                    <input type="checkbox" id="autofixApply" checked style="width: 16px; height: 16px;">
+                                    Aplicar fixes
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 5px; color: #888;">
+                                    <input type="checkbox" id="autofixVerify" checked style="width: 16px; height: 16px;">
+                                    Verificar fixes
+                                </label>
+                            </div>
+                            
+                            <div style="margin-bottom: 15px;">
+                                <label style="display: block; margin-bottom: 5px; color: #888;">Código a corregir:</label>
+                                <textarea id="autofixCode" style="width: 100%; height: 180px; padding: 10px; background: #1a1a2e; border: 1px solid #444; border-radius: 4px; color: #e0e0e0; font-family: 'Fira Code', monospace; font-size: 13px; resize: vertical;" placeholder="# Pega tu código con errores aquí...
+
+def divide(a, b):
+    return a / b  # Error: división por cero
+
+print(divide(10, 0))"></textarea>
+                            </div>
+                            
+                            <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                                <button onclick="runAutoFix()" class="tools-btn" style="padding: 10px 20px; background: linear-gradient(135deg, #10b981, #059669);">
+                                    ▶️ Ejecutar Auto-Fix
+                                </button>
+                                <button onclick="quickFix()" class="tools-btn" style="padding: 10px 20px; background: #3b82f6;">
+                                    ⚡ Quick Fix (1 iteración)
+                                </button>
+                                <button onclick="loadAutoFixStats()" class="tools-btn" style="padding: 10px 20px;">
+                                    📊 Ver Estadísticas
+                                </button>
+                            </div>
+                            
+                            <div id="autofixResult" style="margin-top: 15px;"></div>
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(modal);
+            }
+            
+            modal.classList.add('show');
+        }
+        
+        function closeAutoFixModal() {
+            const modal = document.getElementById('autofixModal');
+            if (modal) modal.classList.remove('show');
+        }
+        
+        async function runAutoFix() {
+            const code = document.getElementById('autofixCode').value.trim();
+            const language = document.getElementById('autofixLanguage').value;
+            const applyFixes = document.getElementById('autofixApply').checked;
+            const verifyFixes = document.getElementById('autofixVerify').checked;
+            const resultDiv = document.getElementById('autofixResult');
+            
+            if (!code) {
+                showToast('Ingresa código para corregir', 'error');
+                return;
+            }
+            
+            resultDiv.innerHTML = `
+                <div style="text-align: center; padding: 30px;">
+                    <div class="loading-spinner"></div>
+                    <p style="color: #888; margin-top: 10px;">Ejecutando loop de auto-fix...</p>
+                    <p style="color: #666; font-size: 12px;">Detectando errores → Aplicando correcciones → Verificando...</p>
+                </div>
+            `;
+            
+            try {
+                const response = await fetch('/api/autofix/run', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        code: code,
+                        language: language,
+                        apply_fixes: applyFixes,
+                        verify_fixes: verifyFixes,
+                        timeout: 30,
+                        max_iterations: 5
+                    })
+                });
+                
+                const data = await response.json();
+                renderAutoFixResult(data);
+                
+            } catch (error) {
+                resultDiv.innerHTML = `<div style="color: #ef4444; padding: 15px; background: #2d1f1f; border-radius: 8px;">
+                    ❌ Error: ${error.message}
+                </div>`;
+            }
+        }
+        
+        async function quickFix() {
+            const code = document.getElementById('autofixCode').value.trim();
+            const language = document.getElementById('autofixLanguage').value;
+            const resultDiv = document.getElementById('autofixResult');
+            
+            if (!code) {
+                showToast('Ingresa código para corregir', 'error');
+                return;
+            }
+            
+            resultDiv.innerHTML = `
+                <div style="text-align: center; padding: 20px;">
+                    <div class="loading-spinner"></div>
+                    <p style="color: #888; margin-top: 10px;">Quick fix en progreso...</p>
+                </div>
+            `;
+            
+            try {
+                const response = await fetch(`/api/autofix/quick-fix?code=${encodeURIComponent(code)}&language=${language}`, {
+                    method: 'POST'
+                });
+                
+                const data = await response.json();
+                
+                if (data.code_changed) {
+                    resultDiv.innerHTML = `
+                        <div style="background: #1f2d1f; padding: 15px; border-radius: 8px; border-left: 4px solid #10b981;">
+                            <h4 style="color: #10b981; margin: 0 0 10px;">⚡ Quick Fix Aplicado</h4>
+                            <p style="color: #888; margin-bottom: 10px;">${data.fix_applied || 'Fix aplicado'}</p>
+                            <p style="color: #666; font-size: 12px;">Tiempo: ${data.time}s</p>
+                            <label style="display: block; margin-top: 10px; color: #888;">Código corregido:</label>
+                            <pre style="background: #1a1a2e; padding: 10px; border-radius: 4px; overflow-x: auto; max-height: 200px;"><code>${escapeHtml(data.fixed_code)}</code></pre>
+                            <button onclick="document.getElementById('autofixCode').value = ${JSON.stringify(data.fixed_code)}; showToast('Código actualizado', 'success');" 
+                                    class="tools-btn" style="margin-top: 10px; padding: 8px 15px;">
+                                📋 Usar código corregido
+                            </button>
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <div style="background: #2d2d1f; padding: 15px; border-radius: 8px; border-left: 4px solid #eab308;">
+                            <h4 style="color: #eab308; margin: 0;">⚠️ No se encontró fix automático</h4>
+                            <p style="color: #888; margin-top: 10px;">El código puede estar correcto o el error requiere corrección manual.</p>
+                        </div>
+                    `;
+                }
+                
+            } catch (error) {
+                resultDiv.innerHTML = `<div style="color: #ef4444; padding: 15px; background: #2d1f1f; border-radius: 8px;">
+                    ❌ Error: ${error.message}
+                </div>`;
+            }
+        }
+        
+        function renderAutoFixResult(data) {
+            const resultDiv = document.getElementById('autofixResult');
+            
+            const statusColors = {
+                'success': '#10b981',
+                'partial_success': '#eab308',
+                'failed': '#ef4444',
+                'max_iterations': '#f97316'
+            };
+            
+            const statusIcons = {
+                'success': '✅',
+                'partial_success': '⚠️',
+                'failed': '❌',
+                'max_iterations': '🔄'
+            };
+            
+            const statusColor = statusColors[data.status] || '#888';
+            const statusIcon = statusIcons[data.status] || '❓';
+            
+            let iterationsHtml = data.iterations.map((iter, idx) => `
+                <div style="background: #1a1a2e; padding: 10px; border-radius: 4px; margin-bottom: 8px; border-left: 3px solid ${iter.status === 'success' ? '#10b981' : iter.fix_applied === 'yes' ? '#3b82f6' : '#ef4444'};">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <strong style="color: #e0e0e0;">Iteración ${iter.iteration}</strong>
+                        <span style="color: ${iter.status === 'success' ? '#10b981' : '#888'};">${iter.status}</span>
+                    </div>
+                    ${iter.error_type !== 'none' ? `<p style="color: #ef4444; font-size: 12px; margin: 5px 0;">Error: ${iter.error_type}</p>` : ''}
+                    <p style="color: #888; font-size: 12px; margin: 5px 0;">${iter.fix_description}</p>
+                </div>
+            `).join('');
+            
+            resultDiv.innerHTML = `
+                <div style="background: #1e1e2e; padding: 20px; border-radius: 8px; border: 1px solid #333;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                        <h4 style="color: ${statusColor}; margin: 0;">${statusIcon} ${data.status.toUpperCase().replace('_', ' ')}</h4>
+                        <div style="display: flex; gap: 15px; color: #888; font-size: 13px;">
+                            <span>⏱️ ${data.total_time}s</span>
+                            <span>🔄 ${data.iterations_count} iteraciones</span>
+                            <span>🔧 ${data.total_fixes_applied} fixes</span>
+                            ${data.verified ? '<span style="color: #10b981;">✓ Verificado</span>' : ''}
+                        </div>
+                    </div>
+                    
+                    ${data.code_changed ? `
+                        <div style="margin-bottom: 15px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                                <label style="color: #888;">Código corregido:</label>
+                                <button onclick="document.getElementById('autofixCode').value = ${JSON.stringify(data.final_code)}; showToast('Código actualizado', 'success');" 
+                                        class="tools-btn" style="padding: 5px 10px; font-size: 12px;">
+                                    📋 Usar código
+                                </button>
+                            </div>
+                            <pre style="background: #1a1a2e; padding: 10px; border-radius: 4px; overflow-x: auto; max-height: 200px; border: 1px solid #10b981;"><code>${escapeHtml(data.final_code)}</code></pre>
+                        </div>
+                    ` : ''}
+                    
+                    ${data.final_output ? `
+                        <div style="margin-bottom: 15px;">
+                            <label style="color: #888; display: block; margin-bottom: 5px;">Salida:</label>
+                            <pre style="background: #1f2d1f; padding: 10px; border-radius: 4px; color: #10b981; overflow-x: auto; max-height: 150px;">${escapeHtml(data.final_output)}</pre>
+                        </div>
+                    ` : ''}
+                    
+                    ${data.error_message ? `
+                        <div style="margin-bottom: 15px;">
+                            <label style="color: #ef4444; display: block; margin-bottom: 5px;">Error:</label>
+                            <pre style="background: #2d1f1f; padding: 10px; border-radius: 4px; color: #ef4444; overflow-x: auto; max-height: 150px; font-size: 12px;">${escapeHtml(data.error_message)}</pre>
+                        </div>
+                    ` : ''}
+                    
+                    <div>
+                        <label style="color: #888; display: block; margin-bottom: 10px;">Iteraciones del loop:</label>
+                        ${iterationsHtml}
+                    </div>
+                </div>
+            `;
+        }
+        
+        async function loadAutoFixStats() {
+            const resultDiv = document.getElementById('autofixResult');
+            
+            try {
+                const response = await fetch('/api/autofix/stats');
+                const stats = await response.json();
+                
+                resultDiv.innerHTML = `
+                    <div style="background: #1e1e2e; padding: 20px; border-radius: 8px; border: 1px solid #333;">
+                        <h4 style="color: #e0e0e0; margin: 0 0 15px;">📊 Estadísticas de Auto-Fix</h4>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px;">
+                            <div style="background: #1a1a2e; padding: 15px; border-radius: 8px; text-align: center;">
+                                <div style="font-size: 24px; color: #3b82f6;">${stats.total_sessions || 0}</div>
+                                <div style="color: #888; font-size: 12px;">Sesiones totales</div>
+                            </div>
+                            <div style="background: #1a1a2e; padding: 15px; border-radius: 8px; text-align: center;">
+                                <div style="font-size: 24px; color: #10b981;">${stats.success_count || 0}</div>
+                                <div style="color: #888; font-size: 12px;">Exitosas</div>
+                            </div>
+                            <div style="background: #1a1a2e; padding: 15px; border-radius: 8px; text-align: center;">
+                                <div style="font-size: 24px; color: #eab308;">${stats.partial_success_count || 0}</div>
+                                <div style="color: #888; font-size: 12px;">Parciales</div>
+                            </div>
+                            <div style="background: #1a1a2e; padding: 15px; border-radius: 8px; text-align: center;">
+                                <div style="font-size: 24px; color: #10b981;">${stats.success_rate || 0}%</div>
+                                <div style="color: #888; font-size: 12px;">Tasa de éxito</div>
+                            </div>
+                            <div style="background: #1a1a2e; padding: 15px; border-radius: 8px; text-align: center;">
+                                <div style="font-size: 24px; color: #8b5cf6;">${stats.total_fixes_applied || 0}</div>
+                                <div style="color: #888; font-size: 12px;">Fixes aplicados</div>
+                            </div>
+                            <div style="background: #1a1a2e; padding: 15px; border-radius: 8px; text-align: center;">
+                                <div style="font-size: 24px; color: #f97316;">${stats.verified_count || 0}</div>
+                                <div style="color: #888; font-size: 12px;">Verificados</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+            } catch (error) {
+                resultDiv.innerHTML = `<div style="color: #ef4444; padding: 15px;">Error: ${error.message}</div>`;
+            }
+        }
+        
+        // ============================================================
+        // CHECKPOINTS
+        // ============================================================
+        
         function openCheckpoints() {
             toggleToolsMenu();
             
