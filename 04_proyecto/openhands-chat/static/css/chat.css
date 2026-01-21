@@ -341,7 +341,7 @@
 .message pre code {
     background: transparent;
     padding: 0;
-    color: inherit;
+    color: #e6edf3; /* was inherit, changed for hljs */
     font-family: 'JetBrains Mono', 'Fira Code', monospace;
     font-size: 13px;
     line-height: 1.5;
@@ -410,4 +410,247 @@
 /* Emojis destacados */
 .message p:first-child:has(strong:first-child) {
     font-size: 1.05em;
+}
+
+/* ========================================
+   SANDBOX INTEGRATION - ESTILOS PROFESIONALES
+   ======================================== */
+
+.sandbox-execution-container {
+    margin: 12px 0;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    border: 1px solid #333;
+}
+
+.sandbox-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    border-bottom: 1px solid #333;
+}
+
+.sandbox-run-btn {
+    background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%) !important;
+    transition: all 0.2s ease !important;
+}
+
+.sandbox-run-btn:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(34, 197, 94, 0.4);
+}
+
+.sandbox-run-btn:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+.sandbox-run-btn .spinner {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+.sandbox-result {
+    animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        max-height: 0;
+    }
+    to {
+        opacity: 1;
+        max-height: 500px;
+    }
+}
+
+/* Estilos para código en mensajes */
+.message pre {
+    position: relative;
+    margin: 8px 0;
+}
+
+.message pre code {
+    display: block;
+    padding: 14px;
+    background: #1e1e1e;
+    border-radius: 0 0 8px 8px;
+    font-family: "Monaco", "Menlo", "Ubuntu Mono", monospace;
+    font-size: 13px;
+    line-height: 1.5;
+    overflow-x: auto;
+}
+
+/* Colores de sintaxis básicos */
+.message pre code .keyword { color: #569cd6; }
+.message pre code .string { color: #ce9178; }
+.message pre code .comment { color: #6a9955; }
+.message pre code .function { color: #dcdcaa; }
+
+/* Fix para bloques de código inline */
+.message code:not(pre code) {
+    background: #2d2d2d;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.9em;
+}
+
+/* Estilos para sugerencias de fix */
+.apply-fix-btn {
+    transition: all 0.2s ease !important;
+}
+
+.apply-fix-btn:hover {
+    background: #2563eb !important;
+    transform: translateY(-1px);
+}
+
+
+/* ============================================= */
+/* HIGHLIGHT.JS - Permitir colores de sintaxis   */
+/* ============================================= */
+.message pre code.hljs {
+    color: #e6edf3;
+    background: #0d1117;
+    padding: 16px;
+    border-radius: 6px;
+}
+
+/* Colores de GitHub Dark para syntax highlighting */
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-built_in,
+.hljs-name,
+.hljs-tag {
+    color: #ff7b72 !important;
+}
+
+.hljs-string,
+.hljs-title,
+.hljs-section,
+.hljs-attribute,
+.hljs-literal,
+.hljs-template-tag,
+.hljs-template-variable,
+.hljs-type,
+.hljs-addition {
+    color: #a5d6ff !important;
+}
+
+.hljs-deletion,
+.hljs-selector-attr,
+.hljs-selector-pseudo,
+.hljs-meta {
+    color: #ffa657 !important;
+}
+
+.hljs-comment,
+.hljs-quote {
+    color: #8b949e !important;
+    font-style: italic;
+}
+
+.hljs-variable,
+.hljs-template-variable,
+.hljs-attr,
+.hljs-regexp,
+.hljs-link {
+    color: #79c0ff !important;
+}
+
+.hljs-symbol,
+.hljs-bullet,
+.hljs-subst,
+.hljs-meta,
+.hljs-meta .hljs-keyword,
+.hljs-selector-id,
+.hljs-title {
+    color: #d2a8ff !important;
+}
+
+.hljs-number {
+    color: #79c0ff !important;
+}
+
+.hljs-function .hljs-title {
+    color: #d2a8ff !important;
+}
+
+.hljs-doctag {
+    color: #ff7b72 !important;
+}
+
+/* Python específicos */
+.hljs-class .hljs-title,
+.hljs-title.class_ {
+    color: #f0883e !important;
+}
+
+
+
+/* ============================================= */
+/* FIX: Asegurar que highlight.js funcione       */
+/* ============================================= */
+.message pre code.hljs,
+.message pre code[class*="language-"] {
+    color: #e6edf3 !important;
+}
+
+.message pre code .hljs-keyword,
+.message pre code.hljs .hljs-keyword {
+    color: #ff7b72 !important;
+}
+
+.message pre code .hljs-string,
+.message pre code.hljs .hljs-string {
+    color: #a5d6ff !important;
+}
+
+.message pre code .hljs-title,
+.message pre code.hljs .hljs-title {
+    color: #d2a8ff !important;
+}
+
+.message pre code .hljs-function,
+.message pre code.hljs .hljs-function {
+    color: #d2a8ff !important;
+}
+
+.message pre code .hljs-built_in,
+.message pre code.hljs .hljs-built_in {
+    color: #ffa657 !important;
+}
+
+.message pre code .hljs-number,
+.message pre code.hljs .hljs-number {
+    color: #79c0ff !important;
+}
+
+.message pre code .hljs-comment,
+.message pre code.hljs .hljs-comment {
+    color: #8b949e !important;
+    font-style: italic;
+}
+
+.message pre code .hljs-variable,
+.message pre code.hljs .hljs-variable {
+    color: #79c0ff !important;
+}
+
+.message pre code .hljs-params,
+.message pre code.hljs .hljs-params {
+    color: #e6edf3 !important;
+}
+
+/* Spans dentro del código deben heredar los colores de hljs */
+.message pre code span[class^="hljs-"] {
+    color: inherit;
 }
