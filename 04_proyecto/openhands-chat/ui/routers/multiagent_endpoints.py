@@ -32,9 +32,13 @@ def _get_api_key() -> str:
 
 
 def _get_model() -> str:
-    """Obtiene el modelo configurado"""
+    """Obtiene el modelo configurado (sin prefijo de provider)"""
     db = Database()
-    return db.get_setting('llm_model', 'anthropic/claude-sonnet-4-20250514')
+    model = db.get_setting('llm_model', 'claude-sonnet-4-20250514')
+    # Remover prefijo de provider si existe (ej: anthropic/claude-xxx -> claude-xxx)
+    if '/' in model:
+        model = model.split('/')[-1]
+    return model
 
 
 # === Multi-Agent ===
