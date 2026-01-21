@@ -1,5 +1,5 @@
 """
-Endpoints API para Multi-Agent System y ML Simulator
+Endpoints API para Multi-Agent System con LLMs REALES en paralelo
 """
 
 from fastapi import APIRouter, HTTPException
@@ -7,13 +7,34 @@ from pydantic import BaseModel
 from typing import Optional, List, Dict, Any
 import sys
 import os
+import logging
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from core.multi_agent import get_orchestrator, AgentRole
+from core.multi_agent import get_orchestrator, AgentRole, reinit_orchestrator
 from core.ml_simulator import get_simulator
+from config.database import Database
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/advanced", tags=["advanced"])
+
+
+def _get_api_key() -> str:
+    """Obtiene la API key de la base de datos"""
+    db = Database()
+    api_key = db.get_api_key()
+    if not api_key:
+        raise HTTPException(
+            status_code=400,
+            detail="No hay API key configurada. Ve a Configuración para agregar tu API key de Anthropic."
+        )
+    return api_key
+
+
+def _get_model() -> str:
+    """Obtiene el modelo configurado"""
+    db = Database()
+    return db.get_setting('llm_model', 'anthropic/claude-sonnet-4-20250514')
 
 
 # === Multi-Agent ===
@@ -26,94 +47,235 @@ class CreateSessionRequest(BaseModel):
 class RunCodeWithAgentsRequest(BaseModel):
     code: str
     language: str = "python"
+    roles: Optional[List[str]] = None  # Roles específicos a usar
+
+
+class QuickAnalysisRequest(BaseModel):
+    code: str
+    language: str = "python"
+    include_roles: Optional[List[str]] = None  # reviewer, tester, documenter, security, architect
 
 
 @router.post("/multiagent/session")
 async def create_agent_session(request: CreateSessionRequest):
     """
-    Crea una sesión multi-agente.
-    
-    Roles disponibles: researcher, coder, tester, reviewer, documenter
+    Crea una sesión multi-agente con LLMs REALES.
+
+    Roles disponibles: researcher, coder, tester, reviewer, documenter, architect, security
     """
     try:
-        orchestrator = get_orchestrator()
+        api_key = _get_api_key()
+        model = _get_model()
+
+        orchestrator = get_orchestrator(api_key=api_key, model=model)
         session = await orchestrator.create_session(
             objective=request.objective,
             tasks_config=request.tasks
         )
         return session.to_dict()
+    except HTTPException:
+        raise
     except Exception as e:
+        logger.error(f"Error creating session: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/multiagent/run/{session_id}")
 async def run_agent_session(session_id: str):
-    """Ejecuta todos los agentes de una sesión en paralelo"""
+    """
+    Ejecuta todos los agentes de una sesión en PARALELO REAL.
+    Cada agente hace una llamada simultánea a Claude API.
+    """
     try:
-        orchestrator = get_orchestrator()
+        api_key = _get_api_key()
+        model = _get_model()
+
+        orchestrator = get_orchestrator(api_key=api_key, model=model)
         session = await orchestrator.run_session(session_id)
         return session.to_dict()
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
+    except HTTPException:
+        raise
     except Exception as e:
+        logger.error(f"Error running session: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/multiagent/quick-analysis")
+async def quick_code_analysis(request: QuickAnalysisRequest):
+    """
+    Análisis rápido de código con múltiples agentes LLM en PARALELO.
+
+    Por defecto ejecuta: reviewer, tester, documenter, security
+    Todos los agentes se ejecutan simultáneamente con Claude API.
+    """
+    try:
+        api_key = _get_api_key()
+        model = _get_model()
+
+        orchestrator = get_orchestrator(api_key=api_key, model=model)
+        session = await orchestrator.quick_analysis(
+            code=request.code,
+            language=request.language,
+            include_roles=request.include_roles
+        )
+        return session.to_dict()
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in quick analysis: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/multiagent/quick-review")
 async def quick_code_review(request: RunCodeWithAgentsRequest):
     """
-    Revisión rápida de código usando múltiples agentes en paralelo.
-    Ejecuta: coder (test), tester, reviewer, documenter
+    Revisión rápida de código usando múltiples agentes LLM en paralelo.
+    Ejecuta: reviewer, tester, documenter (3 llamadas simultáneas a Claude)
     """
-    orchestrator = get_orchestrator()
-    
-    # Crear sesión con múltiples tareas
-    session = await orchestrator.create_session(
-        objective=f"Revisar código {request.language}",
-        tasks_config=[
+    try:
+        api_key = _get_api_key()
+        model = _get_model()
+
+        orchestrator = get_orchestrator(api_key=api_key, model=model)
+
+        roles = request.roles or ["reviewer", "tester", "documenter"]
+        tasks_config = [
             {
-                "role": "coder",
-                "description": "Ejecutar código",
+                "role": role,
+                "description": f"Análisis {role}",
                 "input": {"code": request.code, "language": request.language}
-            },
-            {
-                "role": "reviewer",
-                "description": "Revisar calidad",
-                "input": {"code": request.code}
-            },
-            {
-                "role": "documenter",
-                "description": "Generar documentación",
-                "input": {"code": request.code}
             }
+            for role in roles
         ]
-    )
-    
-    # Ejecutar
-    result = await orchestrator.run_session(session.id)
-    return result.to_dict()
+
+        session = await orchestrator.create_session(
+            objective=f"Revisión de código {request.language}",
+            tasks_config=tasks_config
+        )
+
+        result = await orchestrator.run_session(session.id)
+        return result.to_dict()
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in quick review: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/multiagent/full-analysis")
+async def full_code_analysis(request: RunCodeWithAgentsRequest):
+    """
+    Análisis COMPLETO de código con TODOS los agentes disponibles en paralelo.
+    Ejecuta: reviewer, tester, documenter, security, architect (5 llamadas simultáneas)
+    """
+    try:
+        api_key = _get_api_key()
+        model = _get_model()
+
+        orchestrator = get_orchestrator(api_key=api_key, model=model)
+
+        all_roles = ["reviewer", "tester", "documenter", "security", "architect"]
+        tasks_config = [
+            {
+                "role": role,
+                "description": f"Análisis {role} completo",
+                "input": {"code": request.code, "language": request.language}
+            }
+            for role in all_roles
+        ]
+
+        session = await orchestrator.create_session(
+            objective=f"Análisis completo de código {request.language}",
+            tasks_config=tasks_config
+        )
+
+        result = await orchestrator.run_session(session.id)
+        return result.to_dict()
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in full analysis: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/multiagent/session/{session_id}")
 async def get_session(session_id: str):
     """Obtiene detalles de una sesión"""
-    orchestrator = get_orchestrator()
-    session = orchestrator.get_session(session_id)
-    
-    if not session:
-        raise HTTPException(status_code=404, detail="Sesión no encontrada")
-    
-    return session.to_dict()
+    try:
+        api_key = _get_api_key()
+        orchestrator = get_orchestrator(api_key=api_key)
+        session = orchestrator.get_session(session_id)
+
+        if not session:
+            raise HTTPException(status_code=404, detail="Sesión no encontrada")
+
+        return session.to_dict()
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/multiagent/sessions")
 async def list_sessions(limit: int = 20):
-    """Lista las últimas sesiones"""
-    orchestrator = get_orchestrator()
-    sessions = orchestrator.list_sessions(limit)
+    """Lista las últimas sesiones multi-agente"""
+    try:
+        api_key = _get_api_key()
+        orchestrator = get_orchestrator(api_key=api_key)
+        sessions = orchestrator.list_sessions(limit)
+        return {
+            "sessions": [s.to_dict() for s in sessions],
+            "total": len(sessions)
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/multiagent/roles")
+async def get_available_roles():
+    """Lista los roles de agentes disponibles"""
     return {
-        "sessions": [s.to_dict() for s in sessions],
-        "total": len(sessions)
+        "roles": [
+            {
+                "id": "researcher",
+                "name": "Investigador",
+                "description": "Investiga y analiza información"
+            },
+            {
+                "id": "coder",
+                "name": "Programador",
+                "description": "Escribe y mejora código"
+            },
+            {
+                "id": "tester",
+                "name": "Tester",
+                "description": "Genera tests unitarios"
+            },
+            {
+                "id": "reviewer",
+                "name": "Revisor",
+                "description": "Analiza calidad del código"
+            },
+            {
+                "id": "documenter",
+                "name": "Documentador",
+                "description": "Genera documentación"
+            },
+            {
+                "id": "architect",
+                "name": "Arquitecto",
+                "description": "Diseña estructura y patrones"
+            },
+            {
+                "id": "security",
+                "name": "Seguridad",
+                "description": "Detecta vulnerabilidades"
+            }
+        ]
     }
 
 
