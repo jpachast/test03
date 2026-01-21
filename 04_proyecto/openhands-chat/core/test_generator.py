@@ -148,18 +148,22 @@ class TestGenerator:
                 # Generar valores de prueba basados en nombres de parámetros
                 test_values = []
                 for p in params:
-                    if 'num' in p.lower() or 'count' in p.lower() or 'n' == p.lower():
+                    p_lower = p.lower()
+                    if 'num' in p_lower or 'count' in p_lower or p_lower in ('n', 'x', 'y', 'a', 'b', 'c', 'i', 'j', 'k'):
                         test_values.append("5")
-                    elif 'str' in p.lower() or 'name' in p.lower() or 'text' in p.lower():
+                    elif 'str' in p_lower or 'name' in p_lower or 'text' in p_lower or 's' == p_lower:
                         test_values.append('"test"')
-                    elif 'list' in p.lower() or 'arr' in p.lower():
+                    elif 'list' in p_lower or 'arr' in p_lower or 'items' in p_lower:
                         test_values.append("[1, 2, 3]")
-                    elif 'dict' in p.lower():
+                    elif 'dict' in p_lower or 'data' in p_lower or 'obj' in p_lower:
                         test_values.append('{"key": "value"}')
-                    elif 'bool' in p.lower() or 'flag' in p.lower():
+                    elif 'bool' in p_lower or 'flag' in p_lower or 'is_' in p_lower or 'has_' in p_lower:
                         test_values.append("True")
+                    elif 'float' in p_lower or 'decimal' in p_lower or 'price' in p_lower:
+                        test_values.append("3.14")
                     else:
-                        test_values.append("None")
+                        # Por defecto usar número si tiene un solo carácter
+                        test_values.append("1" if len(p) <= 2 else "None")
                 
                 args_str = ", ".join(test_values)
                 
