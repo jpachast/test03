@@ -3421,6 +3421,273 @@
             if (modal) modal.classList.remove('show');
         }
         
+        // ============================================
+        // MCP PROTOCOL - Model Context Protocol
+        // ============================================
+        function openMCPProtocol() {
+            toggleToolsMenu();
+            
+            let modal = document.getElementById('mcpModal');
+            if (!modal) {
+                modal = document.createElement('div');
+                modal.id = 'mcpModal';
+                modal.className = 'multiagent-modal';
+                modal.innerHTML = `
+                    <div class="multiagent-content" style="max-width: 900px; max-height: 85vh;">
+                        <div class="multiagent-header">
+                            <h3>🔗 MCP Protocol - Model Context Protocol</h3>
+                            <button class="multiagent-close" onclick="closeMCPModal()">&times;</button>
+                        </div>
+                        <div class="multiagent-body" id="mcpBody" style="overflow-y: auto; max-height: calc(85vh - 120px);">
+                            <p style="color: #999; margin-bottom: 15px;">Gestión de contexto persistente para LLMs.</p>
+                            
+                            <div style="display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap;">
+                                <button onclick="loadMCPSession()" class="tools-btn" style="padding: 10px 15px;">
+                                    📊 Ver Sesión
+                                </button>
+                                <button onclick="addMCPMemory()" class="tools-btn" style="padding: 10px 15px;">
+                                    🧠 Agregar Memoria
+                                </button>
+                                <button onclick="addMCPFile()" class="tools-btn" style="padding: 10px 15px;">
+                                    📄 Agregar Archivo
+                                </button>
+                                <button onclick="clearMCPSession()" class="tools-btn" style="padding: 10px 15px; background: #dc3545;">
+                                    🗑️ Limpiar
+                                </button>
+                            </div>
+                            
+                            <div id="mcpStats" style="margin-bottom: 15px;"></div>
+                            <div id="mcpContexts" style="margin-bottom: 15px;"></div>
+                            <div id="mcpActions" style="margin-bottom: 15px;"></div>
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(modal);
+            }
+            
+            modal.classList.add('show');
+            loadMCPSession();
+        }
+        
+        async function loadMCPSession() {
+            const statsDiv = document.getElementById('mcpStats');
+            const contextsDiv = document.getElementById('mcpContexts');
+            
+            statsDiv.innerHTML = '<div style="text-align: center; padding: 20px;"><div class="loading-spinner"></div></div>';
+            
+            try {
+                const convId = currentConversationId || 1;
+                const response = await fetch(`/api/mcp/session/${convId}`);
+                const data = await response.json();
+                
+                if (!data.success) {
+                    throw new Error(data.error || 'Error cargando sesión');
+                }
+                
+                renderMCPStats(data.session);
+                renderMCPContexts(data.session.contexts || []);
+                
+            } catch (error) {
+                console.error('Error:', error);
+                statsDiv.innerHTML = `<div style="color: #ff6b6b; padding: 15px;">❌ ${error.message}</div>`;
+            }
+        }
+        
+        function renderMCPStats(session) {
+            const container = document.getElementById('mcpStats');
+            if (!container) return;
+            
+            const tokenUsage = session.current_tokens / session.max_tokens * 100;
+            const usageColor = tokenUsage > 80 ? '#f44336' : tokenUsage > 50 ? '#ff9800' : '#4caf50';
+            
+            container.innerHTML = `
+                <div style="background: #2d2d2d; border-radius: 8px; padding: 15px;">
+                    <h4 style="color: #fff; margin: 0 0 10px 0;">📊 Sesión MCP</h4>
+                    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; text-align: center;">
+                        <div style="background: #1a1a1a; padding: 12px; border-radius: 6px;">
+                            <div style="font-size: 18px; color: #4caf50; font-weight: bold;">${session.context_count || 0}</div>
+                            <div style="color: #999; font-size: 11px;">Contextos</div>
+                        </div>
+                        <div style="background: #1a1a1a; padding: 12px; border-radius: 6px;">
+                            <div style="font-size: 18px; color: #2196f3; font-weight: bold;">${(session.current_tokens || 0).toLocaleString()}</div>
+                            <div style="color: #999; font-size: 11px;">Tokens</div>
+                        </div>
+                        <div style="background: #1a1a1a; padding: 12px; border-radius: 6px;">
+                            <div style="font-size: 18px; color: #ff9800; font-weight: bold;">${(session.max_tokens || 0).toLocaleString()}</div>
+                            <div style="color: #999; font-size: 11px;">Max Tokens</div>
+                        </div>
+                        <div style="background: #1a1a1a; padding: 12px; border-radius: 6px;">
+                            <div style="font-size: 18px; color: ${usageColor}; font-weight: bold;">${session.token_usage || '0%'}</div>
+                            <div style="color: #999; font-size: 11px;">Uso</div>
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top: 15px;">
+                        <div style="display: flex; justify-content: space-between; font-size: 12px; color: #999; margin-bottom: 5px;">
+                            <span>Uso de contexto</span>
+                            <span>${session.token_usage || '0%'}</span>
+                        </div>
+                        <div style="background: #1a1a1a; border-radius: 4px; height: 8px; overflow: hidden;">
+                            <div style="background: ${usageColor}; height: 100%; width: ${tokenUsage}%; transition: width 0.3s;"></div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        function renderMCPContexts(contexts) {
+            const container = document.getElementById('mcpContexts');
+            if (!container) return;
+            
+            if (!contexts || contexts.length === 0) {
+                container.innerHTML = '<div style="text-align: center; padding: 20px; color: #999;">No hay contextos cargados</div>';
+                return;
+            }
+            
+            const typeIcons = {
+                'system': '⚙️',
+                'project': '📁',
+                'file': '📄',
+                'conversation': '💬',
+                'tool_result': '🔧',
+                'preference': '⚡',
+                'memory': '🧠'
+            };
+            
+            const typeColors = {
+                'system': '#9c27b0',
+                'project': '#2196f3',
+                'file': '#4caf50',
+                'conversation': '#ff9800',
+                'tool_result': '#e91e63',
+                'preference': '#00bcd4',
+                'memory': '#ff5722'
+            };
+            
+            let html = `
+                <div style="background: #2d2d2d; border-radius: 8px; padding: 15px;">
+                    <h4 style="color: #fff; margin: 0 0 15px 0;">📋 Contextos Activos (${contexts.length})</h4>
+            `;
+            
+            // Ordenar por prioridad
+            contexts.sort((a, b) => b.priority - a.priority);
+            
+            for (const ctx of contexts) {
+                const icon = typeIcons[ctx.type] || '📝';
+                const color = typeColors[ctx.type] || '#999';
+                
+                html += `
+                    <div style="background: #1a1a1a; padding: 12px 15px; margin-bottom: 8px; border-radius: 6px; border-left: 3px solid ${color};">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <span style="color: ${color}; font-weight: bold;">${icon} ${ctx.type}</span>
+                                <code style="color: #999; font-size: 10px; margin-left: 10px;">${ctx.id}</code>
+                            </div>
+                            <div style="font-size: 11px;">
+                                <span style="color: #4caf50;">P${ctx.priority}</span>
+                                <span style="color: #999; margin-left: 10px;">${ctx.tokens} tokens</span>
+                            </div>
+                        </div>
+                        <div style="color: #ccc; font-size: 12px; margin-top: 8px; max-height: 60px; overflow: hidden;">
+                            ${escapeHtml(ctx.content)}
+                        </div>
+                    </div>
+                `;
+            }
+            
+            html += '</div>';
+            container.innerHTML = html;
+        }
+        
+        async function addMCPMemory() {
+            const memory = prompt('Ingresa la memoria a guardar:');
+            if (!memory) return;
+            
+            try {
+                const convId = currentConversationId || 1;
+                const response = await fetch('/api/mcp/memory/add', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        conversation_id: convId,
+                        memory: memory,
+                        priority: 7
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showToast('Memoria agregada', 'success');
+                    loadMCPSession();
+                } else {
+                    showToast('Error agregando memoria', 'error');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showToast('Error agregando memoria', 'error');
+            }
+        }
+        
+        async function addMCPFile() {
+            const filename = prompt('Nombre del archivo:');
+            if (!filename) return;
+            
+            const content = prompt('Contenido del archivo (o resumen):');
+            if (!content) return;
+            
+            try {
+                const convId = currentConversationId || 1;
+                const response = await fetch('/api/mcp/file/add', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        conversation_id: convId,
+                        filename: filename,
+                        content: content,
+                        priority: 6
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showToast(`Archivo ${filename} agregado`, 'success');
+                    loadMCPSession();
+                } else {
+                    showToast('Error agregando archivo', 'error');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showToast('Error agregando archivo', 'error');
+            }
+        }
+        
+        async function clearMCPSession() {
+            if (!confirm('¿Limpiar toda la sesión MCP?')) return;
+            
+            try {
+                const convId = currentConversationId || 1;
+                const response = await fetch(`/api/mcp/session/${convId}`, {
+                    method: 'DELETE'
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showToast('Sesión limpiada', 'success');
+                    loadMCPSession();
+                }
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+        
+        function closeMCPModal() {
+            const modal = document.getElementById('mcpModal');
+            if (modal) modal.classList.remove('show');
+        }
+        
         // Cerrar modal con Escape
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
@@ -3431,6 +3698,7 @@
                 closeDiffModal();
                 closeBackgroundModal();
                 closeCodemapModal();
+                closeMCPModal();
             }
         });
         
