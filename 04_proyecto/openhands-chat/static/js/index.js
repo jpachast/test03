@@ -2376,12 +2376,254 @@
             if (modal) modal.classList.remove('show');
         }
         
+        // ============================================
+        // SEMANTIC SEARCH - Búsqueda semántica de código
+        // ============================================
+        function openSemanticSearch() {
+            toggleToolsMenu(); // Cerrar dropdown
+            
+            let modal = document.getElementById('semanticModal');
+            if (!modal) {
+                modal = document.createElement('div');
+                modal.id = 'semanticModal';
+                modal.className = 'multiagent-modal';
+                modal.innerHTML = `
+                    <div class="multiagent-content" style="max-width: 800px;">
+                        <div class="multiagent-header">
+                            <h3>🔍 Semantic Search</h3>
+                            <button class="multiagent-close" onclick="closeSemanticModal()">&times;</button>
+                        </div>
+                        <div class="multiagent-body" id="semanticBody">
+                            <p style="color: #999; margin-bottom: 15px;">Busca en tu código usando lenguaje natural.</p>
+                            
+                            <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                                <input type="text" id="semanticQuery" 
+                                    placeholder="Ej: ¿dónde está la autenticación?"
+                                    style="flex: 1; background: #1e1e1e; color: #d4d4d4; border: 1px solid #444; border-radius: 6px; padding: 12px; font-size: 14px;">
+                                <button onclick="runSemanticSearch()" class="tools-btn" style="padding: 12px 20px;">
+                                    🔍 Buscar
+                                </button>
+                            </div>
+                            
+                            <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                                <button onclick="indexWorkspace()" class="tools-btn" style="padding: 8px 15px; background: #6c757d;">
+                                    📂 Indexar Proyecto
+                                </button>
+                                <button onclick="getSemanticStats()" class="tools-btn" style="padding: 8px 15px; background: #6c757d;">
+                                    📊 Ver Stats
+                                </button>
+                            </div>
+                            
+                            <div id="semanticResults" style="margin-top: 15px;"></div>
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(modal);
+            }
+            
+            modal.classList.add('show');
+        }
+        
+        function getWorkspacePath() {
+            // Obtener workspace del repositorio actual
+            const repoLink = document.querySelector('a[href*="github.com"]');
+            if (repoLink) {
+                const repoName = repoLink.textContent.split('/').pop();
+                return `/opt/openhands-chat/projects/${repoName}`;
+            }
+            return '/opt/openhands-chat';
+        }
+        
+        async function indexWorkspace() {
+            const resultsDiv = document.getElementById('semanticResults');
+            resultsDiv.innerHTML = '<div style="text-align: center; padding: 20px;"><div class="loading-spinner"></div><p style="color: #999; margin-top: 10px;">Indexando proyecto...</p></div>';
+            
+            try {
+                const workspace = getWorkspacePath();
+                const response = await fetch('/api/semantic/index', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ workspace, force: false })
+                });
+                
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(data.detail || 'Error indexando');
+                }
+                
+                const stats = data.stats || {};
+                resultsDiv.innerHTML = `
+                    <div style="background: #2d2d2d; border-radius: 8px; padding: 15px;">
+                        <h4 style="color: #4caf50; margin: 0 0 10px 0;">✅ Indexación Completada</h4>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 13px;">
+                            <div><span style="color: #999;">Archivos procesados:</span> <span style="color: #fff;">${stats.files_processed || 0}</span></div>
+                            <div><span style="color: #999;">Chunks creados:</span> <span style="color: #4caf50;">${stats.chunks_added || 0}</span></div>
+                            <div><span style="color: #999;">Archivos saltados:</span> <span style="color: #999;">${stats.files_skipped || 0}</span></div>
+                            <div><span style="color: #999;">Errores:</span> <span style="color: ${(stats.errors?.length || 0) > 0 ? '#f44336' : '#999'};">${stats.errors?.length || 0}</span></div>
+                        </div>
+                    </div>
+                `;
+                
+                showToast('Proyecto indexado correctamente', 'success');
+                
+            } catch (error) {
+                console.error('Index error:', error);
+                resultsDiv.innerHTML = `<div style="color: #ff6b6b; padding: 15px; background: rgba(255,0,0,0.1); border-radius: 8px;">❌ ${error.message}</div>`;
+            }
+        }
+        
+        async function runSemanticSearch() {
+            const query = document.getElementById('semanticQuery').value.trim();
+            if (!query) {
+                showToast('Ingresa una consulta', 'error');
+                return;
+            }
+            
+            const resultsDiv = document.getElementById('semanticResults');
+            resultsDiv.innerHTML = '<div style="text-align: center; padding: 20px;"><div class="loading-spinner"></div><p style="color: #999; margin-top: 10px;">Buscando...</p></div>';
+            
+            try {
+                const workspace = getWorkspacePath();
+                const response = await fetch('/api/semantic/search', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ workspace, query, n_results: 10 })
+                });
+                
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(data.detail || 'Error en búsqueda');
+                }
+                
+                showSemanticResults(data.results || []);
+                saveSemanticResultsToChat(query, data.results || []);
+                
+            } catch (error) {
+                console.error('Search error:', error);
+                resultsDiv.innerHTML = `<div style="color: #ff6b6b; padding: 15px; background: rgba(255,0,0,0.1); border-radius: 8px;">❌ ${error.message}</div>`;
+            }
+        }
+        
+        function showSemanticResults(results) {
+            const resultsDiv = document.getElementById('semanticResults');
+            
+            if (results.length === 0) {
+                resultsDiv.innerHTML = '<div style="color: #999; padding: 20px; text-align: center;">No se encontraron resultados. ¿Ya indexaste el proyecto?</div>';
+                return;
+            }
+            
+            let html = `<div style="color: #999; font-size: 12px; margin-bottom: 10px;">${results.length} resultados encontrados</div>`;
+            
+            for (const result of results) {
+                const scoreColor = result.score >= 0.7 ? '#4caf50' : result.score >= 0.4 ? '#ff9800' : '#999';
+                const typeEmoji = {
+                    'function': '🔧',
+                    'class': '📦',
+                    'block': '📄',
+                    'file': '📁'
+                }[result.type] || '📄';
+                
+                html += `
+                    <div class="agent-result" style="margin-bottom: 10px;">
+                        <div class="agent-result-header">
+                            <span class="agent-role">${typeEmoji} ${result.name || 'código'}</span>
+                            <span class="agent-time" style="color: ${scoreColor}">Score: ${(result.score * 100).toFixed(0)}%</span>
+                        </div>
+                        <div style="font-size: 12px; color: #999; margin-bottom: 5px;">
+                            📁 ${result.file}:${result.start_line}-${result.end_line}
+                        </div>
+                        <div class="agent-response" style="font-size: 12px; max-height: 120px; overflow: auto; background: #1a1a1a; padding: 8px; border-radius: 4px;">
+                            <pre style="margin: 0; white-space: pre-wrap; color: #d4d4d4;">${escapeHtml(result.content?.substring(0, 300) || '')}</pre>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            resultsDiv.innerHTML = html;
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        async function getSemanticStats() {
+            const resultsDiv = document.getElementById('semanticResults');
+            
+            try {
+                const workspace = getWorkspacePath();
+                const response = await fetch(`/api/semantic/stats?workspace=${encodeURIComponent(workspace)}`);
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(data.detail || 'Error obteniendo stats');
+                }
+                
+                const stats = data.stats || {};
+                resultsDiv.innerHTML = `
+                    <div style="background: #2d2d2d; border-radius: 8px; padding: 15px;">
+                        <h4 style="color: #fff; margin: 0 0 10px 0;">📊 Estadísticas del Índice</h4>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 13px;">
+                            <div><span style="color: #999;">Inicializado:</span> <span style="color: ${stats.initialized ? '#4caf50' : '#f44336'};">${stats.initialized ? 'Sí' : 'No'}</span></div>
+                            <div><span style="color: #999;">Total chunks:</span> <span style="color: #fff;">${stats.total_chunks || 0}</span></div>
+                            <div><span style="color: #999;">Embeddings locales:</span> <span style="color: ${stats.has_local_embeddings ? '#4caf50' : '#ff9800'};">${stats.has_local_embeddings ? 'Sí' : 'No'}</span></div>
+                            <div><span style="color: #999;">Workspace:</span> <span style="color: #999; font-size: 11px;">${stats.workspace || 'N/A'}</span></div>
+                        </div>
+                    </div>
+                `;
+                
+            } catch (error) {
+                console.error('Stats error:', error);
+                resultsDiv.innerHTML = `<div style="color: #ff6b6b; padding: 15px; background: rgba(255,0,0,0.1); border-radius: 8px;">❌ ${error.message}</div>`;
+            }
+        }
+        
+        async function saveSemanticResultsToChat(query, results) {
+            if (!window.conversationId) return;
+            
+            let summary = `## 🔍 Semantic Search\n\n`;
+            summary += `**Query:** "${query}"\n`;
+            summary += `**Resultados:** ${results.length}\n\n`;
+            
+            if (results.length > 0) {
+                summary += `**Top resultados:**\n`;
+                for (const result of results.slice(0, 3)) {
+                    summary += `- **${result.name || 'código'}** (${result.type}) en \`${result.file}:${result.start_line}\` - Score: ${(result.score * 100).toFixed(0)}%\n`;
+                }
+            }
+            
+            summary += `\n*[Ver modal para detalles completos]*`;
+            
+            try {
+                await fetch(`/api/chat/message/${window.conversationId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ role: 'assistant', content: summary })
+                });
+                
+                if (typeof loadMessages === 'function') {
+                    loadMessages(window.conversationId);
+                }
+            } catch (error) {
+                console.error('Error guardando en chat:', error);
+            }
+        }
+        
+        function closeSemanticModal() {
+            const modal = document.getElementById('semanticModal');
+            if (modal) modal.classList.remove('show');
+        }
+        
         // Cerrar modal con Escape
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
                 closeMultiAgentModal();
                 closeTestGeneratorModal();
                 closeMCTSModal();
+                closeSemanticModal();
             }
         });
         
