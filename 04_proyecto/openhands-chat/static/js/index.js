@@ -4001,20 +4001,42 @@
             }
             
             styleEl.textContent = `
-                .chat-message pre code {
+                /* Aplicar tema a bloques de código en el chat */
+                .message-bubble pre code,
+                .chat-message pre code,
+                pre code.hljs,
+                .hljs {
                     background: ${theme.background} !important;
                 }
-                .chat-message .hljs-keyword { color: ${theme.keyword} !important; }
-                .chat-message .hljs-string { color: ${theme.string} !important; }
-                .chat-message .hljs-number { color: ${theme.number} !important; }
-                .chat-message .hljs-comment { color: ${theme.comment} !important; }
-                .chat-message .hljs-function { color: ${theme.function} !important; }
-                .chat-message .hljs-class { color: ${theme.class} !important; }
-                .chat-message .hljs-variable { color: ${theme.variable} !important; }
-                .chat-message .hljs-title { color: ${theme.function} !important; }
-                .chat-message .hljs-built_in { color: ${theme.function} !important; }
-                .chat-message .hljs-params { color: ${theme.variable} !important; }
+                /* Keywords: def, class, if, return, function, const, let, var */
+                .hljs-keyword { color: ${theme.keyword} !important; }
+                /* Strings */
+                .hljs-string { color: ${theme.string} !important; }
+                /* Numbers */
+                .hljs-number { color: ${theme.number} !important; }
+                /* Comments */
+                .hljs-comment { color: ${theme.comment} !important; }
+                /* Functions */
+                .hljs-function { color: ${theme.function} !important; }
+                .hljs-title { color: ${theme.function} !important; }
+                .hljs-title.function_ { color: ${theme.function} !important; }
+                /* Classes */
+                .hljs-class { color: ${theme.class} !important; }
+                .hljs-title.class_ { color: ${theme.class} !important; }
+                /* Variables y parámetros */
+                .hljs-variable { color: ${theme.variable} !important; }
+                .hljs-params { color: ${theme.variable} !important; }
+                .hljs-attr { color: ${theme.variable} !important; }
+                /* Built-ins */
+                .hljs-built_in { color: ${theme.function} !important; }
+                /* Operadores */
+                .hljs-operator { color: ${theme.operator} !important; }
+                /* Literales */
+                .hljs-literal { color: ${theme.number} !important; }
+                /* Meta */
+                .hljs-meta { color: ${theme.comment} !important; }
             `;
+            console.log('Theme applied to chat:', theme.name);
         }
         
         // Cambiar theme y aplicar inmediatamente
@@ -4028,8 +4050,13 @@
         
         // Autocompletado en el input principal del chat
         function setupChatAutocomplete() {
-            const chatInput = document.getElementById('message-input');
-            if (!chatInput) return;
+            const chatInput = document.getElementById('messageInput');
+            if (!chatInput) {
+                console.log('Chat input not found, retrying...');
+                setTimeout(setupChatAutocomplete, 1000);
+                return;
+            }
+            console.log('Chat autocomplete configured on messageInput');
             
             // Crear contenedor de sugerencias
             let suggestionsDiv = document.getElementById('chat-autocomplete');
@@ -4083,8 +4110,19 @@
         }
         
         async function checkForCodeAutocomplete(input, suggestionsDiv) {
-            const text = input.value;
-            const cursorPos = input.selectionStart;
+            // Para contenteditable div, usamos textContent
+            const text = input.innerText || input.textContent || '';
+            
+            // Obtener posición del cursor en contenteditable
+            let cursorPos = 0;
+            const selection = window.getSelection();
+            if (selection.rangeCount > 0) {
+                const range = selection.getRangeAt(0);
+                const preCaretRange = range.cloneRange();
+                preCaretRange.selectNodeContents(input);
+                preCaretRange.setEnd(range.endContainer, range.endOffset);
+                cursorPos = preCaretRange.toString().length;
+            }
             
             // Detectar si estamos dentro de un bloque de código
             const beforeCursor = text.substring(0, cursorPos);
@@ -4169,12 +4207,39 @@
         }
         
         function insertAutocomplete(input, text, partial) {
-            const cursorPos = input.selectionStart;
-            const before = input.value.substring(0, cursorPos - partial.length);
-            const after = input.value.substring(cursorPos);
-            input.value = before + text + after;
+            // Para contenteditable div
+            const currentText = input.innerText || input.textContent || '';
+            
+            // Obtener posición del cursor
+            let cursorPos = currentText.length;
+            const selection = window.getSelection();
+            if (selection.rangeCount > 0) {
+                const range = selection.getRangeAt(0);
+                const preCaretRange = range.cloneRange();
+                preCaretRange.selectNodeContents(input);
+                preCaretRange.setEnd(range.endContainer, range.endOffset);
+                cursorPos = preCaretRange.toString().length;
+            }
+            
+            const before = currentText.substring(0, cursorPos - partial.length);
+            const after = currentText.substring(cursorPos);
+            input.innerText = before + text + after;
             input.focus();
-            input.selectionStart = input.selectionEnd = before.length + text.length;
+            
+            // Posicionar cursor al final de la palabra insertada
+            const newRange = document.createRange();
+            const sel = window.getSelection();
+            const textNode = input.firstChild || input;
+            const newPos = Math.min(before.length + text.length, textNode.length || 0);
+            try {
+                newRange.setStart(textNode, newPos);
+                newRange.collapse(true);
+                sel.removeAllRanges();
+                sel.addRange(newRange);
+            } catch(e) {
+                // Si falla, simplemente enfocar al final
+                input.focus();
+            }
         }
         
         // Analizar código en mensaje antes de enviar
