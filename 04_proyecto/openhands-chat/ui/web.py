@@ -27,6 +27,12 @@ from ui.routers.git import router as git_router
 from ui.routers.code_server import router as code_server_router
 from ui.routers.projects_server import router as projects_server_router
 from ui.routers.browser import router as browser_router
+from ui.routers.multiagent_endpoints import router as multiagent_router
+from ui.routers.sandbox_endpoints import router as sandbox_router
+from ui.routers.autohealer_endpoints import router as autohealer_router
+from ui.routers.testgen_endpoints import router as testgen_router
+from ui.routers.scraper_endpoints import router as scraper_router
+from ui.routers.tavily_endpoints import router as tavily_router
 
 # OPTIMIZACIÓN: Middleware para cache de archivos estáticos
 class CacheControlMiddleware(BaseHTTPMiddleware):
@@ -71,6 +77,13 @@ app.include_router(git_router)
 app.include_router(code_server_router)
 app.include_router(projects_server_router)
 app.include_router(browser_router)
+# Advanced features routers
+app.include_router(multiagent_router)
+app.include_router(sandbox_router)
+app.include_router(autohealer_router)
+app.include_router(testgen_router)
+app.include_router(scraper_router)
+app.include_router(tavily_router)
 
 
 # === RUTAS DE PROYECTOS (legacy) ===
