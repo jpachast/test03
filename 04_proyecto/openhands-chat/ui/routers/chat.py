@@ -13,7 +13,7 @@ import asyncio
 import threading
 import time
 from pathlib import Path
-from fastapi import APIRouter, Form, HTTPException
+from fastapi import APIRouter, Form, HTTPException, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 
 from openhands.sdk import Conversation, ImageContent, TextContent, Message, LLMStreamChunk
