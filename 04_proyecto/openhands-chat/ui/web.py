@@ -39,6 +39,7 @@ from ui.routers.diff_endpoints import router as diff_router
 from ui.routers.background_endpoints import router as background_router
 from ui.routers.codemap_endpoints import router as codemap_router
 from ui.routers.mcp_endpoints import router as mcp_router
+from ui.routers.checkpoint_endpoints import router as checkpoint_router
 
 # OPTIMIZACIÓN: Middleware para cache de archivos estáticos
 class CacheControlMiddleware(BaseHTTPMiddleware):
@@ -96,6 +97,7 @@ app.include_router(diff_router)
 app.include_router(background_router)
 app.include_router(codemap_router)
 app.include_router(mcp_router)
+app.include_router(checkpoint_router)
 
 
 # === RUTAS DE PROYECTOS (legacy) ===

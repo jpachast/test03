@@ -3688,6 +3688,278 @@
             if (modal) modal.classList.remove('show');
         }
         
+        // ============================================
+        // CHECKPOINTS - Sistema de snapshots
+        // ============================================
+        function openCheckpoints() {
+            toggleToolsMenu();
+            
+            let modal = document.getElementById('checkpointModal');
+            if (!modal) {
+                modal = document.createElement('div');
+                modal.id = 'checkpointModal';
+                modal.className = 'multiagent-modal';
+                modal.innerHTML = `
+                    <div class="multiagent-content" style="max-width: 900px; max-height: 85vh;">
+                        <div class="multiagent-header">
+                            <h3>📸 Checkpoints - Snapshots del Código</h3>
+                            <button class="multiagent-close" onclick="closeCheckpointModal()">&times;</button>
+                        </div>
+                        <div class="multiagent-body" id="checkpointBody" style="overflow-y: auto; max-height: calc(85vh - 120px);">
+                            <p style="color: #999; margin-bottom: 15px;">Sistema real de snapshots. Guarda y restaura estados del proyecto.</p>
+                            
+                            <div style="display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap;">
+                                <button onclick="createCheckpoint()" class="tools-btn" style="padding: 10px 15px; background: #4caf50;">
+                                    ➕ Crear Checkpoint
+                                </button>
+                                <button onclick="loadCheckpoints()" class="tools-btn" style="padding: 10px 15px;">
+                                    🔄 Actualizar Lista
+                                </button>
+                            </div>
+                            
+                            <div id="checkpointStats" style="margin-bottom: 15px;"></div>
+                            <div id="checkpointList" style="margin-bottom: 15px;"></div>
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(modal);
+            }
+            
+            modal.classList.add('show');
+            loadCheckpoints();
+        }
+        
+        async function loadCheckpoints() {
+            const statsDiv = document.getElementById('checkpointStats');
+            const listDiv = document.getElementById('checkpointList');
+            
+            statsDiv.innerHTML = '<div style="text-align: center; padding: 20px;"><div class="loading-spinner"></div></div>';
+            
+            try {
+                const response = await fetch('/api/checkpoints/list?limit=20');
+                const data = await response.json();
+                
+                if (!data.success) {
+                    throw new Error(data.error || 'Error cargando checkpoints');
+                }
+                
+                renderCheckpointStats(data.stats);
+                renderCheckpointList(data.checkpoints);
+                
+            } catch (error) {
+                console.error('Error:', error);
+                statsDiv.innerHTML = `<div style="color: #ff6b6b; padding: 15px;">❌ ${error.message}</div>`;
+            }
+        }
+        
+        function renderCheckpointStats(stats) {
+            const container = document.getElementById('checkpointStats');
+            if (!container) return;
+            
+            container.innerHTML = `
+                <div style="background: #2d2d2d; border-radius: 8px; padding: 15px;">
+                    <h4 style="color: #fff; margin: 0 0 10px 0;">📊 Estado del Sistema</h4>
+                    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; text-align: center;">
+                        <div style="background: #1a1a1a; padding: 12px; border-radius: 6px;">
+                            <div style="font-size: 18px; color: #4caf50; font-weight: bold;">${stats.total_checkpoints || 0}</div>
+                            <div style="color: #999; font-size: 11px;">Checkpoints</div>
+                        </div>
+                        <div style="background: #1a1a1a; padding: 12px; border-radius: 6px;">
+                            <div style="font-size: 18px; color: #2196f3; font-weight: bold;">${stats.total_files_stored || 0}</div>
+                            <div style="color: #999; font-size: 11px;">Archivos</div>
+                        </div>
+                        <div style="background: #1a1a1a; padding: 12px; border-radius: 6px;">
+                            <div style="font-size: 18px; color: #ff9800; font-weight: bold;">${stats.total_size_mb || 0} MB</div>
+                            <div style="color: #999; font-size: 11px;">Tamaño Total</div>
+                        </div>
+                        <div style="background: #1a1a1a; padding: 12px; border-radius: 6px;">
+                            <div style="font-size: 18px; color: #9c27b0; font-weight: bold;">${stats.max_checkpoints || 50}</div>
+                            <div style="color: #999; font-size: 11px;">Máximo</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        function renderCheckpointList(checkpoints) {
+            const container = document.getElementById('checkpointList');
+            if (!container) return;
+            
+            if (!checkpoints || checkpoints.length === 0) {
+                container.innerHTML = `
+                    <div style="background: #2d2d2d; border-radius: 8px; padding: 30px; text-align: center;">
+                        <div style="font-size: 48px; margin-bottom: 15px;">📸</div>
+                        <div style="color: #999;">No hay checkpoints guardados</div>
+                        <div style="color: #666; font-size: 12px; margin-top: 10px;">Crea tu primer checkpoint para guardar el estado actual del proyecto</div>
+                    </div>
+                `;
+                return;
+            }
+            
+            let html = `
+                <div style="background: #2d2d2d; border-radius: 8px; padding: 15px;">
+                    <h4 style="color: #fff; margin: 0 0 15px 0;">📋 Historial de Checkpoints (${checkpoints.length})</h4>
+            `;
+            
+            for (const cp of checkpoints) {
+                const date = new Date(cp.created_at);
+                const formattedDate = date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+                const sizeKB = Math.round(cp.total_size / 1024);
+                
+                html += `
+                    <div style="background: #1a1a1a; padding: 15px; margin-bottom: 10px; border-radius: 6px; border-left: 3px solid #4caf50;">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                            <div style="flex: 1;">
+                                <div style="color: #fff; font-weight: bold; font-size: 14px;">📸 ${escapeHtml(cp.name)}</div>
+                                <div style="color: #999; font-size: 11px; margin-top: 5px;">
+                                    <code style="color: #666;">${cp.id}</code>
+                                </div>
+                                ${cp.description ? `<div style="color: #888; font-size: 12px; margin-top: 5px;">${escapeHtml(cp.description)}</div>` : ''}
+                            </div>
+                            <div style="text-align: right; font-size: 11px;">
+                                <div style="color: #4caf50;">${cp.file_count} archivos</div>
+                                <div style="color: #2196f3;">${sizeKB} KB</div>
+                                <div style="color: #999;">${formattedDate}</div>
+                            </div>
+                        </div>
+                        <div style="display: flex; gap: 8px; margin-top: 12px;">
+                            <button onclick="previewRestore('${cp.id}')" style="padding: 6px 12px; background: #2196f3; border: none; border-radius: 4px; color: white; cursor: pointer; font-size: 11px;">
+                                👁️ Preview
+                            </button>
+                            <button onclick="restoreCheckpoint('${cp.id}')" style="padding: 6px 12px; background: #ff9800; border: none; border-radius: 4px; color: white; cursor: pointer; font-size: 11px;">
+                                ⏪ Restaurar
+                            </button>
+                            <button onclick="deleteCheckpoint('${cp.id}')" style="padding: 6px 12px; background: #f44336; border: none; border-radius: 4px; color: white; cursor: pointer; font-size: 11px;">
+                                🗑️ Eliminar
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            html += '</div>';
+            container.innerHTML = html;
+        }
+        
+        async function createCheckpoint() {
+            const name = prompt('Nombre del checkpoint:', `Checkpoint ${new Date().toLocaleString()}`);
+            if (!name) return;
+            
+            const description = prompt('Descripción (opcional):', '');
+            
+            try {
+                const workspace = getWorkspacePath();
+                const response = await fetch('/api/checkpoints/create', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        workspace: workspace,
+                        name: name,
+                        description: description || ''
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showToast(`Checkpoint creado: ${data.checkpoint.file_count} archivos`, 'success');
+                    loadCheckpoints();
+                } else {
+                    showToast('Error creando checkpoint', 'error');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showToast('Error creando checkpoint', 'error');
+            }
+        }
+        
+        async function previewRestore(checkpointId) {
+            try {
+                const response = await fetch('/api/checkpoints/restore', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        checkpoint_id: checkpointId,
+                        dry_run: true
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    const result = data.result;
+                    let message = `Preview de restauración:\n\n`;
+                    message += `📄 Archivos a crear: ${result.files_created.length}\n`;
+                    message += `✏️ Archivos a modificar: ${result.files_modified.length}\n`;
+                    
+                    if (result.files_created.length > 0) {
+                        message += `\nNuevos:\n${result.files_created.slice(0, 5).join('\n')}`;
+                        if (result.files_created.length > 5) message += `\n... y ${result.files_created.length - 5} más`;
+                    }
+                    
+                    if (result.files_modified.length > 0) {
+                        message += `\n\nModificados:\n${result.files_modified.slice(0, 5).join('\n')}`;
+                        if (result.files_modified.length > 5) message += `\n... y ${result.files_modified.length - 5} más`;
+                    }
+                    
+                    alert(message);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showToast('Error en preview', 'error');
+            }
+        }
+        
+        async function restoreCheckpoint(checkpointId) {
+            if (!confirm('¿Restaurar este checkpoint? Los archivos actuales serán sobrescritos.')) return;
+            
+            try {
+                const response = await fetch('/api/checkpoints/restore', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        checkpoint_id: checkpointId,
+                        dry_run: false
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success && data.result.success) {
+                    showToast(`Restaurado: ${data.result.total_restored} archivos`, 'success');
+                } else {
+                    showToast('Error en restauración', 'error');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showToast('Error restaurando', 'error');
+            }
+        }
+        
+        async function deleteCheckpoint(checkpointId) {
+            if (!confirm('¿Eliminar este checkpoint?')) return;
+            
+            try {
+                const response = await fetch(`/api/checkpoints/${checkpointId}`, {
+                    method: 'DELETE'
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showToast('Checkpoint eliminado', 'success');
+                    loadCheckpoints();
+                }
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+        
+        function closeCheckpointModal() {
+            const modal = document.getElementById('checkpointModal');
+            if (modal) modal.classList.remove('show');
+        }
+        
         // Cerrar modal con Escape
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
@@ -3699,6 +3971,7 @@
                 closeBackgroundModal();
                 closeCodemapModal();
                 closeMCPModal();
+                closeCheckpointModal();
             }
         });
         
