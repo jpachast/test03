@@ -4077,12 +4077,73 @@
                 span.hljs-selector-class, .hljs-selector-class { color: ${theme.class} !important; }
                 span.hljs-selector-tag, .hljs-selector-tag { color: ${theme.keyword} !important; }
             `;
-            console.log('🎨 Theme applied to chat:', theme.name);
+            console.log('🎨 Theme CSS applied:', theme.name);
             
-            // Forzar re-render del código existente
-            document.querySelectorAll('pre code').forEach(block => {
-                block.style.background = theme.background;
+            // FORZAR con inline styles directamente en cada elemento
+            applyThemeInlineStyles(theme);
+        }
+        
+        // Aplicar estilos inline directamente a los elementos de código
+        function applyThemeInlineStyles(theme) {
+            if (!theme) return;
+            
+            // Aplicar fondo a bloques de código
+            document.querySelectorAll('pre, pre code, code.hljs, .hljs').forEach(el => {
+                el.style.setProperty('background', theme.background, 'important');
+                el.style.setProperty('background-color', theme.background, 'important');
             });
+            
+            // Mapeo de clases hljs a propiedades del tema
+            const classMap = {
+                'hljs-keyword': theme.keyword,
+                'hljs-string': theme.string,
+                'hljs-number': theme.number,
+                'hljs-comment': theme.comment,
+                'hljs-function': theme.function,
+                'hljs-title': theme.function,
+                'hljs-class': theme.class,
+                'hljs-variable': theme.variable,
+                'hljs-params': theme.variable,
+                'hljs-attr': theme.variable,
+                'hljs-built_in': theme.function,
+                'hljs-literal': theme.number,
+                'hljs-meta': theme.comment,
+                'hljs-operator': theme.keyword,
+                'hljs-punctuation': theme.variable,
+                'hljs-property': theme.variable,
+                'hljs-selector-class': theme.class,
+                'hljs-selector-tag': theme.keyword,
+                'hljs-name': theme.keyword,
+                'hljs-attribute': theme.variable,
+                'hljs-symbol': theme.string,
+                'hljs-regexp': theme.string,
+                'hljs-addition': theme.string,
+                'hljs-deletion': theme.keyword,
+                'hljs-section': theme.function,
+                'hljs-bullet': theme.number,
+                'hljs-subst': theme.variable,
+                'hljs-emphasis': theme.comment,
+                'hljs-strong': theme.keyword,
+                'hljs-quote': theme.comment,
+                'hljs-doctag': theme.comment,
+                'hljs-formula': theme.number,
+                'hljs-template-variable': theme.variable,
+                'hljs-template-tag': theme.keyword,
+                'hljs-type': theme.class,
+                'hljs-link': theme.string,
+            };
+            
+            // Aplicar colores a cada clase
+            let count = 0;
+            Object.entries(classMap).forEach(([className, color]) => {
+                if (!color) return;
+                document.querySelectorAll('.' + className).forEach(el => {
+                    el.style.setProperty('color', color, 'important');
+                    count++;
+                });
+            });
+            
+            console.log('🎨 Applied inline styles to', count, 'elements');
         }
         
         // Cambiar theme y aplicar inmediatamente
@@ -4090,7 +4151,9 @@
             if (syntaxThemes[themeId]) {
                 currentTheme = themeId;
                 applyThemeToChat();
-                showToast(`Theme: ${syntaxThemes[themeId].name}`, 'success');
+                // Aplicar inline styles inmediatamente
+                applyThemeInlineStyles(syntaxThemes[themeId]);
+                showToast(`🎨 Theme: ${syntaxThemes[themeId].name}`, 'success');
             }
         }
         
