@@ -1818,14 +1818,87 @@
                     throw new Error(data.detail || 'Error en Multi-Agent');
                 }
                 
-                // Mostrar resultados
+                // Mostrar resultados en modal
                 showMultiAgentResults(data);
+                
+                // Agregar resumen al chat
+                addMultiAgentToChat(data);
                 
             } catch (error) {
                 console.error('Multi-Agent error:', error);
                 showToast(error.message || 'Error ejecutando Multi-Agent', 'error');
             } finally {
                 statusText.textContent = originalStatus;
+            }
+        }
+        
+        function addMultiAgentToChat(data) {
+            // Crear resumen compacto para el chat
+            const completed = data.progress?.completed || 0;
+            const total = data.progress?.total || 0;
+            const tokens = data.total_tokens || 0;
+            const time = (data.total_time || 0).toFixed(1);
+            
+            let summary = `## 🤖 Análisis Multi-Agent\n\n`;
+            summary += `**${completed}/${total}** agentes · **${tokens}** tokens · **${time}s**\n\n`;
+            
+            for (const task of (data.tasks || [])) {
+                const emoji = task.status === 'completed' ? '✅' : '❌';
+                const roleEmoji = {
+                    'reviewer': '📋', 'tester': '🧪', 'documenter': '📚',
+                    'security': '🔒', 'architect': '🏗️', 'coder': '💻', 'researcher': '🔍'
+                }[task.role] || '🤖';
+                
+                summary += `### ${emoji} ${roleEmoji} ${task.role.toUpperCase()}\n`;
+                
+                if (task.status === 'completed' && task.llm_response) {
+                    // Truncar respuesta a 800 chars para no saturar el chat
+                    let response = task.llm_response;
+                    if (response.length > 800) {
+                        response = response.substring(0, 800) + '...\n\n*[Respuesta truncada - ver modal para completo]*';
+                    }
+                    summary += response + '\n\n';
+                } else if (task.error) {
+                    summary += `**Error:** ${task.error}\n\n`;
+                }
+            }
+            
+            // Agregar al chat como mensaje del asistente
+            const container = document.getElementById('chatMessages');
+            if (container) {
+                const msgDiv = document.createElement('div');
+                msgDiv.className = 'message assistant';
+                msgDiv.innerHTML = `<div class="message-content">${markdownToHtml(summary)}</div>`;
+                container.appendChild(msgDiv);
+                container.scrollTop = container.scrollHeight;
+                
+                // Aplicar syntax highlighting si hay código
+                if (typeof hljs !== 'undefined') {
+                    msgDiv.querySelectorAll('pre code').forEach(block => {
+                        hljs.highlightElement(block);
+                    });
+                }
+            }
+            
+            // Guardar en backend
+            saveMultiAgentMessage(summary);
+        }
+        
+        async function saveMultiAgentMessage(content) {
+            if (!currentConversationId) return;
+            
+            try {
+                await fetch(`/api/chat/message/${currentConversationId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        role: 'assistant',
+                        content: content,
+                        source: 'multi-agent'
+                    })
+                });
+            } catch (e) {
+                console.error('Error saving multi-agent message:', e);
             }
         }
         

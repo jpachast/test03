@@ -953,6 +953,23 @@ async def clear_history(conversation_id: int):
     return JSONResponse({"status": "ok", "message": "Historial borrado"})
 
 
+@router.post("/message/{conversation_id}")
+async def add_message(conversation_id: int, request: Request):
+    """Agregar un mensaje a la conversación (usado por Multi-Agent, etc)"""
+    try:
+        data = await request.json()
+        role = data.get('role', 'assistant')
+        content = data.get('content', '')
+        
+        if not content:
+            return JSONResponse({"error": "Content required"}, status_code=400)
+        
+        db.add_message(conversation_id, role, content)
+        return JSONResponse({"status": "ok", "message": "Mensaje guardado"})
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
 @router.get("/memory/stats")
 async def memory_stats():
     """Obtener estadísticas de la memoria RAG"""
