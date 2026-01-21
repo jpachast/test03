@@ -4000,43 +4000,89 @@
                 document.head.appendChild(styleEl);
             }
             
+            // CSS muy específico para sobrescribir highlight.js
             styleEl.textContent = `
-                /* Aplicar tema a bloques de código en el chat */
-                .message-bubble pre code,
-                .chat-message pre code,
-                pre code.hljs,
-                .hljs {
+                /* ========== TEMA: ${theme.name} ========== */
+                /* Fondo de bloques de código */
+                pre, pre code, code.hljs, .hljs,
+                .message-bubble pre, .message-bubble pre code,
+                .chat-message pre, .chat-message pre code,
+                .message-content pre, .message-content pre code {
                     background: ${theme.background} !important;
+                    background-color: ${theme.background} !important;
                 }
-                /* Keywords: def, class, if, return, function, const, let, var */
-                .hljs-keyword { color: ${theme.keyword} !important; }
+                
+                /* Keywords: def, class, if, return, function, const, let, var, import, from */
+                span.hljs-keyword, .hljs-keyword,
+                pre code .hljs-keyword, code .hljs-keyword {
+                    color: ${theme.keyword} !important;
+                }
+                
                 /* Strings */
-                .hljs-string { color: ${theme.string} !important; }
+                span.hljs-string, .hljs-string,
+                pre code .hljs-string, code .hljs-string {
+                    color: ${theme.string} !important;
+                }
+                
                 /* Numbers */
-                .hljs-number { color: ${theme.number} !important; }
+                span.hljs-number, .hljs-number,
+                pre code .hljs-number, code .hljs-number {
+                    color: ${theme.number} !important;
+                }
+                
                 /* Comments */
-                .hljs-comment { color: ${theme.comment} !important; }
+                span.hljs-comment, .hljs-comment,
+                pre code .hljs-comment, code .hljs-comment {
+                    color: ${theme.comment} !important;
+                    font-style: italic;
+                }
+                
                 /* Functions */
-                .hljs-function { color: ${theme.function} !important; }
-                .hljs-title { color: ${theme.function} !important; }
-                .hljs-title.function_ { color: ${theme.function} !important; }
+                span.hljs-function, .hljs-function,
+                span.hljs-title, .hljs-title,
+                span.hljs-title.function_, .hljs-title.function_,
+                pre code .hljs-function, code .hljs-function,
+                pre code .hljs-title, code .hljs-title {
+                    color: ${theme.function} !important;
+                }
+                
                 /* Classes */
-                .hljs-class { color: ${theme.class} !important; }
-                .hljs-title.class_ { color: ${theme.class} !important; }
+                span.hljs-class, .hljs-class,
+                span.hljs-title.class_, .hljs-title.class_,
+                pre code .hljs-class, code .hljs-class {
+                    color: ${theme.class} !important;
+                }
+                
                 /* Variables y parámetros */
-                .hljs-variable { color: ${theme.variable} !important; }
-                .hljs-params { color: ${theme.variable} !important; }
-                .hljs-attr { color: ${theme.variable} !important; }
+                span.hljs-variable, .hljs-variable,
+                span.hljs-params, .hljs-params,
+                span.hljs-attr, .hljs-attr,
+                pre code .hljs-variable, code .hljs-variable,
+                pre code .hljs-params, code .hljs-params {
+                    color: ${theme.variable} !important;
+                }
+                
                 /* Built-ins */
-                .hljs-built_in { color: ${theme.function} !important; }
-                /* Operadores */
-                .hljs-operator { color: ${theme.operator} !important; }
-                /* Literales */
-                .hljs-literal { color: ${theme.number} !important; }
-                /* Meta */
-                .hljs-meta { color: ${theme.comment} !important; }
+                span.hljs-built_in, .hljs-built_in,
+                pre code .hljs-built_in, code .hljs-built_in {
+                    color: ${theme.function} !important;
+                }
+                
+                /* Literales y meta */
+                span.hljs-literal, .hljs-literal { color: ${theme.number} !important; }
+                span.hljs-meta, .hljs-meta { color: ${theme.comment} !important; }
+                span.hljs-operator, .hljs-operator { color: ${theme.keyword} !important; }
+                span.hljs-punctuation, .hljs-punctuation { color: ${theme.variable} !important; }
+                span.hljs-property, .hljs-property { color: ${theme.variable} !important; }
+                span.hljs-selector-class, .hljs-selector-class { color: ${theme.class} !important; }
+                span.hljs-selector-tag, .hljs-selector-tag { color: ${theme.keyword} !important; }
             `;
-            console.log('Theme applied to chat:', theme.name);
+            console.log('🎨 Theme applied to chat:', theme.name);
+            
+            // Forzar re-render del código existente
+            document.querySelectorAll('pre code').forEach(block => {
+                block.style.background = theme.background;
+            });
         }
         
         // Cambiar theme y aplicar inmediatamente
@@ -4056,37 +4102,57 @@
                 setTimeout(setupChatAutocomplete, 1000);
                 return;
             }
-            console.log('Chat autocomplete configured on messageInput');
             
-            // Crear contenedor de sugerencias
+            // Evitar configurar múltiples veces
+            if (chatInput.dataset.autocompleteConfigured) return;
+            chatInput.dataset.autocompleteConfigured = 'true';
+            console.log('✅ Chat autocomplete configured on messageInput');
+            
+            // Crear contenedor de sugerencias FUERA del form para evitar submit
             let suggestionsDiv = document.getElementById('chat-autocomplete');
             if (!suggestionsDiv) {
                 suggestionsDiv = document.createElement('div');
                 suggestionsDiv.id = 'chat-autocomplete';
                 suggestionsDiv.style.cssText = `
-                    position: absolute;
+                    position: fixed;
                     background: #1e1e1e;
-                    border: 1px solid #444;
-                    border-radius: 6px;
-                    max-height: 200px;
+                    border: 1px solid #10b981;
+                    border-radius: 8px;
+                    max-height: 250px;
                     overflow-y: auto;
                     display: none;
-                    z-index: 1000;
-                    min-width: 200px;
-                    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+                    z-index: 10000;
+                    min-width: 250px;
+                    box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+                    font-family: 'Fira Code', monospace;
                 `;
-                chatInput.parentElement.style.position = 'relative';
-                chatInput.parentElement.appendChild(suggestionsDiv);
+                document.body.appendChild(suggestionsDiv);
             }
             
-            // Evento de teclado para autocompletado
-            chatInput.addEventListener('input', (e) => {
+            // Usar MutationObserver para detectar cambios en contenteditable
+            const observer = new MutationObserver(() => {
                 if (!autocompleteEnabled) return;
+                clearTimeout(autocompleteTimeout);
+                autocompleteTimeout = setTimeout(() => {
+                    checkForCodeAutocomplete(chatInput, suggestionsDiv);
+                }, 200);
+            });
+            
+            observer.observe(chatInput, {
+                childList: true,
+                subtree: true,
+                characterData: true
+            });
+            
+            // También escuchar keyup para mejor detección
+            chatInput.addEventListener('keyup', (e) => {
+                if (!autocompleteEnabled) return;
+                if (['ArrowUp', 'ArrowDown', 'Escape', 'Enter', 'Tab'].includes(e.key)) return;
                 
                 clearTimeout(autocompleteTimeout);
                 autocompleteTimeout = setTimeout(() => {
                     checkForCodeAutocomplete(chatInput, suggestionsDiv);
-                }, 300);
+                }, 200);
             });
             
             // Cerrar sugerencias al hacer clic fuera
@@ -4096,13 +4162,14 @@
                 }
             });
             
-            // Tecla Escape cierra sugerencias
+            // Navegación con teclado
             chatInput.addEventListener('keydown', (e) => {
                 if (e.key === 'Escape') {
                     suggestionsDiv.style.display = 'none';
                 }
                 if (e.key === 'Tab' && suggestionsDiv.style.display !== 'none') {
                     e.preventDefault();
+                    e.stopPropagation();
                     const firstSuggestion = suggestionsDiv.querySelector('.autocomplete-item');
                     if (firstSuggestion) firstSuggestion.click();
                 }
@@ -4113,8 +4180,10 @@
             // Para contenteditable div, usamos textContent
             const text = input.innerText || input.textContent || '';
             
+            console.log('🔍 Checking autocomplete, text:', text.substring(0, 50));
+            
             // Obtener posición del cursor en contenteditable
-            let cursorPos = 0;
+            let cursorPos = text.length; // Default al final
             const selection = window.getSelection();
             if (selection.rangeCount > 0) {
                 const range = selection.getRangeAt(0);
@@ -4126,7 +4195,10 @@
             
             // Detectar si estamos dentro de un bloque de código
             const beforeCursor = text.substring(0, cursorPos);
-            const inCodeBlock = (beforeCursor.match(/```/g) || []).length % 2 === 1;
+            const backtickCount = (beforeCursor.match(/```/g) || []).length;
+            const inCodeBlock = backtickCount % 2 === 1;
+            
+            console.log('📍 Cursor pos:', cursorPos, 'In code block:', inCodeBlock, 'Backticks:', backtickCount);
             
             if (!inCodeBlock) {
                 suggestionsDiv.style.display = 'none';
@@ -4173,27 +4245,33 @@
         function renderChatSuggestions(container, suggestions, input, partial) {
             let html = '';
             suggestions.forEach((s, i) => {
-                const typeColor = s.type === 'keyword' ? '#569cd6' : s.type === 'builtin' ? '#dcdcaa' : '#4ec9b0';
+                const typeColor = s.type === 'keyword' ? '#ff79c6' : s.type === 'builtin' ? '#f1fa8c' : '#8be9fd';
+                const typeIcon = s.type === 'keyword' ? '🔑' : s.type === 'builtin' ? '⚙️' : '📦';
                 html += `
-                    <div class="autocomplete-item" data-text="${s.text}" data-partial="${partial}" style="padding: 8px 12px; cursor: pointer; border-bottom: 1px solid #333; ${i === 0 ? 'background: #333;' : ''}">
-                        <span style="color: ${typeColor}; font-weight: bold;">${s.text}</span>
-                        <span style="color: #888; font-size: 11px; margin-left: 8px;">${s.type}</span>
+                    <div class="autocomplete-item" data-text="${s.text}" data-partial="${partial}" style="padding: 10px 14px; cursor: pointer; border-bottom: 1px solid #333; ${i === 0 ? 'background: #44475a;' : ''} display: flex; align-items: center; gap: 8px;">
+                        <span style="font-size: 12px;">${typeIcon}</span>
+                        <span style="color: ${typeColor}; font-weight: bold; font-size: 14px;">${s.text}</span>
+                        <span style="color: #6272a4; font-size: 11px; margin-left: auto;">${s.type}</span>
                     </div>
                 `;
             });
             
             container.innerHTML = html;
+            
+            // Posicionar ARRIBA del input usando position fixed
+            const inputRect = input.getBoundingClientRect();
+            container.style.left = inputRect.left + 'px';
+            container.style.bottom = (window.innerHeight - inputRect.top + 10) + 'px';
+            container.style.width = Math.min(inputRect.width, 350) + 'px';
             container.style.display = 'block';
             
-            // Posicionar debajo del input
-            const inputRect = input.getBoundingClientRect();
-            container.style.bottom = '100%';
-            container.style.left = '0';
-            container.style.marginBottom = '5px';
+            console.log('🎯 Showing', suggestions.length, 'suggestions');
             
             // Eventos de click
             container.querySelectorAll('.autocomplete-item').forEach(item => {
-                item.addEventListener('click', () => {
+                item.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
                     const text = item.dataset.text;
                     const partial = item.dataset.partial;
                     insertAutocomplete(input, text, partial);
@@ -4201,7 +4279,7 @@
                 });
                 item.addEventListener('mouseenter', () => {
                     container.querySelectorAll('.autocomplete-item').forEach(i => i.style.background = 'transparent');
-                    item.style.background = '#333';
+                    item.style.background = '#44475a';
                 });
             });
         }
