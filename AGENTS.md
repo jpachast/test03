@@ -27,20 +27,37 @@
 
 ## 🚀 Integración de Features en Conversaciones (COMPLETADO 2026-01-23)
 
-Las features ahora se aplican **automáticamente** durante las conversaciones del agente:
+### ✅ INTEGRACIÓN COMPLETA AL 100%
 
-### Archivos Implementados
+El agente ahora **conoce y usa activamente** las features durante las conversaciones.
+
+### 1. System Prompt del Agente (agent.py)
+Agregada sección `<INTEGRATED_TOOLS>` (líneas 560-617) que instruye al agente:
+- **AUTO-FIX**: Corregir errores automáticamente cuando hay Traceback
+- **TEST GENERATOR**: Generar tests cuando el usuario lo pida
+- **WEB SCRAPER**: Extraer contenido de URLs
+- **DIFF PREVIEW**: Mostrar cambios git
+- **SEMANTIC SEARCH**: Buscar funcionalidad en el código
+
+### 2. Backend (Endpoints)
 | Archivo | Ubicación | Función |
 |---------|-----------|---------|
 | autofix_chat_router.py | `/app/ui/routers/` | Endpoint `/api/chat/autofix/*` |
 | chat_autofix_integration.py | `/app/core/` | Detección y corrección de errores |
-| features_chat_integration.js | `/app/static/js/` | Integración frontend multi-feature |
+
+### 3. Frontend (JavaScript)
+| Archivo | Ubicación | Función |
+|---------|-----------|---------|
+| features_chat_integration.js | `/app/static/js/` | Integración multi-feature |
 | autofix_chat.js | `/app/static/js/` | Helper de auto-fix |
 
-### Funcionalidad
-1. **Auto-Fix**: Detecta errores en respuestas y corrige código automáticamente
-2. **Test Generator**: Se activa cuando el usuario pide tests
-3. **Web Scraper**: Extrae contenido de URLs mencionadas
+### 4. Reglas de Uso Automático
+El agente fue instruido con estas reglas:
+1. **Si hay error en ejecución** → USA AUTO-FIX inmediatamente
+2. **Si piden tests** → USA TEST GENERATOR
+3. **Si mencionan URL + extraer** → USA WEB SCRAPER
+4. **Si preguntan por cambios** → USA DIFF PREVIEW
+5. **Si buscan funcionalidad** → USA SEMANTIC SEARCH
 
 ### Integración en index.js
 ```javascript
