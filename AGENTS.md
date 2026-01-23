@@ -25,6 +25,32 @@
 | 12 | Diff Preview | ✅ /api/diff/* | ✅ | ✅ | **100%** |
 | + | Code Parser | ✅ /api/codeparser/* | ✅ | ✅ | **100%** |
 
+## 🚀 Integración de Features en Conversaciones (COMPLETADO 2026-01-23)
+
+Las features ahora se aplican **automáticamente** durante las conversaciones del agente:
+
+### Archivos Implementados
+| Archivo | Ubicación | Función |
+|---------|-----------|---------|
+| autofix_chat_router.py | `/app/ui/routers/` | Endpoint `/api/chat/autofix/*` |
+| chat_autofix_integration.py | `/app/core/` | Detección y corrección de errores |
+| features_chat_integration.js | `/app/static/js/` | Integración frontend multi-feature |
+| autofix_chat.js | `/app/static/js/` | Helper de auto-fix |
+
+### Funcionalidad
+1. **Auto-Fix**: Detecta errores en respuestas y corrige código automáticamente
+2. **Test Generator**: Se activa cuando el usuario pide tests
+3. **Web Scraper**: Extrae contenido de URLs mencionadas
+
+### Integración en index.js
+```javascript
+// Después de mostrar mensaje del agente (línea ~5456)
+if (window.processResponseWithFeatures) {
+    const lastMessage = document.querySelector('.message.assistant:last-child');
+    setTimeout(() => processResponseWithFeatures(lastMessage, messageToShow, fullMessage), 500);
+}
+```
+
 ## PENDIENTE
 
 ### Voice Input (Punto 5)
