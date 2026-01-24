@@ -7,7 +7,7 @@
 - **Puerto:** 80 → 12000
 - **URL:** http://178.156.193.106/chat/29
 
-## Estado de Features (Verificado 2026-01-22)
+## Estado de Features (Verificado 2026-01-24)
 
 | # | Feature | Backend | Frontend | Verificado Visual | Estado |
 |---|---------|---------|----------|-------------------|--------|
@@ -25,7 +25,13 @@
 | 12 | Diff Preview | ✅ /api/diff/* | ✅ | ✅ | **100%** |
 | + | Code Parser | ✅ /api/codeparser/* | ✅ | ✅ | **100%** |
 
-## 🚀 Integración de Features en Conversaciones (COMPLETADO 2026-01-23)
+## 🚀 Integración de Features en Conversaciones (COMPLETADO 2026-01-24)
+
+### ⚡ FIX APLICADO (2026-01-24)
+- **Bug encontrado**: `detectFeatures()` solo buscaba en `responseText`, no en `userMessage`
+- **Fix aplicado**: Ahora combina features de ambos (`featuresFromResponse` + `featuresFromUser`)
+- **Archivo**: `/app/static/js/features_chat_integration.js` líneas 720-722
+- **Commit**: `b1cb1bc`
 
 ### ✅ INTEGRACIÓN COMPLETA AL 100%
 
