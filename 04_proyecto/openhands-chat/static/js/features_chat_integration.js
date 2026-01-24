@@ -13,7 +13,8 @@
         webScraper: { enabled: true, status: 'ready' },
         diffPreview: { enabled: true, status: 'ready' },
         codeAnalyzer: { enabled: true, status: 'ready' },
-        semanticSearch: { enabled: true, status: 'ready' }
+        semanticSearch: { enabled: true, status: 'ready' },
+        codemaps: { enabled: true, status: 'ready' }
     };
 
     // Patrones para detectar cuándo usar cada feature
@@ -68,6 +69,16 @@
                 /que\s+archivos?\s+(manejan?|tienen?|contienen?)/i
             ],
             keywords: ['donde esta', 'buscar codigo', 'encuentra', 'ubicacion', 'en que archivo', 'busqueda semantica', 'codigo de', 'funcionalidad de']
+        },
+        codemaps: {
+            patterns: [
+                /dependencias?\s+(de|del|en)/i,
+                /importa(r|ciones)?/i,
+                /estructura\s+(del?)?\s*(codigo|proyecto)/i,
+                /relacion(es)?\s+entre/i,
+                /que\s+(usa|importa|depende)/i
+            ],
+            keywords: ['dependencias', 'imports', 'estructura', 'relaciones', 'arquitectura', 'modulos', 'grafo']
         }
     };
 
@@ -339,6 +350,84 @@
         return html;
     }
 
+
+    // ============================================================
+    // CODEMAPS: Mostrar dependencias y estructura del código
+    // ============================================================
+    async function applyCodemaps(query, responseElement) {
+        if (!window.chatFeatures.codemaps?.enabled) return null;
+        
+        console.log('[Features] Codemaps activado');
+        
+        try {
+            const pathParts = window.location.pathname.split('/');
+            const conversationId = pathParts[pathParts.length - 1] || '1';
+            
+            const response = await fetch('/api/codemap/scan', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    workspace: '/workspace/project',
+                    max_files: 50
+                })
+            });
+            
+            if (!response.ok) {
+                console.warn('[Features] Codemaps no disponible');
+                return null;
+            }
+            
+            const result = await response.json();
+            
+            if (result.success && result.graph?.nodes?.length > 0) {
+                const html = formatCodemapsResult(result, query);
+                appendFeatureResult(responseElement, html);
+                return result;
+            }
+            
+            return null;
+        } catch (error) {
+            console.error('[Features] Error en codemaps:', error);
+            return null;
+        }
+    }
+
+    function formatCodemapsResult(result, query) {
+        let html = '<div class="feature-result codemaps-result" style="margin-top: 15px; padding: 15px; background: linear-gradient(135deg, #1a1a2e 0%, #1e3a5f 100%); border-radius: 8px; border-left: 4px solid #3b82f6;">';
+        html += '<div style="display: flex; align-items: center; margin-bottom: 10px;">';
+        html += '<span style="font-size: 1.2em; margin-right: 8px;">🗺️</span>';
+        html += '<strong style="color: #3b82f6;">MAPA DE DEPENDENCIAS</strong>';
+        html += '</div>';
+        
+        if (result.stats) {
+            html += '<div style="margin-bottom: 10px; padding: 8px; background: #1e293b; border-radius: 4px; font-size: 0.9em;">';
+            html += '<span style="color: #60a5fa;">📁 ' + (result.stats.total_files || 0) + ' archivos</span> · ';
+            html += '<span style="color: #34d399;">🔗 ' + (result.graph?.edges?.length || 0) + ' dependencias</span> · ';
+            html += '<span style="color: #fbbf24;">📦 ' + (result.stats.total_imports || 0) + ' imports</span>';
+            html += '</div>';
+        }
+        
+        if (result.graph?.nodes) {
+            html += '<div style="margin-top: 10px;">';
+            html += '<strong style="color: #94a3b8; font-size: 0.85em;">ARCHIVOS PRINCIPALES:</strong>';
+            html += '<div style="margin-top: 5px;">';
+            
+            const mainNodes = result.graph.nodes.slice(0, 8);
+            mainNodes.forEach(node => {
+                const icon = node.type === 'python' ? '🐍' : node.type === 'javascript' ? '📜' : '📄';
+                html += '<div style="padding: 4px 8px; margin: 2px 0; background: #0f172a; border-radius: 4px; font-family: monospace; font-size: 0.85em;">';
+                html += icon + ' <span style="color: #e2e8f0;">' + (node.name || node.id) + '</span>';
+                if (node.imports) html += ' <span style="color: #64748b;">(' + node.imports + ' imports)</span>';
+                html += '</div>';
+            });
+            
+            html += '</div></div>';
+        }
+        
+        html += '</div>';
+        return html;
+    }
+
     function formatAutoFixResult(result) {
         return `
             <div class="feature-result autofix-result" style="
@@ -573,6 +662,14 @@
                         }
                         break;
                     }
+                    case 'codemaps': {
+                        // Activar si el usuario pregunta por dependencias/estructura
+                        if (userMessage.toLowerCase().match(/dependencias|imports|estructura|relacion|arquitectura|modulos|grafo|que.*(usa|importa)/)) {
+                            console.log('[Features] Codemaps detectado');
+                            await applyCodemaps(userMessage, responseElement);
+                        }
+                        break;
+                    }
                 }
             } catch (e) {
                 console.error(`[Features] Error en ${feature.name}:`, e);
@@ -588,6 +685,7 @@
     window.applyWebScraper = applyWebScraper;
     window.applySemanticSearch = applySemanticSearch;
     window.applyDiffPreview = applyDiffPreview;
+    window.applyCodemaps = applyCodemaps;
 
     console.log('✅ Features Chat Integration cargado');
 })();
