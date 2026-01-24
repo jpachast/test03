@@ -14,7 +14,8 @@
         diffPreview: { enabled: true, status: 'ready' },
         codeAnalyzer: { enabled: true, status: 'ready' },
         semanticSearch: { enabled: true, status: 'ready' },
-        codemaps: { enabled: true, status: 'ready' }
+        codemaps: { enabled: true, status: 'ready' },
+        backgroundAgents: { enabled: true, status: 'ready' }
     };
 
     // Patrones para detectar cuándo usar cada feature
@@ -79,6 +80,16 @@
                 /que\s+(usa|importa|depende)/i
             ],
             keywords: ['dependencias', 'imports', 'estructura', 'relaciones', 'arquitectura', 'modulos', 'grafo']
+        },
+        backgroundAgents: {
+            patterns: [
+                /en\s+(segundo\s+plano|background)/i,
+                /tarea\s+(larga|pesada|intensiva)/i,
+                /mientras\s+(tanto|continuo)/i,
+                /ejecuta(r)?\s+.*(fondo|paralelo)/i,
+                /proceso\s+(largo|async)/i
+            ],
+            keywords: ['segundo plano', 'background', 'tarea larga', 'paralelo', 'async', 'mientras tanto', 'sin bloquear']
         }
     };
 
@@ -428,6 +439,65 @@
         return html;
     }
 
+
+    // ============================================================
+    // BACKGROUND AGENTS: Ejecutar tareas largas sin bloquear
+    // ============================================================
+    async function applyBackgroundAgents(taskDescription, responseElement) {
+        if (!window.chatFeatures.backgroundAgents?.enabled) return null;
+        
+        console.log('[Features] Background Agents activado');
+        
+        try {
+            // Mostrar indicador de tarea en background
+            const indicator = document.createElement('div');
+            indicator.className = 'background-task-indicator';
+            indicator.innerHTML = `
+                <div style="margin-top: 15px; padding: 15px; background: linear-gradient(135deg, #1a1a2e 0%, #2d1b4e 100%); border-radius: 8px; border-left: 4px solid #a855f7;">
+                    <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                        <span style="font-size: 1.2em; margin-right: 8px;">⚡</span>
+                        <strong style="color: #a855f7;">TAREA EN SEGUNDO PLANO</strong>
+                    </div>
+                    <div style="padding: 8px; background: #1e1b4b; border-radius: 4px;">
+                        <span style="color: #c4b5fd;">📋 Tarea iniciada en background</span><br>
+                        <span style="color: #8b5cf6; font-size: 0.9em;">El chat sigue disponible mientras se procesa</span>
+                    </div>
+                </div>
+            `;
+            responseElement.appendChild(indicator);
+            
+            // Enviar tarea al backend
+            const response = await fetch('/api/background/submit', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    task_type: 'analyze',
+                    params: { description: taskDescription },
+                    priority: 'NORMAL'
+                })
+            });
+            
+            if (!response.ok) {
+                console.warn('[Features] Background agents no disponible');
+                return null;
+            }
+            
+            const result = await response.json();
+            
+            if (result.task_id) {
+                // Actualizar indicador con ID de tarea
+                indicator.querySelector('.background-task-indicator div div:last-child').innerHTML += 
+                    `<br><span style="color: #a78bfa; font-size: 0.85em;">🆔 Task ID: ${result.task_id}</span>`;
+                return result;
+            }
+            
+            return null;
+        } catch (error) {
+            console.error('[Features] Error en background agents:', error);
+            return null;
+        }
+    }
+
     function formatAutoFixResult(result) {
         return `
             <div class="feature-result autofix-result" style="
@@ -670,6 +740,14 @@
                         }
                         break;
                     }
+                    case 'backgroundAgents': {
+                        // Activar si el usuario pide tareas en segundo plano
+                        if (userMessage.toLowerCase().match(/segundo\s+plano|background|tarea\s+(larga|pesada)|mientras\s+tanto|paralelo|sin\s+bloquear/)) {
+                            console.log('[Features] Background Agents detectado');
+                            await applyBackgroundAgents(userMessage, responseElement);
+                        }
+                        break;
+                    }
                 }
             } catch (e) {
                 console.error(`[Features] Error en ${feature.name}:`, e);
@@ -686,6 +764,7 @@
     window.applySemanticSearch = applySemanticSearch;
     window.applyDiffPreview = applyDiffPreview;
     window.applyCodemaps = applyCodemaps;
+    window.applyBackgroundAgents = applyBackgroundAgents;
 
     console.log('✅ Features Chat Integration cargado');
 })();
