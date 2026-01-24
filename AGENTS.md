@@ -11,7 +11,7 @@
 
 | # | Feature | Backend | Frontend | Verificado Visual | Estado |
 |---|---------|---------|----------|-------------------|--------|
-| 1 | MCP Protocol | ✅ /api/mcp/* | ✅ | ✅ | **100%** |
+| 1 | MCP Protocol | ✅ /api/mcp/* + chat.py | ✅ | ✅ VERIFICADO | **100%** |
 | 2 | Code Embeddings | ✅ /api/semantic/* | ✅ | ✅ | **100%** |
 | 3 | Codemaps | ✅ /api/codemap/* | ✅ | ✅ | **100%** |
 | 4 | Checkpoints | ✅ /api/checkpoints/* | ✅ | ✅ | **100%** |
@@ -73,6 +73,28 @@ if (window.processResponseWithFeatures) {
     setTimeout(() => processResponseWithFeatures(lastMessage, messageToShow, fullMessage), 500);
 }
 ```
+
+## ✅ MCP Protocol - Verificación Completa (2026-01-24)
+
+### Prueba realizada via HTTP API:
+```
+1. Limpiar historial conversación 29 ✅
+2. Enviar: "Mi nombre es MIGUEL y mi color favorito es MORADO" ✅
+3. Agente respondió: "He guardado tu información: MIGUEL, MORADO" ✅
+4. Enviar: "¿Cuál es mi nombre y mi color favorito?" ✅
+5. Agente respondió: "Tu nombre es MIGUEL y tu color favorito es MORADO" ✅
+```
+
+### Integración MCP en chat.py:
+- **Línea 808-818:** Obtiene contexto MCP para cada mensaje
+- **Línea 894-897:** Agrega contexto al mensaje del usuario  
+- **Línea 957-964:** Guarda respuestas del agente en MCP
+- **15+ referencias** a MCP en el archivo
+
+### Archivos clave:
+- `/app/core/mcp_chat_backend.py` - Backend de integración
+- `/app/core/mcp_protocol.py` - Protocolo MCP base
+- `/app/ui/routers/chat.py` - Integración en flujo de chat
 
 ## PENDIENTE
 
