@@ -923,6 +923,11 @@ IMPORTANTE: Usa la información del historial de arriba para responder. Si el us
         if conversation_id:
             db.add_message(conversation_id, 'assistant', agent_response)
         
+        # FIX: Enviar respuesta como token si no llegó por streaming
+        # Esto garantiza que el frontend siempre reciba el mensaje
+        if agent_response and "Tarea completada" not in agent_response:
+            yield f"data: {json.dumps({'type': 'token', 'content': agent_response})}\n\n"
+        
         yield f"data: {json.dumps({'type': 'done', 'message': agent_response})}\n\n"
     
     return StreamingResponse(
