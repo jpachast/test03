@@ -717,7 +717,10 @@
         console.log('[Features] Procesando respuesta...');
 
         // Detectar qué features aplicar
-        const features = detectFeatures(responseText);
+        const featuresFromResponse = detectFeatures(responseText);
+        const featuresFromUser = detectFeatures(userMessage);
+        const featureNames = new Set([...featuresFromResponse.map(f => f.name), ...featuresFromUser.map(f => f.name)]);
+        const features = [...featureNames].map(name => ({ name, trigger: "combined" }));
         console.log('[Features] Detectadas:', features.map(f => f.name));
 
         for (const feature of features) {
