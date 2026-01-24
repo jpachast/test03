@@ -5210,6 +5210,8 @@ from typing import List</textarea>
             
             // Construir mensaje completo con archivos de texto
             let fullMessage = message;
+            // Guardar mensaje del usuario para features
+            window.lastUserMessage = message;
             attachedFiles.filter(f => f.type === 'text').forEach(f => {
                 fullMessage += (fullMessage ? '\n\n' : '') + 
                     `📎 Archivo adjunto: ${f.name}\n\`\`\`\n${f.dataUrl.substring(0, 2000)}${f.dataUrl.length > 2000 ? '...(truncado)' : ''}\n\`\`\``;
@@ -5236,6 +5238,11 @@ from typing import List</textarea>
             try {
                 const formData = new FormData();
                 formData.append('message', fullMessage);
+
+                // AUTO-FIX: Guardar código del mensaje para posible auto-fix
+                if (window.saveCodeContext) {
+                    saveCodeContext(fullMessage);
+                }
                 formData.append('project', currentProject);
                 
                 // Agregar URL externa para que el agente pueda darla al usuario
@@ -5370,6 +5377,15 @@ from typing import List</textarea>
                                     // Comando completado - actualizar status
                                     const statusText = data.exit_code === 0 ? 'Listo!' : 'Error en comando';
                                     setTaskStatus('processing', statusText);
+                                    // AUTO-FIX: Intentar corregir si hay error
+                                    if (data.exit_code !== 0 && window.chatAutoFix && window.chatAutoFix.enabled) {
+                                        const terminalOutputs = document.querySelectorAll('.terminal-output');
+                                        const lastOutput = terminalOutputs[terminalOutputs.length - 1];
+                                        if (lastOutput && window.chatAutoFix.lastCode) {
+                                            const msgBubble = document.querySelector('.message-bubble:last-child');
+                                            processAgentResponseForAutoFix(msgBubble, lastOutput.textContent);
+                                        }
+                                    }
                                 } else if (data.type === 'task_tracker_update') {
                                     // Task Tracker - actualizar lista de tareas
                                     updateTaskTrackerUI(data.tasks);
@@ -5440,6 +5456,13 @@ from typing import List</textarea>
                 // MOSTRAR MENSAJE FINAL (siempre con addMessage para garantizar)
                 addMessage(messageToShow, 'assistant');
                 console.log('[STREAM END] ✅ Message displayed successfully');
+
+                // AUTO-FEATURES: Procesar respuesta con features automáticas
+                if (window.processResponseWithFeatures) {
+                    const lastMessage = document.querySelector('.message.assistant:last-child');
+                    setTimeout(() => processResponseWithFeatures(lastMessage, messageToShow, window.lastUserMessage || ''), 500);
+                }
+
                 
                 setTaskStatus('completed', 'Tarea completada');
                 setTimeout(() => setTaskStatus('', 'Esperando tarea.'), 3000);

@@ -1,0 +1,149 @@
+/* ============================================
+   VOICE INPUT STYLES
+   ============================================ */
+
+.voice-settings-panel h3 {
+    margin: 0 0 8px 0;
+    color: #89b4fa;
+}
+
+.voice-description {
+    color: #6c7086;
+    margin-bottom: 20px;
+}
+
+.voice-backends {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.voice-backend-item {
+    background: #181825;
+    border: 2px solid #313244;
+    border-radius: 12px;
+    padding: 16px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.voice-backend-item:hover {
+    border-color: #45475a;
+    transform: translateY(-2px);
+}
+
+.voice-backend-item.selected {
+    border-color: #89b4fa;
+    background: #1e1e2e;
+}
+
+.backend-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.backend-name {
+    font-weight: 600;
+    font-size: 16px;
+    color: #cdd6f4;
+}
+
+.backend-badge {
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.backend-badge.free {
+    background: #a6e3a1;
+    color: #1e1e2e;
+}
+
+.backend-badge.paid {
+    background: #f9e2af;
+    color: #1e1e2e;
+}
+
+.backend-desc {
+    color: #a6adc8;
+    font-size: 14px;
+    margin: 0 0 8px 0;
+}
+
+.backend-note {
+    color: #6c7086;
+    font-size: 12px;
+    margin: 0;
+}
+
+.backend-price {
+    color: #f9e2af;
+    font-size: 12px;
+    margin: 8px 0 0 0;
+}
+
+.get-key-link {
+    display: inline-block;
+    margin-top: 8px;
+    color: #89b4fa;
+    font-size: 12px;
+    text-decoration: none;
+}
+
+.get-key-link:hover {
+    text-decoration: underline;
+}
+
+.voice-test {
+    text-align: center;
+    padding-top: 16px;
+    border-top: 1px solid #313244;
+}
+
+.voice-test-btn {
+    background: #89b4fa;
+    color: #1e1e2e;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.voice-test-btn:hover {
+    background: #b4befe;
+    transform: translateY(-1px);
+}
+
+/* Botón de voz en el chat */
+.voice-btn {
+    background: transparent;
+    border: none;
+    font-size: 20px;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 50%;
+    transition: all 0.2s;
+}
+
+.voice-btn:hover {
+    background: #313244;
+}
+
+.voice-btn.recording {
+    animation: pulse 1s infinite;
+    background: #f38ba8;
+    border-radius: 50%;
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+    100% { transform: scale(1); }
+}

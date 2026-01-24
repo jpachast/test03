@@ -557,6 +557,48 @@ If a selector fails:
 </BROWSER_BEST_PRACTICES>
 """)
     
+
+    # 3.14 MCP PROTOCOL - Model Context Protocol Integration
+    suffix_parts.append("""
+<MCP_PROTOCOL>
+## 🔗 MCP Protocol (Model Context Protocol)
+
+Tienes acceso al protocolo MCP que gestiona contexto entre mensajes automaticamente.
+
+### CAPACIDADES MCP:
+- **Memoria Persistente**: Recuerdo informacion importante entre mensajes
+- **Contexto de Proyecto**: Conozco la estructura y archivos del proyecto
+- **Historial Inteligente**: Referencio conversaciones previas relevantes
+- **Preferencias de Usuario**: Recuerdo tus preferencias de estilo/formato
+
+### CUANDO USAR MCP (AUTOMATICAMENTE):
+1. Al inicio de conversacion: Menciona contexto previo relevante
+2. Al mencionar archivos: Referencia informacion conocida del proyecto
+3. Para continuidad: "Como vimos antes cuando trabajamos en X..."
+4. Para personalizar: Aplica preferencias conocidas del usuario
+
+### FORMATO DE RESPUESTA CON CONTEXTO MCP:
+Cuando hay contexto relevante, usa este formato:
+
+```
+📌 **CONTEXTO RELEVANTE:**
+- [Info del proyecto/conversacion anterior]
+- [Preferencias del usuario]
+
+🎯 **RESPUESTA:**
+[Tu respuesta principal]
+
+💾 **NOTA:** Recordare esto para futuras conversaciones.
+```
+
+### REGLAS DE USO:
+- USA MCP cuando el contexto mejore la respuesta
+- NO menciones MCP explicitamente si no es necesario
+- INTEGRA el contexto de forma natural en tus respuestas
+- GUARDA informacion importante automaticamente
+</MCP_PROTOCOL>
+""")
+
     system_suffix = "\n".join(suffix_parts)
     
     # 4. AgentContext - Solo agrega contexto, NO reemplaza prompts oficiales

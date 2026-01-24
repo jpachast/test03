@@ -9,3 +9,4 @@ from .code_server import router as code_server_router
 from .projects_server import router as projects_server_router
 from .browser import router as browser_router
 from .autofix_endpoints import router as autofix_router
+from .mcp_endpoints import router as mcp_router

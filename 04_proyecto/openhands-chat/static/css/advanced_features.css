@@ -1,0 +1,709 @@
+/**
+ * Advanced Features CSS - TOP-tier AI Agent capabilities
+ */
+
+/* ============================================
+   MODAL STYLES
+   ============================================ */
+
+.feature-modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    z-index: 10000;
+    justify-content: center;
+    align-items: center;
+    animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.feature-modal-content {
+    background: #1e1e2e;
+    border-radius: 12px;
+    max-width: 600px;
+    width: 90%;
+    max-height: 80vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    border: 1px solid #313244;
+}
+
+.feature-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    border-bottom: 1px solid #313244;
+    background: #181825;
+}
+
+.feature-modal-header h2 {
+    margin: 0;
+    font-size: 18px;
+    color: #cdd6f4;
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    font-size: 24px;
+    color: #6c7086;
+    cursor: pointer;
+    padding: 0;
+    line-height: 1;
+}
+
+.modal-close:hover {
+    color: #f38ba8;
+}
+
+.feature-modal-body {
+    padding: 20px;
+    overflow-y: auto;
+    color: #cdd6f4;
+}
+
+
+/* ============================================
+   TOOLS MENU
+   ============================================ */
+
+.tools-menu {
+    position: absolute;
+    bottom: 45px; max-height: 400px; overflow-y: auto;
+    left: 0;
+    background: #1e1e2e;
+    border: 1px solid #313244;
+    border-radius: 8px;
+    padding: 8px 0;
+    min-width: 200px;
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.3);
+    z-index: 1000;
+    margin-bottom: 8px;
+}
+
+.tools-menu button {
+    display: block;
+    width: 100%;
+    padding: 10px 16px;
+    background: none;
+    border: none;
+    color: #cdd6f4;
+    text-align: left;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.tools-menu button:hover {
+    background: #313244;
+}
+
+.tools-menu hr {
+    border: none;
+    border-top: 1px solid #313244;
+    margin: 8px 0;
+}
+
+
+/* ============================================
+   MCP PANEL
+   ============================================ */
+
+.mcp-panel h3 {
+    margin: 0 0 8px 0;
+    color: #89b4fa;
+}
+
+.mcp-description {
+    color: #6c7086;
+    margin-bottom: 16px;
+}
+
+.mcp-servers {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.mcp-server-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px;
+    background: #181825;
+    border-radius: 8px;
+    border: 1px solid #313244;
+}
+
+.mcp-server-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.mcp-server-info strong {
+    color: #cdd6f4;
+}
+
+.mcp-server-info span {
+    font-size: 12px;
+    color: #6c7086;
+}
+
+.mcp-connect-btn {
+    padding: 8px 16px;
+    background: #89b4fa;
+    color: #1e1e2e;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 500;
+}
+
+.mcp-connect-btn:disabled {
+    background: #45475a;
+    color: #6c7086;
+    cursor: not-allowed;
+}
+
+.mcp-note {
+    margin-top: 16px;
+    padding: 12px;
+    background: #313244;
+    border-radius: 8px;
+    font-size: 12px;
+    color: #f9e2af;
+}
+
+.mcp-note a {
+    color: #89b4fa;
+}
+
+
+/* ============================================
+   DIFF PREVIEW
+   ============================================ */
+
+.diff-preview {
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.diff-stats {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.diff-additions {
+    color: #a6e3a1;
+    font-weight: 500;
+}
+
+.diff-deletions {
+    color: #f38ba8;
+    font-weight: 500;
+}
+
+.diff-content {
+    background: #11111b;
+    padding: 16px;
+    border-radius: 8px;
+    overflow-x: auto;
+    font-size: 13px;
+    line-height: 1.5;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.diff-content .diff-add {
+    display: block;
+    background: rgba(166, 227, 161, 0.1);
+    color: #a6e3a1;
+}
+
+.diff-content .diff-del {
+    display: block;
+    background: rgba(243, 139, 168, 0.1);
+    color: #f38ba8;
+}
+
+.diff-content .diff-hunk {
+    display: block;
+    color: #89b4fa;
+    font-weight: 500;
+}
+
+.diff-actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 16px;
+    justify-content: flex-end;
+}
+
+.diff-btn {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 500;
+}
+
+.diff-btn.apply {
+    background: #a6e3a1;
+    color: #1e1e2e;
+}
+
+.diff-btn.reject {
+    background: #45475a;
+    color: #cdd6f4;
+}
+
+
+/* ============================================
+   CODEMAPS
+   ============================================ */
+
+.codemaps-panel h3 {
+    margin: 0 0 16px 0;
+    color: #89b4fa;
+}
+
+.codemap-options {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+}
+
+.codemap-btn {
+    padding: 12px 16px;
+    background: #313244;
+    color: #cdd6f4;
+    border: 1px solid #45475a;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.codemap-btn:hover {
+    background: #45475a;
+    border-color: #89b4fa;
+}
+
+.codemap-result {
+    background: #11111b;
+    border-radius: 8px;
+    padding: 16px;
+    min-height: 200px;
+}
+
+.codemap-result .loading {
+    color: #6c7086;
+    text-align: center;
+    padding: 40px;
+}
+
+.codemap-result .mermaid {
+    text-align: center;
+}
+
+.mermaid-source {
+    margin-top: 16px;
+    padding: 12px;
+    background: #181825;
+    border-radius: 6px;
+    font-size: 12px;
+    color: #6c7086;
+    white-space: pre-wrap;
+    max-height: 150px;
+    overflow-y: auto;
+}
+
+
+/* ============================================
+   CHECKPOINTS
+   ============================================ */
+
+.checkpoints-panel h3 {
+    margin: 0 0 8px 0;
+    color: #89b4fa;
+}
+
+.checkpoints-panel > p {
+    color: #6c7086;
+    margin-bottom: 16px;
+}
+
+.checkpoint-create {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 24px;
+}
+
+.checkpoint-create input {
+    flex: 1;
+    padding: 10px 14px;
+    background: #181825;
+    border: 1px solid #313244;
+    border-radius: 8px;
+    color: #cdd6f4;
+    font-size: 14px;
+}
+
+.checkpoint-create input::placeholder {
+    color: #6c7086;
+}
+
+.checkpoint-btn.create {
+    padding: 10px 16px;
+    background: #89b4fa;
+    color: #1e1e2e;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.checkpoints-panel h4 {
+    margin: 0 0 12px 0;
+    color: #a6adc8;
+    font-size: 14px;
+}
+
+.checkpoints-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.checkpoint-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px;
+    background: #181825;
+    border-radius: 8px;
+    border: 1px solid #313244;
+}
+
+.checkpoint-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.checkpoint-ref {
+    font-family: monospace;
+    color: #f9e2af;
+    font-size: 12px;
+}
+
+.checkpoint-desc {
+    color: #cdd6f4;
+    font-size: 14px;
+}
+
+.checkpoint-restore-btn {
+    padding: 6px 12px;
+    background: #45475a;
+    color: #cdd6f4;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+}
+
+.checkpoint-restore-btn:hover {
+    background: #585b70;
+}
+
+.no-checkpoints {
+    color: #6c7086;
+    text-align: center;
+    padding: 20px;
+}
+
+
+/* ============================================
+   VOICE INPUT
+   ============================================ */
+
+.voice-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: #313244;
+    border: none;
+    cursor: pointer;
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    margin-right: 8px;
+}
+
+.voice-btn:hover {
+    background: #45475a;
+}
+
+.voice-btn.recording {
+    background: #f38ba8;
+    animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+}
+
+
+/* ============================================
+   FEATURES STATUS
+   ============================================ */
+
+.features-status {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.feature-status-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    background: #181825;
+    border-radius: 8px;
+    border: 1px solid #313244;
+}
+
+.feature-status-item.enabled {
+    border-color: #a6e3a1;
+}
+
+.feature-status-item.disabled {
+    border-color: #45475a;
+    opacity: 0.7;
+}
+
+.feature-icon {
+    font-size: 24px;
+}
+
+.feature-name {
+    flex: 1;
+    color: #cdd6f4;
+}
+
+.feature-badge {
+    font-size: 18px;
+}
+
+
+/* ============================================
+   EMBEDDINGS PANEL
+   ============================================ */
+
+.embeddings-panel h3 {
+    margin: 0 0 8px 0;
+    color: #89b4fa;
+}
+
+.embeddings-description {
+    color: #6c7086;
+    margin-bottom: 16px;
+}
+
+.embeddings-status {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+    padding: 12px;
+    background: #181825;
+    border-radius: 8px;
+}
+
+.embeddings-status .status-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+}
+
+.embeddings-status .status-item span:first-child {
+    color: #6c7086;
+}
+
+.embeddings-actions {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.embeddings-btn {
+    padding: 10px 16px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+.embeddings-btn.index {
+    background: #89b4fa;
+    color: #1e1e2e;
+}
+
+.embeddings-btn.reindex {
+    background: #45475a;
+    color: #cdd6f4;
+}
+
+.embeddings-btn.search {
+    background: #a6e3a1;
+    color: #1e1e2e;
+}
+
+.embeddings-btn:hover {
+    opacity: 0.9;
+    transform: translateY(-1px);
+}
+
+.embeddings-search {
+    margin-bottom: 20px;
+}
+
+.embeddings-search h4 {
+    margin: 0 0 12px 0;
+    color: #a6adc8;
+    font-size: 14px;
+}
+
+.embeddings-search input {
+    width: 100%;
+    padding: 12px;
+    background: #181825;
+    border: 1px solid #313244;
+    border-radius: 8px;
+    color: #cdd6f4;
+    font-size: 14px;
+    margin-bottom: 12px;
+}
+
+.embeddings-search input::placeholder {
+    color: #6c7086;
+}
+
+.embeddings-results {
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.search-result {
+    background: #181825;
+    border: 1px solid #313244;
+    border-radius: 8px;
+    margin-bottom: 12px;
+    overflow: hidden;
+}
+
+.search-result .result-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    background: #11111b;
+    border-bottom: 1px solid #313244;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.search-result .result-file {
+    color: #89b4fa;
+    font-family: monospace;
+    font-size: 12px;
+}
+
+.search-result .result-lines {
+    color: #6c7086;
+    font-size: 11px;
+}
+
+.search-result .result-relevance {
+    background: #a6e3a1;
+    color: #1e1e2e;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.search-result .result-code {
+    margin: 0;
+    padding: 12px;
+    font-size: 12px;
+    line-height: 1.4;
+    overflow-x: auto;
+    background: #181825;
+    color: #cdd6f4;
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+
+.no-results {
+    text-align: center;
+    color: #6c7086;
+    padding: 20px;
+}
+
+/* MCP Connected State */
+.mcp-server-item.connected {
+    border-color: #a6e3a1;
+}
+
+.mcp-connect-btn.connected {
+    background: #f38ba8;
+    color: #1e1e2e;
+}
+
+.env-warning {
+    display: block;
+    color: #f9e2af;
+    font-size: 11px;
+    margin-top: 4px;
+}
+
+/* Fix: Contenedor del botón de herramientas necesita position relative */
+.chat-toolbar {
+    position: relative !important;
+}
+
+.tools-btn {
+    position: relative !important;
+}
+
+/* Fix: Permitir que el menú de herramientas sea visible */
+.chat-toolbar {
+    overflow: visible !important;
+}
+
+.chat-input-container {
+    overflow: visible !important;
+}
+
+#toolsMenu {
+    z-index: 99999 !important;
+}

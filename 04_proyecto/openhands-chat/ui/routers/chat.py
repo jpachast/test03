@@ -44,6 +44,14 @@ from core.smart_chat import (
     auto_detect_important_files
 )
 
+# MCP Backend para contexto automático entre mensajes
+try:
+    from core.mcp_chat_backend import get_mcp_backend
+    MCP_BACKEND_AVAILABLE = True
+except ImportError:
+    MCP_BACKEND_AVAILABLE = False
+    def get_mcp_backend(): return None
+
 import re as re_module
 
 def clean_ansi(text):
@@ -609,6 +617,14 @@ async def send_message(message: str = Form(...), project: str = Form(None)):
         
         if conversation_id:
             db.add_message(conversation_id, 'assistant', agent_response)
+            # MCP: Guardar respuesta del agente para contexto futuro
+            if MCP_BACKEND_AVAILABLE:
+                try:
+                    mcp_backend = get_mcp_backend()
+                    mcp_backend.save_agent_response(conversation_id, agent_response)
+                    print('[MCP] Agent response saved')
+                except Exception as e:
+                    print(f'[MCP] Error saving response: {e}')
         
         return JSONResponse({
             "status": "ok",
@@ -788,6 +804,18 @@ async def stream_message(
         
         # MEMORIA RAG: Recuperar contexto relevante del historial
         memory_context = get_context_for_message(message, project=project)
+
+        # MCP PROTOCOL: Obtener contexto persistente entre mensajes
+        mcp_context = ""
+        if MCP_BACKEND_AVAILABLE and conversation_id:
+            try:
+                mcp_backend = get_mcp_backend()
+                mcp_context = mcp_backend.get_context_for_message(conversation_id, message)
+                mcp_backend.save_user_message(conversation_id, message)
+                if mcp_context:
+                    print(f"[MCP] Added context ({len(mcp_context)} chars)")
+            except Exception as e:
+                print(f"[MCP] Error: {e}")
         
         # ============================================================
         # SMART PROCESSING - Inteligencia como los TOP del mercado
@@ -863,6 +891,10 @@ IMPORTANTE: Usa la información del historial de arriba para responder. Si el us
             truncated_context = memory_context[:2000] + "..." if len(memory_context) > 2000 else memory_context
             actual_message = f"{actual_message}\n\n{truncated_context}"
             print(f"[MEMORY] Added RAG context ({len(truncated_context)} chars)")
+        # Agregar contexto MCP al mensaje
+        if mcp_context:
+            actual_message = f"{actual_message}\n\n{mcp_context}"
+            print(f"[MCP] Context added to message")
         if repo_info and repo_info.get('owner') and repo_info.get('name'):
             repo_owner = repo_info['owner']
             repo_name = repo_info['name']
@@ -922,6 +954,14 @@ IMPORTANTE: Usa la información del historial de arriba para responder. Si el us
         
         if conversation_id:
             db.add_message(conversation_id, 'assistant', agent_response)
+            # MCP: Guardar respuesta del agente para contexto futuro
+            if MCP_BACKEND_AVAILABLE:
+                try:
+                    mcp_backend = get_mcp_backend()
+                    mcp_backend.save_agent_response(conversation_id, agent_response)
+                    print('[MCP] Agent response saved')
+                except Exception as e:
+                    print(f'[MCP] Error saving response: {e}')
         
         yield f"data: {json.dumps({'type': 'done', 'message': agent_response})}\n\n"
     
