@@ -653,19 +653,32 @@ async def stream_message(
     if not api_key:
         return JSONResponse({"error": "API key no configurada"}, status_code=400)
     
+    # Obtener workspace de la base de datos (guardado al crear el proyecto)
+    workspace = None
     if project:
-        # Para test03, usar la raíz del repositorio montado (no crear carpeta en projects)
-        if "test03" in project.lower():
-            workspace = "/workspace/project/test03"
+        proj = db.get_project_by_name(project)
+        if proj:
+            # Usar el path guardado en la base de datos
+            workspace = proj.get('path')
+            print(f"[WORKSPACE] Using path from DB: {workspace}")
+    
+    # Fallback si no se encontró en la base de datos
+    if not workspace:
+        if project:
+            if "test03" in project.lower():
+                workspace = "/workspace/project/test03"
+            else:
+                workspace = str(settings.projects_dir / project)
         else:
-            workspace = str(settings.projects_dir / project)
-    else:
-        workspace = str(settings.projects_dir)
+            workspace = str(settings.projects_dir)
+        print(f"[WORKSPACE] Using fallback path: {workspace}")
     
     # Crear directorio si no existe (excepto test03 que ya está montado)
     if "test03" not in workspace:
         os.makedirs(workspace, exist_ok=True)
     current_workspace = workspace
+    
+    print(f"[WORKSPACE] Project: {project}, Workspace: {workspace}")
     
     # Parsear imágenes si las hay
     image_contents = []
