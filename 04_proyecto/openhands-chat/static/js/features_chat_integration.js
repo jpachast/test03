@@ -270,6 +270,75 @@
         return html;
     }
 
+
+    // ============================================================
+    // DIFF PREVIEW: Mostrar cambios estilo GitHub
+    // ============================================================
+    async function applyDiffPreview(responseElement) {
+        if (!window.chatFeatures.diffPreview?.enabled) return null;
+        
+        console.log('[Features] Diff Preview activado');
+        
+        try {
+            const pathParts = window.location.pathname.split('/');
+            const conversationId = pathParts[pathParts.length - 1] || '1';
+            
+            const response = await fetch('/api/diff/changes', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ conversation_id: conversationId })
+            });
+            
+            if (!response.ok) {
+                console.warn('[Features] Diff preview no disponible');
+                return null;
+            }
+            
+            const result = await response.json();
+            
+            if (result.changes && result.changes.length > 0) {
+                const html = formatDiffPreviewResult(result);
+                appendFeatureResult(responseElement, html);
+                return result;
+            }
+            
+            return null;
+        } catch (error) {
+            console.error('[Features] Error en diff preview:', error);
+            return null;
+        }
+    }
+
+    function formatDiffPreviewResult(result) {
+        let html = '<div class="feature-result diff-preview-result" style="margin-top: 15px; padding: 15px; background: linear-gradient(135deg, #1a1a2e 0%, #0d1117 100%); border-radius: 8px; border-left: 4px solid #238636;">';
+        html += '<div style="display: flex; align-items: center; margin-bottom: 10px;">';
+        html += '<span style="font-size: 1.2em; margin-right: 8px;">📊</span>';
+        html += '<strong style="color: #238636;">DIFF PREVIEW - Cambios en el repositorio</strong>';
+        html += '</div>';
+        
+        if (result.summary) {
+            html += '<div style="margin-bottom: 10px; padding: 8px; background: #161b22; border-radius: 4px;">';
+            html += '<span style="color: #3fb950;">+' + (result.summary.insertions || 0) + '</span> ';
+            html += '<span style="color: #f85149;">-' + (result.summary.deletions || 0) + '</span> ';
+            html += '<span style="color: #8b949e;">en ' + (result.summary.files_changed || 0) + ' archivo(s)</span>';
+            html += '</div>';
+        }
+        
+        if (result.changes) {
+            result.changes.slice(0, 5).forEach(change => {
+                const statusColor = change.status === 'added' ? '#3fb950' : change.status === 'deleted' ? '#f85149' : '#d29922';
+                const statusIcon = change.status === 'added' ? '+' : change.status === 'deleted' ? '-' : '~';
+                html += '<div style="padding: 5px 10px; margin: 3px 0; background: #21262d; border-radius: 4px; font-family: monospace; font-size: 0.9em;">';
+                html += '<span style="color: ' + statusColor + ';">' + statusIcon + '</span> ';
+                html += '<span style="color: #c9d1d9;">' + (change.file || change.path || 'archivo') + '</span>';
+                html += '</div>';
+            });
+        }
+        
+        html += '</div>';
+        return html;
+    }
+
     function formatAutoFixResult(result) {
         return `
             <div class="feature-result autofix-result" style="
@@ -496,6 +565,14 @@
                         }
                         break;
                     }
+                    case 'diffPreview': {
+                        // Activar si el usuario pregunta por cambios/diff
+                        if (userMessage.toLowerCase().match(/cambios|diff|modificad|pendiente|commit|status|estado.*repo/)) {
+                            console.log('[Features] Diff Preview detectado');
+                            await applyDiffPreview(responseElement);
+                        }
+                        break;
+                    }
                 }
             } catch (e) {
                 console.error(`[Features] Error en ${feature.name}:`, e);
@@ -510,6 +587,7 @@
     window.applyTestGenerator = applyTestGenerator;
     window.applyWebScraper = applyWebScraper;
     window.applySemanticSearch = applySemanticSearch;
+    window.applyDiffPreview = applyDiffPreview;
 
     console.log('✅ Features Chat Integration cargado');
 })();
