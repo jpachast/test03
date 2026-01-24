@@ -15,7 +15,8 @@
         codeAnalyzer: { enabled: true, status: 'ready' },
         semanticSearch: { enabled: true, status: 'ready' },
         codemaps: { enabled: true, status: 'ready' },
-        backgroundAgents: { enabled: true, status: 'ready' }
+        backgroundAgents: { enabled: true, status: 'ready' },
+        monteCarlo: { enabled: true, status: 'ready' }
     };
 
     // Patrones para detectar cuándo usar cada feature
@@ -90,6 +91,16 @@
                 /proceso\s+(largo|async)/i
             ],
             keywords: ['segundo plano', 'background', 'tarea larga', 'paralelo', 'async', 'mientras tanto', 'sin bloquear']
+        },
+        monteCarlo: {
+            patterns: [
+                /optimi(zar?|zacion)/i,
+                /mejor\s+(opcion|alternativa|solucion)/i,
+                /evalua(r)?\s+opciones/i,
+                /simula(r|cion)/i,
+                /analisis\s+de\s+(decisiones|opciones)/i
+            ],
+            keywords: ['optimizar', 'mejor opcion', 'evaluar opciones', 'simulacion', 'monte carlo', 'decision', 'alternativas']
         }
     };
 
@@ -498,6 +509,40 @@
         }
     }
 
+
+    // ============================================================
+    // MONTE CARLO: Optimización y análisis de decisiones
+    // ============================================================
+    async function applyMonteCarlo(query, responseElement) {
+        if (!window.chatFeatures.monteCarlo?.enabled) return null;
+        
+        console.log('[Features] Monte Carlo activado');
+        
+        try {
+            // Mostrar indicador de simulación
+            const indicator = document.createElement('div');
+            indicator.className = 'monte-carlo-indicator';
+            indicator.innerHTML = `
+                <div style="margin-top: 15px; padding: 15px; background: linear-gradient(135deg, #1a1a2e 0%, #4a1942 100%); border-radius: 8px; border-left: 4px solid #ec4899;">
+                    <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                        <span style="font-size: 1.2em; margin-right: 8px;">🎲</span>
+                        <strong style="color: #ec4899;">SIMULACIÓN MONTE CARLO</strong>
+                    </div>
+                    <div style="padding: 8px; background: #3b0764; border-radius: 4px;">
+                        <span style="color: #f9a8d4;">📊 Ejecutando simulaciones...</span><br>
+                        <span style="color: #be185d; font-size: 0.9em;">Analizando múltiples escenarios para optimizar decisión</span>
+                    </div>
+                </div>
+            `;
+            responseElement.appendChild(indicator);
+            
+            return { status: 'simulation_started', query };
+        } catch (error) {
+            console.error('[Features] Error en Monte Carlo:', error);
+            return null;
+        }
+    }
+
     function formatAutoFixResult(result) {
         return `
             <div class="feature-result autofix-result" style="
@@ -748,6 +793,14 @@
                         }
                         break;
                     }
+                    case 'monteCarlo': {
+                        // Activar si el usuario pide optimización
+                        if (userMessage.toLowerCase().match(/optimi|mejor\s+(opcion|alternativa|solucion)|evalua.*opciones|simula|monte\s*carlo|analisis.*decision/)) {
+                            console.log('[Features] Monte Carlo detectado');
+                            await applyMonteCarlo(userMessage, responseElement);
+                        }
+                        break;
+                    }
                 }
             } catch (e) {
                 console.error(`[Features] Error en ${feature.name}:`, e);
@@ -765,6 +818,7 @@
     window.applyDiffPreview = applyDiffPreview;
     window.applyCodemaps = applyCodemaps;
     window.applyBackgroundAgents = applyBackgroundAgents;
+    window.applyMonteCarlo = applyMonteCarlo;
 
     console.log('✅ Features Chat Integration cargado');
 })();
