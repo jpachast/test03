@@ -400,7 +400,7 @@
         indicator.onclick = () => toggleRAGPanel();
         
         // Insertar en la barra de herramientas
-        const toolbar = document.querySelector('.chat-input-area') || document.querySelector('.tools-bar');
+        const toolbar = document.querySelector('.chat-toolbar') || document.querySelector('.chat-input-container');
         if (toolbar) {
             toolbar.appendChild(indicator);
         }
