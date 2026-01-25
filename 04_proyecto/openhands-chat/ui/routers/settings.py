@@ -43,6 +43,41 @@ async def save_model(model: str = Form(...)):
     return JSONResponse({"status": "ok"})
 
 
+# === GROQ (Multi-LLM) ===
+
+@router.get("/groq")
+async def get_groq_status():
+    """Verificar si Groq está configurado"""
+    key = db.get_setting('groq_api_key', '')
+    return JSONResponse({"connected": bool(key)})
+
+
+@router.post("/groq")
+async def save_groq_api_key(request: Request):
+    """Guardar Groq API key"""
+    try:
+        data = await request.json()
+        api_key = data.get("api_key", "").strip()
+        
+        if not api_key:
+            return JSONResponse({"success": False, "error": "API key requerida"})
+        
+        if not api_key.startswith("gsk_"):
+            return JSONResponse({"success": False, "error": "API key debe comenzar con 'gsk_'"})
+        
+        db.set_setting('groq_api_key', api_key, encrypt=True)
+        return JSONResponse({"success": True})
+    except Exception as e:
+        return JSONResponse({"success": False, "error": str(e)})
+
+
+@router.delete("/groq")
+async def delete_groq_api_key():
+    """Eliminar Groq API key"""
+    db.set_setting('groq_api_key', '')
+    return JSONResponse({"success": True})
+
+
 # === TAVILY ===
 
 @router.get("/tavily")

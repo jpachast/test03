@@ -127,11 +127,47 @@ class MultiLLMManager:
     """
     
     def __init__(self, groq_api_key: str = None, openai_api_key: str = None):
-        self.groq_api_key = groq_api_key or os.environ.get("GROQ_API_KEY", "")
+        self.groq_api_key = groq_api_key or os.environ.get("GROQ_API_KEY", "") or self._load_groq_key_from_db()
         self.openai_api_key = openai_api_key or os.environ.get("OPENAI_API_KEY", "")
         self.configs: Dict[LLMRole, LLMConfig] = DEFAULT_LLM_CONFIGS.copy()
         self._clients: Dict[LLMProvider, Any] = {}
         self._initialized = False
+    
+    def _load_groq_key_from_db(self) -> str:
+        """Intenta cargar GROQ_API_KEY desde la base de datos"""
+        try:
+            import sqlite3
+            from pathlib import Path
+            
+            # Buscar en diferentes ubicaciones
+            db_paths = [
+                Path("/app/data/config.db"),
+                Path(__file__).parent.parent / "data" / "config.db",
+            ]
+            
+            for db_path in db_paths:
+                if db_path.exists():
+                    conn = sqlite3.connect(str(db_path))
+                    cur = conn.cursor()
+                    cur.execute("SELECT value, encrypted FROM settings WHERE key = 'groq_api_key'")
+                    row = cur.fetchone()
+                    conn.close()
+                    
+                    if row:
+                        value, encrypted = row
+                        if encrypted:
+                            # Desencriptar si es necesario
+                            try:
+                                from config.db.settings import SettingsManager
+                                sm = SettingsManager(str(db_path))
+                                return sm.get_setting('groq_api_key') or ""
+                            except:
+                                pass
+                        return value or ""
+            return ""
+        except Exception as e:
+            logger.debug(f"Could not load groq_api_key from db: {e}")
+            return ""
         
     def _get_groq_client(self):
         """Obtiene o crea cliente Groq"""
