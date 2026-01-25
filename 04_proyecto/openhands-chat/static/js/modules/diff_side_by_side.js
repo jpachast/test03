@@ -569,20 +569,38 @@
         
         injectStyles();
         
-        // Buscar bloques de código con diff
-        const codeBlocks = element.querySelectorAll('pre code');
+        // Buscar bloques de código con diff (múltiples selectores)
+        const codeBlocks = element.querySelectorAll('pre code, pre, code.language-diff, code.lang-diff, .hljs');
         
         codeBlocks.forEach(block => {
-            const text = block.textContent;
+            // Evitar procesar el mismo bloque dos veces
+            if (block.dataset.diffProcessed) return;
             
-            // Detectar si es un diff
-            if (text.includes('diff --git') || 
-                (text.includes('--- ') && text.includes('+++ ')) ||
-                (text.match(/^[-+@]/m) && text.match(/^[-+]/m))) {
+            const text = block.textContent || block.innerText;
+            if (!text || text.length < 10) return;
+            
+            // Detectar si es un diff con múltiples patrones
+            const isDiff = 
+                text.includes('diff --git') || 
+                (text.includes('--- a/') && text.includes('+++ b/')) ||
+                (text.includes('--- ') && text.includes('+++ ') && text.includes('@@')) ||
+                (text.match(/^[-+].*\n[-+]/m) && text.includes('@@'));
+            
+            if (isDiff) {
+                console.log('[DiffSideBySide] Diff detectado, convirtiendo a side-by-side');
+                block.dataset.diffProcessed = 'true';
                 
-                const pre = block.parentElement;
-                const diffComponent = createDiffComponent(text);
-                pre.replaceWith(diffComponent);
+                // Encontrar el elemento pre padre
+                const pre = block.tagName === 'PRE' ? block : block.closest('pre') || block.parentElement;
+                
+                try {
+                    const diffComponent = createDiffComponent(text);
+                    if (pre && pre.parentElement) {
+                        pre.replaceWith(diffComponent);
+                    }
+                } catch (e) {
+                    console.error('[DiffSideBySide] Error creando componente:', e);
+                }
             }
         });
     }
