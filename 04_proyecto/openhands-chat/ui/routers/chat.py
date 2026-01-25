@@ -629,7 +629,8 @@ async def stream_message(
     message: str = Form(...), 
     project: str = Form(None), 
     images: str = Form(None),
-    external_url: str = Form(None)
+    external_url: str = Form(None),
+    conversation_id: int = Form(None)
 ):
     """Enviar mensaje al agente con streaming SSE"""
     global current_conversation, current_workspace, last_agent_response, last_error_message
@@ -703,18 +704,28 @@ async def stream_message(
             print(f"Error parsing images: {e}")
     
     async def generate_events():
+        nonlocal conversation_id  # Usar el conversation_id del parámetro si existe
         global last_agent_response
         q = queue.Queue()
         
+        # Usar conversation_id del frontend si viene, sino derivarlo del project
+        conv_id_from_param = conversation_id
         conversation_id = None
         repo_info = None
-        print(f"[CHAT] Project received: '{project}'")
+        print(f"[CHAT] Project received: '{project}', conversation_id from param: {conv_id_from_param}")
+        
+        # Prioridad: usar conversation_id si viene directamente
+        if conv_id_from_param:
+            conversation_id = conv_id_from_param
+            print(f"[CHAT] Using conversation_id from parameter: {conversation_id}")
+        
         if project:
             proj = db.get_project_by_name(project)
             print(f"[CHAT] Project found: {proj is not None}, ID: {proj['id'] if proj else 'N/A'}")
             if proj:
-                conv = db.get_conversation(proj['id'])
-                conversation_id = conv['id'] if conv else None
+                if not conversation_id:  # Solo buscar si no vino del parámetro
+                    conv = db.get_conversation(proj['id'])
+                    conversation_id = conv['id'] if conv else None
                 print(f"[CHAT] Conversation ID: {conversation_id}")
                 # Obtener info del repositorio para pasarla al agente
                 repo_info = {
