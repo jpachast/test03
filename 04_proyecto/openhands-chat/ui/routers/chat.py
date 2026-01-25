@@ -206,8 +206,10 @@ def create_streaming_callback(q, conv_id=None):
                             
                             # GUARDAR EN MEMORIA RAG (solo cambios, no views)
                             if command in ('str_replace', 'create', 'insert'):
-                                old_str = getattr(action, 'old_str', '')[:100] if hasattr(action, 'old_str') else ''
-                                new_str = getattr(action, 'new_str', '')[:100] if hasattr(action, 'new_str') else ''
+                                old_str_raw = getattr(action, 'old_str', None)
+                                new_str_raw = getattr(action, 'new_str', None)
+                                old_str = (old_str_raw or '')[:100]
+                                new_str = (new_str_raw or '')[:100]
                                 desc = f"{command}: {old_str} -> {new_str}" if old_str else f"{command}"
                                 save_file_change(
                                     file_path=path,
