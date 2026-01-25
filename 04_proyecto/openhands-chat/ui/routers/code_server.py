@@ -255,4 +255,8 @@ async def websocket_proxy(websocket: WebSocket, path: str):
             await asyncio.gather(forward_to_backend(), forward_to_client())
     except Exception as e:
         print(f"WebSocket proxy error: {e}")
-        await websocket.close()
+        # Solo cerrar si el websocket no está ya cerrado
+        try:
+            await websocket.close()
+        except RuntimeError:
+            pass  # WebSocket ya cerrado, ignorar
