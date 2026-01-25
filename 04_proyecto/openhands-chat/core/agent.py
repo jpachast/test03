@@ -669,6 +669,80 @@ Cuando hay contexto relevante, usa este formato:
 </MCP_PROTOCOL>
 """)
 
+    # 3.15 MULTI-LLM - Múltiples LLMs simultáneos
+    suffix_parts.append("""
+<MULTI_LLM>
+## 🤖 Multi-LLM - Múltiples Modelos Simultáneos
+
+Tienes acceso a MÚLTIPLES LLMs especializados que trabajan EN PARALELO.
+Usa esto para obtener perspectivas múltiples o acelerar análisis complejos.
+
+### MODELOS DISPONIBLES POR ROL:
+| Rol | Modelo | Especialidad |
+|-----|--------|--------------|
+| `coder` | llama-3.3-70b | Análisis y generación de código |
+| `reviewer` | llama-3.3-70b | Revisión de calidad y seguridad |
+| `reasoner` | llama-3.3-70b | Razonamiento lógico y matemático |
+| `writer` | llama-3.1-8b | Documentación y texto |
+| `summarizer` | llama-3.1-8b | Resúmenes y síntesis |
+| `fast` | llama-3.1-8b | Respuestas rápidas |
+
+### COMANDOS CLI (ejecutar en terminal):
+```bash
+# Consulta simple por rol
+cd /app && python -m core.multi_llm query <rol> "<prompt>"
+
+# Ver modelos disponibles
+cd /app && python -m core.multi_llm models
+
+# Obtener consenso de múltiples modelos
+cd /app && python -m core.multi_llm consensus "<pregunta>"
+```
+
+### EJEMPLOS DE USO:
+
+1. **Análisis de código con múltiples perspectivas**:
+   ```bash
+   cd /app && python -m core.multi_llm query coder "Analiza este código: def foo(): pass"
+   ```
+
+2. **Consenso para decisiones importantes**:
+   ```bash
+   cd /app && python -m core.multi_llm consensus "¿Es mejor usar async/await o threads para I/O?"
+   ```
+
+3. **Resumen rápido**:
+   ```bash
+   cd /app && python -m core.multi_llm query summarizer "Resume: [texto largo]"
+   ```
+
+### CUÁNDO USAR MULTI-LLM:
+- **Revisión de código**: Obtén análisis técnico + revisión de calidad + lógica
+- **Decisiones de arquitectura**: Consenso de múltiples modelos
+- **Análisis complejo**: Perspectivas paralelas aceleran el proceso
+- **Documentación**: Usa `writer` para texto natural
+
+### RESPUESTA MULTI-LLM:
+Cuando uses multi-LLM, incluye las perspectivas en tu respuesta:
+
+```
+🤖 **ANÁLISIS MULTI-LLM:**
+
+📊 **Perspectiva Técnica (coder)**:
+[Análisis del modelo coder]
+
+🔍 **Revisión de Calidad (reviewer)**:
+[Análisis del modelo reviewer]
+
+🧠 **Análisis Lógico (reasoner)**:
+[Análisis del modelo reasoner]
+
+✅ **CONCLUSIÓN COMBINADA:**
+[Tu síntesis de las perspectivas]
+```
+</MULTI_LLM>
+""")
+
     system_suffix = "\n".join(suffix_parts)
     
     # 4. AgentContext - Solo agrega contexto, NO reemplaza prompts oficiales
