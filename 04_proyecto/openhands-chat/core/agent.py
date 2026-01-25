@@ -565,13 +565,13 @@ If a selector fails:
 
 **⚠️ REGLA OBLIGATORIA**: Para navegación web y clicks, **DEBES USAR ÚNICAMENTE** el comando:
 ```bash
-python -m core.browser <comando> [args]
+cd /app && python -m core.browser <comando> [args]
 ```
 
 **NO USES** browser_navigate, browser_click ni otras herramientas MCP de browser.
-**USA EXCLUSIVAMENTE** los comandos de abajo ejecutándolos con `python -m core.browser`.
+**USA EXCLUSIVAMENTE** los comandos de abajo ejecutándolos con `cd /app && python -m core.browser`.
 
-### COMANDOS (ejecutar en terminal con python -m core.browser):
+### COMANDOS (ejecutar en terminal - SIEMPRE con cd /app primero):
 
 1. **Navegación**:
    ```bash
