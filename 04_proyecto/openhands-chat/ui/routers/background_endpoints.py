@@ -284,3 +284,146 @@ async def get_status():
             "Soporte para tareas sync y async"
         ]
     }
+
+
+# ============================================================================
+# ENDPOINTS DE NOTIFICACIONES (para polling del frontend)
+# ============================================================================
+
+# Almacén en memoria de notificaciones por conversación
+_notifications: Dict[int, List[Dict[str, Any]]] = {}
+
+
+@router.get("/notifications/{conversation_id}")
+async def get_notifications(conversation_id: int, since: Optional[int] = None):
+    """
+    Obtiene notificaciones para una conversación específica.
+    
+    Este endpoint es llamado por el frontend via polling para obtener
+    actualizaciones de tareas en background.
+    
+    Args:
+        conversation_id: ID de la conversación
+        since: Timestamp desde el cual obtener notificaciones (opcional)
+    
+    Returns:
+        Lista de notificaciones pendientes
+    """
+    manager = await get_or_create_manager()
+    
+    # Obtener tareas relacionadas con esta conversación
+    all_tasks = manager.get_all_tasks(limit=20)
+    
+    # Filtrar tareas recientes (últimos 5 minutos) que podrían ser notificaciones
+    import time
+    current_time = time.time()
+    recent_notifications = []
+    
+    for task in all_tasks:
+        # Considerar tareas completadas o fallidas recientemente como notificaciones
+        if task.get("status") in ["completed", "failed"]:
+            task_time = task.get("completed_at") or task.get("started_at") or 0
+            # Solo tareas de los últimos 5 minutos
+            if current_time - task_time < 300:
+                recent_notifications.append({
+                    "id": task.get("id"),
+                    "type": "task_" + task.get("status", "unknown"),
+                    "message": f"Tarea '{task.get('name', 'Sin nombre')}' {task.get('status')}",
+                    "task_id": task.get("id"),
+                    "status": task.get("status"),
+                    "result": task.get("result"),
+                    "timestamp": task_time,
+                    "conversation_id": conversation_id
+                })
+    
+    # También incluir notificaciones almacenadas manualmente
+    stored = _notifications.get(conversation_id, [])
+    
+    # Combinar y ordenar por timestamp
+    all_notifs = recent_notifications + stored
+    all_notifs.sort(key=lambda x: x.get("timestamp", 0), reverse=True)
+    
+    # Limitar a las últimas 10
+    all_notifs = all_notifs[:10]
+    
+    return {
+        "success": True,
+        "notifications": all_notifs,
+        "count": len(all_notifs),
+        "conversation_id": conversation_id
+    }
+
+
+@router.post("/notifications/{conversation_id}")
+async def add_notification(conversation_id: int, notification: Dict[str, Any]):
+    """
+    Agrega una notificación para una conversación.
+    
+    Útil para que otros módulos puedan enviar notificaciones al frontend.
+    """
+    import time
+    
+    if conversation_id not in _notifications:
+        _notifications[conversation_id] = []
+    
+    notif = {
+        "id": f"notif_{conversation_id}_{int(time.time()*1000)}",
+        "timestamp": time.time(),
+        "conversation_id": conversation_id,
+        **notification
+    }
+    
+    _notifications[conversation_id].append(notif)
+    
+    # Mantener solo las últimas 50 notificaciones por conversación
+    if len(_notifications[conversation_id]) > 50:
+        _notifications[conversation_id] = _notifications[conversation_id][-50:]
+    
+    return {
+        "success": True,
+        "notification": notif
+    }
+
+
+@router.delete("/notifications/{conversation_id}")
+async def clear_notifications(conversation_id: int):
+    """Limpia las notificaciones de una conversación"""
+    if conversation_id in _notifications:
+        count = len(_notifications[conversation_id])
+        _notifications[conversation_id] = []
+        return {
+            "success": True,
+            "cleared": count
+        }
+    
+    return {
+        "success": True,
+        "cleared": 0
+    }
+
+
+@router.get("/tasks/active")
+async def get_active_tasks(conversation_id: Optional[int] = None):
+    """
+    Obtiene tareas activas (pendientes o en ejecución).
+    
+    Args:
+        conversation_id: Filtrar por conversación (opcional)
+    
+    Returns:
+        Lista de tareas activas
+    """
+    manager = await get_or_create_manager()
+    
+    pending = manager.get_pending_tasks()
+    running = manager.get_running_tasks()
+    
+    active_tasks = pending + running
+    
+    return {
+        "success": True,
+        "tasks": active_tasks,
+        "count": len(active_tasks),
+        "pending": len(pending),
+        "running": len(running)
+    }
