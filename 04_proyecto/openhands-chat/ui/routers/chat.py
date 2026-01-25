@@ -624,19 +624,67 @@ async def send_message(message: str = Form(...), project: str = Form(None)):
         return JSONResponse({"status": "error", "message": str(e)}, status_code=500)
 
 
+def _is_simple_question(message: str) -> bool:
+    """Detecta si es una pregunta simple que no requiere ejecución de comandos"""
+    message_lower = message.lower().strip()
+    
+    # Patrones que indican pregunta simple de conversación
+    simple_patterns = [
+        "hola", "hello", "hi", "hey",
+        "cuéntame", "cuentame", "dime",
+        "qué es", "que es", "qué significa", "que significa",
+        "explica", "explícame", "explicame",
+        "cómo funciona", "como funciona",
+        "por qué", "porque", "por que",
+        "chiste", "joke", "broma",
+        "gracias", "thanks",
+        "cuál es", "cual es",
+        "recomienda", "sugiere", "consejo"
+    ]
+    
+    # Patrones que requieren ejecución (no usar streaming directo)
+    action_patterns = [
+        "ejecuta", "run", "crea", "create", "modifica", "edit",
+        "elimina", "delete", "instala", "install", "git ",
+        "curl ", "python ", "npm ", "pip ", "cd ", "ls ",
+        "mkdir", "mv ", "cp ", "cat ", "grep ",
+        "archivo", "file", "código", "code"
+    ]
+    
+    # Si contiene patrones de acción, no es simple
+    for pattern in action_patterns:
+        if pattern in message_lower:
+            return False
+    
+    # Si contiene patrones simples, es simple
+    for pattern in simple_patterns:
+        if pattern in message_lower:
+            return True
+    
+    # Si es muy corto (< 50 chars) y termina en ? probablemente es simple
+    if len(message) < 50 and message.strip().endswith("?"):
+        return True
+    
+    return False
+
+
 @router.post("/stream")
 async def stream_message(
     message: str = Form(...), 
     project: str = Form(None), 
     images: str = Form(None),
     external_url: str = Form(None),
-    conversation_id: int = Form(None)
+    conversation_id: int = Form(None),
+    use_realtime: bool = Form(False)  # Nuevo: forzar streaming directo
 ):
     """Enviar mensaje al agente con streaming SSE"""
     global current_conversation, current_workspace, last_agent_response, last_error_message
     
     last_agent_response = ""
     last_error_message = ""  # Limpiar errores previos
+    
+    # NUEVO: Detectar si es pregunta simple para usar streaming directo
+    is_simple = _is_simple_question(message)
     
     # Obtener modelo configurado
     model = db.get_setting("llm_model", settings.default_model)
@@ -741,6 +789,55 @@ async def stream_message(
             print(f"[CHAT] User message saved to conversation {conversation_id}")
         else:
             print("[CHAT] WARNING: conversation_id is None, message NOT saved!")
+        
+        # ============================================================
+        # STREAMING DIRECTO para preguntas simples (token por token real)
+        # ============================================================
+        if is_simple or use_realtime:
+            print(f"[STREAM] Using REALTIME streaming for simple question")
+            yield f"data: {json.dumps({'type': 'status', 'icon': '⚡', 'text': 'Streaming directo...'})}\n\n"
+            
+            try:
+                from core.realtime_stream import stream_response
+                import asyncio
+                
+                # Obtener historial para contexto
+                conv_history = []
+                if conversation_id:
+                    messages = db.get_messages(conversation_id)
+                    for msg in messages[-8:]:  # Últimos 8 mensajes
+                        conv_history.append({
+                            "role": msg["role"],
+                            "content": msg["content"][:500]
+                        })
+                
+                full_response = ""
+                async for event in stream_response(
+                    message=message,
+                    model=model,
+                    api_key=api_key,
+                    conversation_history=conv_history
+                ):
+                    if event["type"] == "token":
+                        full_response += event["content"]
+                        yield f"data: {json.dumps(event)}\n\n"
+                    elif event["type"] == "error":
+                        yield f"data: {json.dumps({'type': 'error', 'text': event['error']})}\n\n"
+                
+                # Guardar respuesta en BD
+                if conversation_id and full_response:
+                    db.add_message(conversation_id, 'assistant', full_response)
+                
+                yield f"data: {json.dumps({'type': 'done', 'message': full_response})}\n\n"
+                return  # Terminar aquí para streaming directo
+                
+            except Exception as e:
+                print(f"[STREAM] Realtime streaming failed: {e}, falling back to SDK")
+                # Si falla, continuar con el flujo normal del SDK
+        
+        # ============================================================
+        # FLUJO NORMAL con SDK (para comandos y operaciones complejas)
+        # ============================================================
         
         # OPTIMIZACIÓN UX: Feedback inmediato mientras se prepara el agente
         yield f"data: {json.dumps({'type': 'status', 'icon': '🔄', 'text': 'Conectando...'})}\n\n"
