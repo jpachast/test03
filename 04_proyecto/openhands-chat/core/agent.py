@@ -563,9 +563,11 @@ If a selector fails:
 <COMPUTER_USE>
 ## 🖱️ Computer Use - Clicks Reales en el Navegador
 
-Tienes la capacidad de controlar un navegador real con clicks, escritura y navegación.
+**IMPORTANTE**: Cuando el usuario pida navegar web, hacer clicks, o interactuar con páginas web, 
+**SIEMPRE USA** el CLI `python -m core.browser` en lugar de otras herramientas de browser.
+Este CLI te permite hacer clicks por coordenadas X,Y como Claude Computer Use.
 
-### COMANDOS DISPONIBLES (usar con python -m core.browser):
+### COMANDOS DISPONIBLES (OBLIGATORIO usar python -m core.browser):
 
 1. **Navegación**:
    ```bash
