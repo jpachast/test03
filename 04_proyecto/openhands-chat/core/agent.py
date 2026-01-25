@@ -563,11 +563,15 @@ If a selector fails:
 <COMPUTER_USE>
 ## 🖱️ Computer Use - Clicks Reales en el Navegador
 
-**IMPORTANTE**: Cuando el usuario pida navegar web, hacer clicks, o interactuar con páginas web, 
-**SIEMPRE USA** el CLI `python -m core.browser` en lugar de otras herramientas de browser.
-Este CLI te permite hacer clicks por coordenadas X,Y como Claude Computer Use.
+**⚠️ REGLA OBLIGATORIA**: Para navegación web y clicks, **DEBES USAR ÚNICAMENTE** el comando:
+```bash
+python -m core.browser <comando> [args]
+```
 
-### COMANDOS DISPONIBLES (OBLIGATORIO usar python -m core.browser):
+**NO USES** browser_navigate, browser_click ni otras herramientas MCP de browser.
+**USA EXCLUSIVAMENTE** los comandos de abajo ejecutándolos con `python -m core.browser`.
+
+### COMANDOS (ejecutar en terminal con python -m core.browser):
 
 1. **Navegación**:
    ```bash
