@@ -5,7 +5,10 @@ OPTIMIZACIONES:
 - Lazy imports para startup más rápido
 - GzipMiddleware para comprimir respuestas (-70% tamaño)
 - Cache headers para archivos estáticos
+- Background task para limpieza de code-servers inactivos
 """
+import asyncio
+from contextlib import asynccontextmanager
 from pathlib import Path
 from fastapi import FastAPI, Form, HTTPException, Request
 from fastapi.responses import RedirectResponse, JSONResponse
@@ -16,6 +19,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from config.database import Database
 from config.settings import Settings
 from core.workspace import setup_workspace, get_project_info
+from core.code_server import cleanup_inactive_instances, get_instances_count
 
 # OPTIMIZACIÓN: Import routers de forma individual (evita cargar todos al inicio)
 from ui.routers.pages import router as pages_router
@@ -56,8 +60,39 @@ class CacheControlMiddleware(BaseHTTPMiddleware):
                 response.headers["Cache-Control"] = "no-cache, must-revalidate"  # Sin cache para CSS/JS
         return response
 
+
+# OPTIMIZACIÓN: Background task para limpieza periódica de code-servers
+async def cleanup_code_servers_task():
+    """Tarea en background que limpia code-servers inactivos cada 60 segundos"""
+    while True:
+        await asyncio.sleep(60)  # Cada 60 segundos
+        try:
+            result = cleanup_inactive_instances()
+            count = get_instances_count()
+            if count > 0:
+                print(f"[cleanup] Code-servers activos: {count}")
+        except Exception as e:
+            print(f"[cleanup] Error: {e}")
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Lifecycle manager para iniciar/detener background tasks"""
+    # Startup
+    task = asyncio.create_task(cleanup_code_servers_task())
+    print("[startup] Background cleanup task iniciado")
+    yield
+    # Shutdown
+    task.cancel()
+    try:
+        await task
+    except asyncio.CancelledError:
+        pass
+    print("[shutdown] Background cleanup task detenido")
+
+
 # Inicializar
-app = FastAPI(title="OpenHands Chat", version="2.0.0")
+app = FastAPI(title="OpenHands Chat", version="2.0.0", lifespan=lifespan)
 
 # OPTIMIZACIÓN: Comprimir respuestas >500 bytes
 app.add_middleware(GZipMiddleware, minimum_size=500)

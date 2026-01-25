@@ -1,6 +1,11 @@
 """
 Servicio para manejar code-server (VS Code en el navegador)
 Implementación basada en OpenHands: UN code-server POR CONVERSACIÓN con puertos dinámicos
+
+OPTIMIZACIONES v2:
+- Limpieza automática de instancias inactivas
+- Límite máximo de instancias simultáneas
+- Timeout automático para instancias sin uso
 """
 
 import os
@@ -10,15 +15,25 @@ import socket
 import time
 import tempfile
 import fcntl
+import threading
 from pathlib import Path
 from typing import Optional, Dict, Any
 
 # Rango de puertos para code-server (como OpenHands: 40000-49999)
 CODE_SERVER_PORT_RANGE = (40000, 40099)
 
+# OPTIMIZACIÓN: Máximo de instancias simultáneas (evita saturar RAM)
+MAX_CODE_SERVER_INSTANCES = 3
+
+# OPTIMIZACIÓN: Timeout de inactividad (5 minutos)
+INSTANCE_TIMEOUT_SECONDS = 300
+
 # Diccionario de instancias por conversation_id
-# {conv_id: {"process": Popen, "port": int, "lock_fd": int, "path": str}}
+# {conv_id: {"process": Popen, "port": int, "lock_fd": int, "path": str, "last_access": float}}
 CODE_SERVER_INSTANCES: Dict[int, Dict[str, Any]] = {}
+
+# Lock para operaciones thread-safe
+_instances_lock = threading.Lock()
 
 # Para compatibilidad con código existente
 CODE_SERVER_PORT: Optional[int] = None
@@ -94,6 +109,73 @@ def _find_available_port():
     return None, None
 
 
+def _cleanup_dead_instances():
+    """OPTIMIZACIÓN: Limpia instancias con procesos muertos"""
+    with _instances_lock:
+        dead_instances = []
+        for conv_id, instance in CODE_SERVER_INSTANCES.items():
+            if instance["process"] and instance["process"].poll() is not None:
+                dead_instances.append(conv_id)
+        
+        for conv_id in dead_instances:
+            instance = CODE_SERVER_INSTANCES[conv_id]
+            if instance.get("lock_fd") and instance.get("port"):
+                _release_port_lock(instance["lock_fd"], instance["port"])
+            del CODE_SERVER_INSTANCES[conv_id]
+            print(f"[code-server] Limpiada instancia muerta: conv_id={conv_id}")
+
+
+def _cleanup_old_instances():
+    """OPTIMIZACIÓN: Limpia instancias inactivas por timeout"""
+    current_time = time.time()
+    with _instances_lock:
+        old_instances = []
+        for conv_id, instance in CODE_SERVER_INSTANCES.items():
+            last_access = instance.get("last_access", 0)
+            if current_time - last_access > INSTANCE_TIMEOUT_SECONDS:
+                old_instances.append(conv_id)
+        
+        for conv_id in old_instances:
+            print(f"[code-server] Cerrando instancia inactiva: conv_id={conv_id}")
+            _stop_instance(conv_id)
+
+
+def _stop_instance(conv_id: int):
+    """Detiene una instancia específica (sin lock, llamar dentro de lock)"""
+    if conv_id not in CODE_SERVER_INSTANCES:
+        return
+    
+    instance = CODE_SERVER_INSTANCES[conv_id]
+    if instance["process"]:
+        try:
+            os.killpg(os.getpgid(instance["process"].pid), signal.SIGTERM)
+            instance["process"].wait(timeout=3)
+        except Exception:
+            try:
+                os.killpg(os.getpgid(instance["process"].pid), signal.SIGKILL)
+            except Exception:
+                pass
+    
+    if instance.get("lock_fd") and instance.get("port"):
+        _release_port_lock(instance["lock_fd"], instance["port"])
+    
+    del CODE_SERVER_INSTANCES[conv_id]
+
+
+def _enforce_max_instances():
+    """OPTIMIZACIÓN: Cierra instancias más viejas si hay demasiadas"""
+    with _instances_lock:
+        if len(CODE_SERVER_INSTANCES) >= MAX_CODE_SERVER_INSTANCES:
+            # Ordenar por last_access y cerrar la más vieja
+            sorted_instances = sorted(
+                CODE_SERVER_INSTANCES.items(),
+                key=lambda x: x[1].get("last_access", 0)
+            )
+            oldest_conv_id = sorted_instances[0][0]
+            print(f"[code-server] Límite alcanzado, cerrando más vieja: conv_id={oldest_conv_id}")
+            _stop_instance(oldest_conv_id)
+
+
 def get_code_server_path() -> str:
     """Obtiene la ruta de code-server"""
     local_path = os.path.expanduser("~/.local/bin/code-server")
@@ -109,16 +191,26 @@ def start_code_server(project_path: str, conversation_id: int = 0) -> dict:
     """
     Inicia code-server para una conversación específica.
     Cada conversación tiene su propio code-server (como OpenHands).
+    
+    OPTIMIZACIONES:
+    - Limpia instancias muertas antes de crear nuevas
+    - Limita máximo de instancias simultáneas
+    - Registra tiempo de acceso para timeout
     """
     global CODE_SERVER_PORT
     
     if not os.path.isdir(project_path):
         return {"status": "error", "message": f"Directorio no existe: {project_path}"}
     
+    # OPTIMIZACIÓN: Limpiar instancias muertas primero
+    _cleanup_dead_instances()
+    
     # Si ya hay un code-server para esta conversación, reutilizarlo
     if conversation_id in CODE_SERVER_INSTANCES:
         instance = CODE_SERVER_INSTANCES[conversation_id]
         if instance["process"] and instance["process"].poll() is None:
+            # Actualizar tiempo de acceso
+            instance["last_access"] = time.time()
             CODE_SERVER_PORT = instance["port"]
             return {
                 "status": "running",
@@ -130,6 +222,9 @@ def start_code_server(project_path: str, conversation_id: int = 0) -> dict:
         else:
             # Proceso muerto, limpiar
             stop_code_server(conversation_id)
+    
+    # OPTIMIZACIÓN: Verificar límite de instancias
+    _enforce_max_instances()
     
     # Encontrar puerto disponible
     port, lock_fd = _find_available_port()
@@ -160,14 +255,16 @@ def start_code_server(project_path: str, conversation_id: int = 0) -> dict:
             env=env
         )
         
-        # Guardar instancia
+        # Guardar instancia con timestamp
         CODE_SERVER_INSTANCES[conversation_id] = {
             "process": process,
             "port": port,
             "lock_fd": lock_fd,
-            "path": project_path
+            "path": project_path,
+            "last_access": time.time()  # OPTIMIZACIÓN: Para timeout
         }
         CODE_SERVER_PORT = port
+        print(f"[code-server] Iniciado: conv_id={conversation_id}, port={port}, total={len(CODE_SERVER_INSTANCES)}")
         
         # Verificar rápido que no crasheó inmediatamente
         time.sleep(0.2)  # Reducido de 0.5s a 0.2s
@@ -257,3 +354,18 @@ def is_main_project(repo_name: str) -> bool:
     NOTA: Ahora permitimos code-server para TODOS los proyectos incluyendo test03
     """
     return False  # Permitir code-server para todos los proyectos
+
+
+def cleanup_inactive_instances():
+    """
+    OPTIMIZACIÓN: Función para llamar periódicamente y limpiar instancias inactivas.
+    Se recomienda llamar cada 60 segundos desde un background task.
+    """
+    _cleanup_dead_instances()
+    _cleanup_old_instances()
+    return {"cleaned": True, "active_instances": len(CODE_SERVER_INSTANCES)}
+
+
+def get_instances_count() -> int:
+    """Retorna el número de instancias activas"""
+    return len(CODE_SERVER_INSTANCES)
