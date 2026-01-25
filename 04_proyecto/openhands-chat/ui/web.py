@@ -48,6 +48,7 @@ from ui.routers.codeparser_endpoints import router as codeparser_router
 from ui.routers.autofix_endpoints import router as autofix_router
 from ui.routers.voice_endpoints import router as voice_router
 from ui.routers.multi_llm_endpoints import router as multi_llm_router
+from ui.routers.deploy_endpoints import router as deploy_router
 
 # OPTIMIZACIÓN: Middleware para cache de archivos estáticos
 class CacheControlMiddleware(BaseHTTPMiddleware):
@@ -141,6 +142,7 @@ app.include_router(codeparser_router)
 app.include_router(autofix_router)
 app.include_router(voice_router)
 app.include_router(multi_llm_router)
+app.include_router(deploy_router)
 
 
 # === RUTAS DE PROYECTOS (legacy) ===

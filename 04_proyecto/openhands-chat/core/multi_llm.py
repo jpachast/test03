@@ -136,35 +136,13 @@ class MultiLLMManager:
     def _load_groq_key_from_db(self) -> str:
         """Intenta cargar GROQ_API_KEY desde la base de datos"""
         try:
-            import sqlite3
-            from pathlib import Path
-            
-            # Buscar en diferentes ubicaciones
-            db_paths = [
-                Path("/app/data/config.db"),
-                Path(__file__).parent.parent / "data" / "config.db",
-            ]
-            
-            for db_path in db_paths:
-                if db_path.exists():
-                    conn = sqlite3.connect(str(db_path))
-                    cur = conn.cursor()
-                    cur.execute("SELECT value, encrypted FROM settings WHERE key = 'groq_api_key'")
-                    row = cur.fetchone()
-                    conn.close()
-                    
-                    if row:
-                        value, encrypted = row
-                        if encrypted:
-                            # Desencriptar si es necesario
-                            try:
-                                from config.db.settings import SettingsManager
-                                sm = SettingsManager(str(db_path))
-                                return sm.get_setting('groq_api_key') or ""
-                            except:
-                                pass
-                        return value or ""
-            return ""
+            # Usar Database class que ya maneja desencriptación
+            from config.database import Database
+            db = Database()
+            key = db.get_setting('groq_api_key', '')
+            if key:
+                logger.info("GROQ API key loaded from database")
+            return key or ""
         except Exception as e:
             logger.debug(f"Could not load groq_api_key from db: {e}")
             return ""

@@ -10,3 +10,4 @@ from .projects_server import router as projects_server_router
 from .browser import router as browser_router
 from .autofix_endpoints import router as autofix_router
 from .multi_llm_endpoints import router as multi_llm_router
+from .deploy_endpoints import router as deploy_router

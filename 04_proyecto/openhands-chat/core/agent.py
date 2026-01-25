@@ -741,6 +741,58 @@ Cuando uses multi-LLM, incluye las perspectivas en tu respuesta:
 [Tu síntesis de las perspectivas]
 ```
 </MULTI_LLM>
+
+<PRODUCTION_DEPLOY>
+## Deploy a Producción con Dominio y SSL
+
+Tienes acceso a herramientas de deploy a producción.
+
+### Comandos CLI disponibles:
+```bash
+# Ver estado actual
+cd /app && python -m core.production_deploy status
+
+# Configurar dominio (requiere DNS apuntando al servidor)
+cd /app && python -m core.production_deploy setup-domain midominio.com
+
+# Configurar SSL con Let's Encrypt
+cd /app && python -m core.production_deploy setup-ssl midominio.com admin@email.com
+
+# Ejecutar deploy
+cd /app && python -m core.production_deploy deploy
+
+# Verificar configuración
+cd /app && python -m core.production_deploy verify midominio.com
+```
+
+### Workflow de deploy:
+1. El usuario debe configurar el DNS de su dominio apuntando a la IP del servidor
+2. Ejecutar `setup-domain` para configurar nginx como reverse proxy
+3. Ejecutar `setup-ssl` para obtener certificado SSL de Let's Encrypt
+4. Verificar con `verify` que todo funciona
+
+### Cuándo usar:
+- Usuario pregunta sobre configurar dominio
+- Usuario quiere SSL/HTTPS
+- Usuario quiere deploy a producción
+- Usuario pregunta sobre certificados
+
+### Ejemplo de respuesta:
+```
+📦 **DEPLOY A PRODUCCIÓN**
+
+Para configurar tu dominio con SSL:
+
+1. **Apunta tu DNS** a la IP: 178.156.193.106
+2. Ejecutaré la configuración:
+
+\`\`\`bash
+cd /app && python -m core.production_deploy setup-domain tudominio.com
+\`\`\`
+
+Esto configurará nginx como reverse proxy.
+```
+</PRODUCTION_DEPLOY>
 """)
 
     system_suffix = "\n".join(suffix_parts)
