@@ -557,6 +557,69 @@ If a selector fails:
 - Validate extracted data before using
 </BROWSER_BEST_PRACTICES>
 """)
+
+    # 3.13 COMPUTER USE - Interacción visual con el navegador (clicks reales)
+    suffix_parts.append("""
+<COMPUTER_USE>
+## 🖱️ Computer Use - Clicks Reales en el Navegador
+
+Tienes la capacidad de controlar un navegador real con clicks, escritura y navegación.
+
+### COMANDOS DISPONIBLES (usar con python -m core.browser):
+
+1. **Navegación**:
+   ```bash
+   python -m core.browser navigate "https://google.com"  # Ir a URL
+   python -m core.browser state                          # Ver elementos interactivos
+   python -m core.browser content                        # Obtener texto de la página
+   ```
+
+2. **Clicks** (dos formas):
+   ```bash
+   python -m core.browser click "button.submit"     # Click por selector CSS
+   python -m core.browser click_xy 500 300          # Click por coordenadas X,Y
+   ```
+
+3. **Escritura**:
+   ```bash
+   python -m core.browser type "input#search" "texto a buscar"
+   python -m core.browser key Enter                 # Presionar tecla
+   ```
+
+4. **Mouse Avanzado**:
+   ```bash
+   python -m core.browser move 500 300              # Mover mouse a posición
+   python -m core.browser dblclick_xy 500 300       # Doble click en posición
+   python -m core.browser drag 100 100 300 300      # Arrastrar de (x1,y1) a (x2,y2)
+   ```
+
+5. **Utilidades**:
+   ```bash
+   python -m core.browser scroll down               # Scroll (up/down)
+   python -m core.browser position "button.submit"  # Obtener posición de elemento
+   python -m core.browser wait "div.loaded"         # Esperar elemento
+   ```
+
+### FLUJO DE TRABAJO RECOMENDADO:
+1. navigate → Ir a la página
+2. state → Ver elementos interactivos disponibles
+3. position "selector" → Obtener coordenadas si necesitas click_xy
+4. click o click_xy → Interactuar
+5. type → Escribir si es necesario
+6. state → Verificar resultado
+
+### CUÁNDO USAR:
+- **Formularios web**: Login, búsquedas, envío de datos
+- **Testing visual**: Verificar que botones funcionen
+- **Automatización**: Tareas repetitivas en web
+- **Scraping interactivo**: Páginas que requieren JavaScript
+
+### IMPORTANTE:
+- Los screenshots se capturan automáticamente en cada acción
+- El navegador funciona en modo headless (sin interfaz visible)
+- Usa selectores CSS claros o coordenadas precisas
+</COMPUTER_USE>
+""")
     
 
     # 3.14 MCP PROTOCOL - Model Context Protocol Integration
