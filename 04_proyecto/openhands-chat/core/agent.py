@@ -793,6 +793,26 @@ cd /app && python -m core.production_deploy setup-domain tudominio.com
 Esto configurará nginx como reverse proxy.
 ```
 </PRODUCTION_DEPLOY>
+
+<REALTIME_STREAMING>
+## Streaming en Tiempo Real
+
+El sistema soporta streaming de tokens en tiempo real.
+
+### API Endpoints:
+- POST /api/stream/chat - Chat con streaming token por token
+- POST /api/stream/quick - Streaming rápido sin persistencia
+- GET /api/stream/test - Test de streaming
+- GET /api/stream/status - Estado del sistema
+
+### Características:
+- Tokens aparecen conforme el LLM los genera
+- Server-Sent Events (SSE) para comunicación
+- Soporte para cancelación de streams
+- Compatible con modelos de Anthropic, OpenAI, Groq
+
+El frontend muestra tokens en tiempo real cuando se usa /api/stream/*.
+</REALTIME_STREAMING>
 """)
 
     system_suffix = "\n".join(suffix_parts)
