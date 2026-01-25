@@ -220,7 +220,7 @@ async def proxy_code_server(request: Request, path: str):
 
 @router.websocket("/code-server/{path:path}")
 async def websocket_proxy(websocket: WebSocket, path: str):
-    """Proxy WebSocket para code-server"""
+    """Proxy WebSocket para code-server con cleanup correcto"""
     await websocket.accept()
     
     status = get_code_server_status()
@@ -229,34 +229,60 @@ async def websocket_proxy(websocket: WebSocket, path: str):
     if websocket.query_params:
         ws_url += f"?{websocket.query_params}"
     
+    # Flag para indicar que la conexión se cerró
+    disconnected = False
+    
     try:
         async with websockets.connect(ws_url) as ws_backend:
             async def forward_to_backend():
+                nonlocal disconnected
                 try:
-                    while True:
-                        data = await websocket.receive()
-                        if "text" in data:
-                            await ws_backend.send(data["text"])
-                        elif "bytes" in data:
-                            await ws_backend.send(data["bytes"])
-                except WebSocketDisconnect:
-                    pass
+                    while not disconnected:
+                        try:
+                            data = await websocket.receive()
+                            # Verificar si es mensaje de desconexión
+                            if data.get("type") == "websocket.disconnect":
+                                disconnected = True
+                                break
+                            if "text" in data:
+                                await ws_backend.send(data["text"])
+                            elif "bytes" in data:
+                                await ws_backend.send(data["bytes"])
+                        except WebSocketDisconnect:
+                            disconnected = True
+                            break
+                except Exception:
+                    disconnected = True
             
             async def forward_to_client():
+                nonlocal disconnected
                 try:
                     async for message in ws_backend:
-                        if isinstance(message, str):
-                            await websocket.send_text(message)
-                        else:
-                            await websocket.send_bytes(message)
+                        if disconnected:
+                            break
+                        try:
+                            if isinstance(message, str):
+                                await websocket.send_text(message)
+                            else:
+                                await websocket.send_bytes(message)
+                        except Exception:
+                            disconnected = True
+                            break
                 except websockets.ConnectionClosed:
-                    pass
+                    disconnected = True
             
-            await asyncio.gather(forward_to_backend(), forward_to_client())
+            await asyncio.gather(
+                forward_to_backend(), 
+                forward_to_client(),
+                return_exceptions=True
+            )
     except Exception as e:
-        print(f"WebSocket proxy error: {e}")
-        # Solo cerrar si el websocket no está ya cerrado
+        if "disconnect" not in str(e).lower():
+            print(f"WebSocket proxy error: {e}")
+    finally:
+        # Cleanup seguro
         try:
-            await websocket.close()
-        except RuntimeError:
+            if not disconnected:
+                await websocket.close()
+        except Exception:
             pass  # WebSocket ya cerrado, ignorar

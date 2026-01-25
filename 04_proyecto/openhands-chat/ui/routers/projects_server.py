@@ -416,6 +416,7 @@ async def websocket_proxy(websocket: WebSocket, path: str):
     """
     Proxy WebSocket para apps con tiempo real (hot-reload, chat, etc.)
     Similar a cómo Daytona/OpenHands maneja WebSockets
+    Con cleanup correcto para evitar "Cannot call receive once disconnect"
     """
     await websocket.accept()
     
@@ -445,37 +446,53 @@ async def websocket_proxy(websocket: WebSocket, path: str):
     if query_params:
         ws_url += f"?{'&'.join(f'{k}={v}' for k, v in query_params.items())}"
     
+    # Flag para indicar que la conexión se cerró
+    disconnected = False
+    
     try:
         # Conectar al WebSocket del servidor del agente
         async with websockets.connect(ws_url) as agent_ws:
             
             async def forward_to_agent():
                 """Reenviar mensajes del cliente al servidor del agente"""
+                nonlocal disconnected
                 try:
-                    while True:
-                        data = await websocket.receive()
-                        if data["type"] == "websocket.receive":
-                            if "text" in data:
-                                await agent_ws.send(data["text"])
-                            elif "bytes" in data:
-                                await agent_ws.send(data["bytes"])
-                        elif data["type"] == "websocket.disconnect":
+                    while not disconnected:
+                        try:
+                            data = await websocket.receive()
+                            # Verificar tipo de mensaje
+                            msg_type = data.get("type", "")
+                            if msg_type == "websocket.disconnect":
+                                disconnected = True
+                                break
+                            if msg_type == "websocket.receive":
+                                if "text" in data:
+                                    await agent_ws.send(data["text"])
+                                elif "bytes" in data:
+                                    await agent_ws.send(data["bytes"])
+                        except WebSocketDisconnect:
+                            disconnected = True
                             break
-                except WebSocketDisconnect:
-                    pass
                 except Exception:
-                    pass
+                    disconnected = True
             
             async def forward_to_client():
                 """Reenviar mensajes del servidor del agente al cliente"""
+                nonlocal disconnected
                 try:
                     async for message in agent_ws:
-                        if isinstance(message, str):
-                            await websocket.send_text(message)
-                        else:
-                            await websocket.send_bytes(message)
+                        if disconnected:
+                            break
+                        try:
+                            if isinstance(message, str):
+                                await websocket.send_text(message)
+                            else:
+                                await websocket.send_bytes(message)
+                        except Exception:
+                            disconnected = True
+                            break
                 except Exception:
-                    pass
+                    disconnected = True
             
             # Ejecutar ambas direcciones en paralelo
             await asyncio.gather(
@@ -485,16 +502,27 @@ async def websocket_proxy(websocket: WebSocket, path: str):
             )
     
     except websockets.exceptions.ConnectionClosed:
-        pass
+        disconnected = True
     except ConnectionRefusedError:
-        await websocket.close(code=4003, reason=f"No se puede conectar al puerto {port}")
-    except Exception as e:
-        await websocket.close(code=4004, reason=str(e)[:100])
-    finally:
         try:
-            await websocket.close()
+            if not disconnected:
+                await websocket.close(code=4003, reason=f"No se puede conectar al puerto {port}")
         except Exception:
             pass
+    except Exception as e:
+        if "disconnect" not in str(e).lower():
+            try:
+                if not disconnected:
+                    await websocket.close(code=4004, reason=str(e)[:100])
+            except Exception:
+                pass
+    finally:
+        # Cleanup seguro - solo cerrar si no está ya desconectado
+        try:
+            if not disconnected:
+                await websocket.close()
+        except Exception:
+            pass  # WebSocket ya cerrado, ignorar
 
 # Endpoint de diagnóstico
 @router.get("/debug-test")
