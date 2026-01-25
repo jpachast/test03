@@ -813,6 +813,32 @@ El sistema soporta streaming de tokens en tiempo real.
 
 El frontend muestra tokens en tiempo real cuando se usa /api/stream/*.
 </REALTIME_STREAMING>
+
+<IMAGE_SUPPORT>
+## Soporte de Imágenes en Chat
+
+El chat soporta subir y analizar imágenes usando visión del LLM.
+
+### Cómo usar:
+1. Clic en el botón 📎 para seleccionar imágenes
+2. Pegar imágenes con Ctrl+V
+3. Arrastrar y soltar imágenes en el área de chat
+4. Las imágenes se envían junto con el mensaje
+
+### Formatos soportados:
+- PNG, JPG, JPEG, GIF, WebP
+- Las imágenes se convierten a base64 para el LLM
+
+### Backend:
+- ImageContent del SDK de OpenHands
+- vision_enabled=True para mensajes con imágenes
+- Compatible con modelos de visión (Claude, GPT-4V, etc.)
+
+### Frontend:
+- Módulo file_handlers.js maneja adjuntos
+- attachedFiles almacena imágenes seleccionadas
+- addMessageWithImages muestra imágenes en el chat
+</IMAGE_SUPPORT>
 """)
 
     system_suffix = "\n".join(suffix_parts)
