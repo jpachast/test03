@@ -15,7 +15,7 @@
 | 2 | Code Embeddings | ✅ /api/semantic/* | ✅ | ✅ | **100%** |
 | 3 | Codemaps | ✅ /api/codemap/* | ✅ | ✅ | **100%** |
 | 4 | Checkpoints | ✅ /api/checkpoints/* | ✅ | ✅ | **100%** |
-| 5 | Voice Input | ❌ Sin router | ✅ JS existe | ❌ | **PENDIENTE** |
+| 5 | Voice Input | ✅ /api/voice/* | ✅ JS existe | ✅ | **100%** |
 | 6 | Background Agents | ✅ /api/background/* | ✅ | ✅ | **100%** |
 | 7 | Auto-Fix Loop | ✅ /api/autofix/* | ✅ | ✅ | **100%** |
 | 8 | Web Scraper | ✅ /api/scraper/* | ✅ | ✅ | **100%** |
@@ -96,12 +96,20 @@ if (window.processResponseWithFeatures) {
 - `/app/core/mcp_protocol.py` - Protocolo MCP base
 - `/app/ui/routers/chat.py` - Integración en flujo de chat
 
-## PENDIENTE
+## COMPLETADO
 
-### Voice Input (Punto 5)
-- **Archivo existe:** `/app/core/voice_input.py`
-- **JS existe:** `/app/static/js/voice_input.js`
-- **Falta:** Crear `/app/ui/routers/voice_endpoints.py` y registrar en `web.py`
+### Voice Input (Punto 5) - ✅ IMPLEMENTADO
+- **Backend:** `/app/core/voice_input.py`
+- **Frontend:** `/app/static/js/voice_input.js`
+- **Router:** `/app/ui/routers/voice_endpoints.py`
+- **Endpoints:**
+  - GET `/api/voice/status` - Estado de configuración
+  - POST `/api/voice/transcribe` - Transcribir audio
+  - POST `/api/voice/test` - Probar conexión
+- **Backends soportados:**
+  - Web Speech API (gratis, navegador)
+  - Groq Whisper (gratis, tier gratuito)
+  - OpenAI Whisper (de pago)
 
 ## Reglas para el Agente
 
