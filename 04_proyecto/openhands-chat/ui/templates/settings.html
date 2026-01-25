@@ -440,7 +440,68 @@
         </div>
     </div>
 </div>
-            </div>
+            
+            <!-- Code-Server -->
+            <section class="settings-section">
+                <h3>💻 Code-Server (Editor de Código)</h3>
+                <p class="description">
+                    Configura el editor de código integrado (VS Code web).
+                </p>
+
+                <div class="settings-form">
+                    <div class="form-group">
+                        <label for="max_instances">Máximo de editores simultáneos:</label>
+                        <input type="number" id="max_instances" min="1" max="10" value="3" style="width: 80px;">
+                        <span class="help-inline">Más editores = más RAM (~50-100MB c/u)</span>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="cs_timeout">Timeout de inactividad (segundos):</label>
+                        <input type="number" id="cs_timeout" min="60" max="3600" value="300" style="width: 100px;">
+                        <span class="help-inline">Cierra editores inactivos automáticamente</span>
+                    </div>
+
+                    <div id="codeserver-status" class="form-status" style="margin: 10px 0;"></div>
+
+                    <button type="button" onclick="saveCodeServerSettings()" class="btn-primary">💾 Guardar</button>
+                </div>
+
+                <script>
+                // Cargar configuración actual
+                fetch('/api/settings/code-server')
+                    .then(r => r.json())
+                    .then(data => {
+                        document.getElementById('max_instances').value = data.max_instances || 3;
+                        document.getElementById('cs_timeout').value = data.timeout || 300;
+                    });
+
+                function saveCodeServerSettings() {
+                    const maxInst = document.getElementById('max_instances').value;
+                    const timeout = document.getElementById('cs_timeout').value;
+                    const status = document.getElementById('codeserver-status');
+                    
+                    status.innerHTML = '<span style="color: #f59e0b;">Guardando...</span>';
+                    
+                    fetch('/api/settings/code-server', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({max_instances: parseInt(maxInst), timeout: parseInt(timeout)})
+                    })
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.success) {
+                            status.innerHTML = '<span class="status-ok">✅ Configuración guardada</span>';
+                        } else {
+                            status.innerHTML = '<span style="color: red;">❌ Error: ' + data.error + '</span>';
+                        }
+                    })
+                    .catch(e => {
+                        status.innerHTML = '<span style="color: red;">❌ Error de conexión</span>';
+                    });
+                }
+                </script>
+            </section>
+</div>
         </div>
     </div>
 

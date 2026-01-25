@@ -333,3 +333,42 @@ async def delete_turso_config():
     db.set_setting('turso_url', '')
     db.set_setting('turso_token', '')
     return JSONResponse({"success": True})
+
+
+# ============================================
+# Code-Server Settings
+# ============================================
+
+@router.get("/code-server")
+async def get_code_server_settings():
+    """Obtener configuración de Code-Server"""
+    max_instances = db.get_setting('code_server_max_instances', '3')
+    timeout = db.get_setting('code_server_timeout', '300')
+    return JSONResponse({
+        "max_instances": int(max_instances),
+        "timeout": int(timeout),
+        "description": {
+            "max_instances": "Máximo de editores de código abiertos simultáneamente",
+            "timeout": "Segundos de inactividad antes de cerrar automáticamente"
+        }
+    })
+
+
+@router.post("/code-server")
+async def save_code_server_settings(request: Request):
+    """Guardar configuración de Code-Server"""
+    try:
+        data = await request.json()
+        max_instances = data.get("max_instances", 3)
+        timeout = data.get("timeout", 300)
+        
+        # Validar rangos
+        max_instances = max(1, min(10, int(max_instances)))
+        timeout = max(60, min(3600, int(timeout)))
+        
+        db.set_setting('code_server_max_instances', str(max_instances))
+        db.set_setting('code_server_timeout', str(timeout))
+        
+        return JSONResponse({"success": True, "max_instances": max_instances, "timeout": timeout})
+    except Exception as e:
+        return JSONResponse({"success": False, "error": str(e)})

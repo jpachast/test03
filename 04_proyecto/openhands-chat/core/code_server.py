@@ -22,11 +22,35 @@ from typing import Optional, Dict, Any
 # Rango de puertos para code-server (como OpenHands: 40000-49999)
 CODE_SERVER_PORT_RANGE = (40000, 40099)
 
+
+def get_max_instances() -> int:
+    """Obtiene MAX_INSTANCES desde la BD o usa default"""
+    try:
+        from config.database import Database
+        db = Database()
+        value = db.get_setting('code_server_max_instances', '3')
+        return int(value)
+    except:
+        return 3
+
+def get_instance_timeout() -> int:
+    """Obtiene TIMEOUT desde la BD o usa default"""
+    try:
+        from config.database import Database
+        db = Database()
+        value = db.get_setting('code_server_timeout', '300')
+        return int(value)
+    except:
+        return 300
+
+
+# Ahora usa funciones dinámicas en lugar de constantes
+# MAX_CODE_SERVER_INSTANCES -> get_max_instances()
+# INSTANCE_TIMEOUT_SECONDS -> get_instance_timeout()
+
 # OPTIMIZACIÓN: Máximo de instancias simultáneas (evita saturar RAM)
-MAX_CODE_SERVER_INSTANCES = 3
 
 # OPTIMIZACIÓN: Timeout de inactividad (5 minutos)
-INSTANCE_TIMEOUT_SECONDS = 300
 
 # Diccionario de instancias por conversation_id
 # {conv_id: {"process": Popen, "port": int, "lock_fd": int, "path": str, "last_access": float}}
@@ -132,7 +156,7 @@ def _cleanup_old_instances():
         old_instances = []
         for conv_id, instance in CODE_SERVER_INSTANCES.items():
             last_access = instance.get("last_access", 0)
-            if current_time - last_access > INSTANCE_TIMEOUT_SECONDS:
+            if current_time - last_access > get_instance_timeout():
                 old_instances.append(conv_id)
         
         for conv_id in old_instances:
@@ -165,7 +189,7 @@ def _stop_instance(conv_id: int):
 def _enforce_max_instances():
     """OPTIMIZACIÓN: Cierra instancias más viejas si hay demasiadas"""
     with _instances_lock:
-        if len(CODE_SERVER_INSTANCES) >= MAX_CODE_SERVER_INSTANCES:
+        if len(CODE_SERVER_INSTANCES) >= get_max_instances():
             # Ordenar por last_access y cerrar la más vieja
             sorted_instances = sorted(
                 CODE_SERVER_INSTANCES.items(),
