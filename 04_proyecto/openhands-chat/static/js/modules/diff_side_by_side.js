@@ -619,13 +619,34 @@
     function init() {
         injectStyles();
         console.log('[DiffSideBySide] Módulo inicializado');
+        
+        // Observador para detectar nuevos mensajes automáticamente
+        const chatMessages = document.getElementById('chatMessages');
+        if (chatMessages) {
+            const observer = new MutationObserver((mutations) => {
+                mutations.forEach((mutation) => {
+                    mutation.addedNodes.forEach((node) => {
+                        if (node.nodeType === 1 && node.classList && node.classList.contains('message')) {
+                            // Esperar a que el contenido se renderice completamente
+                            setTimeout(() => {
+                                detectAndRenderDiffs(node);
+                            }, 200);
+                        }
+                    });
+                });
+            });
+            
+            observer.observe(chatMessages, { childList: true, subtree: true });
+            console.log('[DiffSideBySide] Observer configurado para detectar mensajes nuevos');
+        }
     }
     
     // Inicializar cuando DOM esté listo
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', init);
     } else {
-        init();
+        // Esperar un momento para que chatMessages exista
+        setTimeout(init, 1000);
     }
     
     // Exponer API global
