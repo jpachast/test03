@@ -120,12 +120,14 @@ def create_agent(api_key: str, model: str = "deepseek/deepseek-chat", base_url: 
     """
     
     # 1. Configurar LLM principal (DeepSeek para código)
+    # NOTA: NO poner stream=True aquí. El SDK maneja streaming automáticamente
+    # basándose en si se pasan token_callbacks a la Conversation.
+    # Si ponemos stream=True aquí, el Condenser falla porque no tiene callback.
     llm = LLM(
         model=model,
         api_key=SecretStr(api_key),
         base_url=base_url,
         temperature=0.7,  # Respuestas más determinísticas
-        stream=True,  # STREAMING REAL - tokens en tiempo real
     )
     
     # 2. Condenser para contextos largos - IGUAL QUE OPENHANDS OFICIAL
