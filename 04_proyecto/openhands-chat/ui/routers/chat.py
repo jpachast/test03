@@ -89,18 +89,43 @@ def create_token_callback(q):
     
     Envía tokens al frontend para mostrar respuesta en tiempo real.
     """
-    def token_callback(chunk: LLMStreamChunk):
+    token_count = [0]  # Mutable para contar tokens
+    print("[TOKEN CALLBACK] ⚡ Callback creado!")
+    
+    def token_callback(chunk):
         try:
-            # Extraer contenido del delta (formato OpenAI streaming)
-            if chunk.choices and len(chunk.choices) > 0:
+            token_count[0] += 1
+            print(f"[TOKEN CALLBACK] Invocado #{token_count[0]}, chunk type: {type(chunk).__name__}")
+            
+            # Manejar diferentes formatos de chunk
+            content = None
+            
+            # Formato 1: LLMStreamChunk con choices
+            if hasattr(chunk, 'choices') and chunk.choices and len(chunk.choices) > 0:
                 delta = chunk.choices[0].delta
                 if delta:
-                    # delta.content tiene el texto parcial
                     content = getattr(delta, 'content', None)
-                    if content:
-                        q.put({"type": "token", "content": content})
+            
+            # Formato 2: Chunk directo con content
+            elif hasattr(chunk, 'content'):
+                content = chunk.content
+            
+            # Formato 3: String directo
+            elif isinstance(chunk, str):
+                content = chunk
+            
+            if content:
+                if token_count[0] <= 5:
+                    print(f"[TOKEN #{token_count[0]}] {content[:50]}...")
+                q.put({"type": "token", "content": content})
+            else:
+                if token_count[0] <= 3:
+                    print(f"[TOKEN #{token_count[0]}] No content, chunk attrs: {dir(chunk)[:5]}")
+                    
         except Exception as e:
             print(f"[TOKEN ERROR] {e}")
+            import traceback
+            traceback.print_exc()
     
     return token_callback
 
