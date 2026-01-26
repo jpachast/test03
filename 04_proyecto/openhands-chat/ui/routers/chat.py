@@ -187,9 +187,14 @@ def create_streaming_callback(q, conv_id=None):
                     action = event.action
                     action_type = str(type(action).__name__)
                     
+                    # DEBUG: Ver qué atributos tiene la action
+                    cmd = getattr(action, 'command', None) or getattr(action, 'code', None) or getattr(action, 'thought', None)
+                    print(f"[CALLBACK DEBUG] action_type={action_type}, cmd={cmd[:50] if cmd else 'None'}, attrs={[a for a in dir(action) if not a.startswith('_')][:8]}")
+                    
                     if 'Command' in action_type or 'Bash' in action_type or 'Terminal' in action_type:
                         cmd = getattr(action, 'command', '') or getattr(action, 'code', '')
                         if cmd:
+                            print(f"[CALLBACK] Sending action event for command: {cmd[:50]}")
                             q.put({"type": "action", "icon": "🔧", "text": f"Ejecutando: {cmd[:100]}"})
                             # Enviar comando a la terminal (solo lectura)
                             q.put({"type": "terminal_command", "command": cmd})
