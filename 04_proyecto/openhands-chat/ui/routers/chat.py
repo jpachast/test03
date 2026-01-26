@@ -89,15 +89,8 @@ def create_token_callback(q):
     
     Envía tokens al frontend para mostrar respuesta en tiempo real.
     """
-    call_count = [0]
-    
     def token_callback(chunk: LLMStreamChunk):
-        call_count[0] += 1
         try:
-            # DEBUG: Log cada invocación
-            if call_count[0] <= 5:
-                print(f"[TOKEN CALLBACK #{call_count[0]}] Chunk type: {type(chunk).__name__}", flush=True)
-            
             # Extraer contenido del delta (formato OpenAI streaming)
             if chunk.choices and len(chunk.choices) > 0:
                 delta = chunk.choices[0].delta
@@ -105,11 +98,9 @@ def create_token_callback(q):
                     # delta.content tiene el texto parcial
                     content = getattr(delta, 'content', None)
                     if content:
-                        if call_count[0] <= 10:
-                            print(f"[TOKEN #{call_count[0]}] Enviando: {content[:30]}...", flush=True)
                         q.put({"type": "token", "content": content})
         except Exception as e:
-            print(f"[TOKEN ERROR] {e}", flush=True)
+            print(f"[TOKEN ERROR] {e}")
     
     return token_callback
 
@@ -714,7 +705,7 @@ async def stream_message(
     async def generate_events():
         global last_agent_response
         q = queue.Queue()
-
+        
         conversation_id = None
         repo_info = None
         print(f"[CHAT] Project received: '{project}'")
@@ -938,6 +929,7 @@ IMPORTANTE: Usa la información del historial de arriba para responder. Si el us
         
         agent_response = last_agent_response
         if not agent_response:
+            # Si hubo un error, mostrar el error en lugar de "Tarea completada"
             if last_error_message:
                 agent_response = f"❌ {last_error_message}"
             else:
@@ -946,7 +938,11 @@ IMPORTANTE: Usa la información del historial de arriba para responder. Si el us
         if conversation_id:
             db.add_message(conversation_id, 'assistant', agent_response)
         
-        # Solo enviar evento done (los tokens ya fueron por streaming)
+        # FIX: Enviar respuesta como token si no llegó por streaming
+        # Esto garantiza que el frontend siempre reciba el mensaje
+        if agent_response and "Tarea completada" not in agent_response:
+            yield f"data: {json.dumps({'type': 'token', 'content': agent_response})}\n\n"
+        
         yield f"data: {json.dumps({'type': 'done', 'message': agent_response})}\n\n"
     
     return StreamingResponse(
