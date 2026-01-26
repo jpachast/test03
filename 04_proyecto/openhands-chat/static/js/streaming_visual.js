@@ -1,83 +1,69 @@
 /**
- * streaming_visual.js v3.0 - Streaming REAL completo para OpenHands Chat
- * 
- * Garantiza que TODAS las respuestas se muestren con efecto de streaming:
- * 1. Tokens reales del LLM (cuando genera texto)
- * 2. Efecto visual de escritura (cuando usa herramientas)
+ * streaming_visual.js v3.1 - Streaming REAL completo para OpenHands Chat
+ * Fix: Compatible con mensajes con y sin .message-content wrapper
  */
 (function() {
     'use strict';
-    
+
     const CONFIG = {
-        charDelay: 2,        // ms por iteración
-        charsPerChunk: 8,    // caracteres por chunk
-        minLength: 80,       // mínimo para aplicar efecto
-        debug: false
+        charDelay: 2,
+        charsPerChunk: 8,
+        minLength: 80,
+        debug: true
     };
-    
-    let activeStreaming = null;
-    
+
     function log(...args) {
         if (CONFIG.debug) console.log('[STREAM]', ...args);
     }
-    
+
     // Efecto de streaming visual
     window.applyStreamingEffect = function(element, text, isMarkdown = true) {
         if (!element || !text) return Promise.resolve();
         
+        // Buscar contenedor o usar el elemento directamente
         const contentEl = element.querySelector('.message-content') || element;
-        
+
         if (text.length < CONFIG.minLength) {
             contentEl.innerHTML = isMarkdown && window.marked ? marked.parse(text) : text;
             return Promise.resolve();
         }
-        
-        // Cancelar streaming anterior si existe
-        if (activeStreaming) {
-            activeStreaming.cancel = true;
-        }
-        
-        const state = { cancel: false };
-        activeStreaming = state;
-        
+
         return new Promise(resolve => {
             let i = 0;
-            contentEl.innerHTML = '';
             element.classList.add('streaming');
-            
+
             const typeNext = () => {
-                if (state.cancel || i >= text.length) {
+                if (i >= text.length) {
                     contentEl.innerHTML = isMarkdown && window.marked ? marked.parse(text) : text;
                     element.classList.remove('streaming');
-                    activeStreaming = null;
                     resolve();
                     return;
                 }
-                
+
                 i += CONFIG.charsPerChunk;
                 const partial = text.substring(0, i);
                 contentEl.innerHTML = isMarkdown && window.marked ? marked.parse(partial) : partial;
-                
-                // Scroll
+
                 const chat = document.getElementById('chatMessages');
                 if (chat) chat.scrollTop = chat.scrollHeight;
-                
+
                 requestAnimationFrame(() => setTimeout(typeNext, CONFIG.charDelay));
             };
-            
+
             typeNext();
         });
     };
-    
+
     // Observador para mensajes que llegan de golpe
     function setupObserver() {
-        const chatMessages = document.getElementById('chatMessages') || 
+        const chatMessages = document.getElementById('chatMessages') ||
                             document.querySelector('.chat-messages');
         if (!chatMessages) {
+            log('Chat container not found, retrying...');
             setTimeout(setupObserver, 500);
             return;
         }
-        
+
         const observer = new MutationObserver(mutations => {
             mutations.forEach(mutation => {
                 mutation.addedNodes.forEach(node => {
@@ -87,50 +73,53 @@
                     if (node.classList?.contains('streaming-applied')) return;
                     if (node.classList?.contains('streaming')) return;
                     if (node.classList?.contains('streaming-progress')) return;
+
+                    // Obtener texto - puede estar en .message-content o directamente en el nodo
+                    const contentEl = node.querySelector('.message-content') || node;
+                    const text = contentEl.innerHTML || '';
                     
-                    const content = node.querySelector('.message-content');
-                    if (!content) return;
-                    
-                    const text = content.innerHTML;
-                    if (text.length < CONFIG.minLength) return;
-                    
-                    // Marcar para no procesar de nuevo
+                    // Ignorar si es muy corto
+                    if (text.length < CONFIG.minLength) {
+                        log('Message too short, skipping:', text.length);
+                        return;
+                    }
+
+                    log('Applying streaming effect to message:', text.length, 'chars');
                     node.classList.add('streaming-applied');
-                    
-                    log('Applying visual streaming to message');
-                    
-                    // Aplicar efecto
-                    content.innerHTML = '';
+
+                    // Guardar texto y limpiar
+                    const originalText = text;
+                    contentEl.innerHTML = '';
                     node.classList.add('streaming');
-                    
+
                     let i = 0;
                     const animate = () => {
-                        if (i >= text.length) {
-                            content.innerHTML = text;
+                        if (i >= originalText.length) {
+                            contentEl.innerHTML = originalText;
                             node.classList.remove('streaming');
                             return;
                         }
-                        
+
                         i += CONFIG.charsPerChunk;
-                        content.innerHTML = text.substring(0, i);
+                        contentEl.innerHTML = originalText.substring(0, i);
                         chatMessages.scrollTop = chatMessages.scrollHeight;
-                        
+
                         requestAnimationFrame(() => setTimeout(animate, CONFIG.charDelay));
                     };
-                    
+
                     animate();
                 });
             });
         });
-        
+
         observer.observe(chatMessages, { childList: true, subtree: true });
-        log('Observer active');
+        log('Observer active on:', chatMessages.id || chatMessages.className);
     }
-    
-    // Estilos de cursor de streaming
+
+    // Estilos de cursor
     function addStyles() {
         if (document.getElementById('streaming-styles-v3')) return;
-        
+
         const style = document.createElement('style');
         style.id = 'streaming-styles-v3';
         style.textContent = `
@@ -138,7 +127,7 @@
                 0%, 50% { opacity: 1; }
                 51%, 100% { opacity: 0; }
             }
-            .message.streaming .message-content::after {
+            .message.streaming::after {
                 content: '▊';
                 animation: cursor-blink 0.6s infinite;
                 color: #4CAF50;
@@ -147,7 +136,7 @@
         `;
         document.head.appendChild(style);
     }
-    
+
     // Inicializar
     function init() {
         addStyles();
@@ -156,8 +145,8 @@
         } else {
             setupObserver();
         }
-        console.log('🚀 [STREAMING] v3.0 loaded');
+        console.log('🚀 [STREAMING] v3.1 loaded');
     }
-    
+
     init();
 })();
