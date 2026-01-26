@@ -197,6 +197,34 @@ This workflow prevents unintended changes to other UI elements.
 
     # 3.1b CAMBIOS CONSERVADORES - No modificar más de lo pedido
     suffix_parts.append("""
+<LARGE_TASK_HANDLING>
+CRITICAL: For large tasks (creating applications, multiple files, complex features):
+
+1. NEVER output large amounts of code in your response text
+2. ALWAYS use FileEditorAction to create files - one file at a time
+3. DIVIDE large tasks into small steps:
+   - Step 1: Create file A
+   - Step 2: Create file B
+   - Step 3: Create file C
+   - etc.
+
+4. Each action should be ATOMIC (one file, one small change)
+5. Your text responses should be SHORT summaries, not full code dumps
+
+Example for "Create a web app with login":
+- BAD: Output 5000 lines of code in your response
+- GOOD: 
+  1. FileEditorAction: create backend/main.py
+  2. FileEditorAction: create frontend/index.html
+  3. FileEditorAction: create static/styles.css
+  4. Short summary: "Created 3 files for the web app"
+
+This approach ensures:
+- Files are created COMPLETELY (no truncation)
+- User sees progress step by step
+- Context stays manageable
+</LARGE_TASK_HANDLING>
+
 <CONSERVATIVE_CHANGES>
 CRITICAL: Make ONLY the changes the user explicitly requests. Do NOT:
 - Modify multiple files when the user asks about one specific element
