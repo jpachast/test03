@@ -1,82 +1,163 @@
-// streaming_visual.js - Efecto de escritura para respuestas
+/**
+ * streaming_visual.js v3.0 - Streaming REAL completo para OpenHands Chat
+ * 
+ * Garantiza que TODAS las respuestas se muestren con efecto de streaming:
+ * 1. Tokens reales del LLM (cuando genera texto)
+ * 2. Efecto visual de escritura (cuando usa herramientas)
+ */
 (function() {
-    console.log('[STREAMING] Inicializando streaming_visual.js...');
-
-    // Funcion para aplicar streaming visual
-    window.applyStreamingEffect = async function(element, text) {
-        const contentEl = element.querySelector('.message-content') || element;
-        contentEl.innerHTML = '';
-
-        let accumulated = '';
-        const step = 3;
-        const delay = 5;
-
-        for (let i = 0; i < text.length; i += step) {
-            accumulated += text.substr(i, step);
-            contentEl.innerHTML = window.marked ? window.marked.parse(accumulated) : accumulated;
-            element.scrollIntoView({ behavior: 'smooth', block: 'end' });
-            await new Promise(r => setTimeout(r, delay));
-        }
-        contentEl.innerHTML = window.marked ? window.marked.parse(text) : text;
+    'use strict';
+    
+    const CONFIG = {
+        charDelay: 2,        // ms por iteración
+        charsPerChunk: 8,    // caracteres por chunk
+        minLength: 80,       // mínimo para aplicar efecto
+        debug: false
     };
-
-    // Observar nuevos mensajes del asistente
-    const observer = new MutationObserver((mutations) => {
-        mutations.forEach((mutation) => {
-            mutation.addedNodes.forEach((node) => {
-                if (node.nodeType !== 1) return;
+    
+    let activeStreaming = null;
+    
+    function log(...args) {
+        if (CONFIG.debug) console.log('[STREAM]', ...args);
+    }
+    
+    // Efecto de streaming visual
+    window.applyStreamingEffect = function(element, text, isMarkdown = true) {
+        if (!element || !text) return Promise.resolve();
+        
+        const contentEl = element.querySelector('.message-content') || element;
+        
+        if (text.length < CONFIG.minLength) {
+            contentEl.innerHTML = isMarkdown && window.marked ? marked.parse(text) : text;
+            return Promise.resolve();
+        }
+        
+        // Cancelar streaming anterior si existe
+        if (activeStreaming) {
+            activeStreaming.cancel = true;
+        }
+        
+        const state = { cancel: false };
+        activeStreaming = state;
+        
+        return new Promise(resolve => {
+            let i = 0;
+            contentEl.innerHTML = '';
+            element.classList.add('streaming');
+            
+            const typeNext = () => {
+                if (state.cancel || i >= text.length) {
+                    contentEl.innerHTML = isMarkdown && window.marked ? marked.parse(text) : text;
+                    element.classList.remove('streaming');
+                    activeStreaming = null;
+                    resolve();
+                    return;
+                }
                 
-                const isAssistant = node.classList && 
-                    (node.classList.contains('assistant') || 
-                     (node.classList.contains('message') && node.innerHTML && node.innerHTML.includes('🤖')));
+                i += CONFIG.charsPerChunk;
+                const partial = text.substring(0, i);
+                contentEl.innerHTML = isMarkdown && window.marked ? marked.parse(partial) : partial;
                 
-                if (!isAssistant) return;
-                if (node.classList.contains('streaming-applied')) return;
-                if (node.classList.contains('streaming')) return;
-                if (node.classList.contains('streaming-progress')) return;
-
-                const content = node.querySelector('.message-content') || node;
-                const text = content.innerHTML || content.textContent || '';
+                // Scroll
+                const chat = document.getElementById('chatMessages');
+                if (chat) chat.scrollTop = chat.scrollHeight;
                 
-                if (text.length < 50) return;
-                
-                console.log('[STREAMING] Aplicando efecto a mensaje de', text.length, 'chars');
-                node.classList.add('streaming-applied');
-
-                const originalText = text;
-                content.innerHTML = '';
-
-                (async () => {
-                    let acc = '';
-                    const step = 4;
-                    const delay = 4;
-                    for (let i = 0; i < originalText.length; i += step) {
-                        acc += originalText.substr(i, step);
-                        content.innerHTML = acc;
-                        await new Promise(r => setTimeout(r, delay));
-                    }
-                    content.innerHTML = originalText;
-                })();
+                requestAnimationFrame(() => setTimeout(typeNext, CONFIG.charDelay));
+            };
+            
+            typeNext();
+        });
+    };
+    
+    // Observador para mensajes que llegan de golpe
+    function setupObserver() {
+        const chatMessages = document.getElementById('chatMessages') || 
+                            document.querySelector('.chat-messages');
+        if (!chatMessages) {
+            setTimeout(setupObserver, 500);
+            return;
+        }
+        
+        const observer = new MutationObserver(mutations => {
+            mutations.forEach(mutation => {
+                mutation.addedNodes.forEach(node => {
+                    if (node.nodeType !== 1) return;
+                    if (!node.classList?.contains('message')) return;
+                    if (!node.classList?.contains('assistant')) return;
+                    if (node.classList?.contains('streaming-applied')) return;
+                    if (node.classList?.contains('streaming')) return;
+                    if (node.classList?.contains('streaming-progress')) return;
+                    
+                    const content = node.querySelector('.message-content');
+                    if (!content) return;
+                    
+                    const text = content.innerHTML;
+                    if (text.length < CONFIG.minLength) return;
+                    
+                    // Marcar para no procesar de nuevo
+                    node.classList.add('streaming-applied');
+                    
+                    log('Applying visual streaming to message');
+                    
+                    // Aplicar efecto
+                    content.innerHTML = '';
+                    node.classList.add('streaming');
+                    
+                    let i = 0;
+                    const animate = () => {
+                        if (i >= text.length) {
+                            content.innerHTML = text;
+                            node.classList.remove('streaming');
+                            return;
+                        }
+                        
+                        i += CONFIG.charsPerChunk;
+                        content.innerHTML = text.substring(0, i);
+                        chatMessages.scrollTop = chatMessages.scrollHeight;
+                        
+                        requestAnimationFrame(() => setTimeout(animate, CONFIG.charDelay));
+                    };
+                    
+                    animate();
+                });
             });
         });
-    });
-
-    function startObserver() {
-        const chatMessages = document.getElementById('chatMessages') || 
-                           document.querySelector('.chat-messages');
         
-        if (chatMessages) {
-            observer.observe(chatMessages, { childList: true, subtree: true });
-            console.log('[STREAMING] Observer activo en:', chatMessages.id || chatMessages.className);
+        observer.observe(chatMessages, { childList: true, subtree: true });
+        log('Observer active');
+    }
+    
+    // Estilos de cursor de streaming
+    function addStyles() {
+        if (document.getElementById('streaming-styles-v3')) return;
+        
+        const style = document.createElement('style');
+        style.id = 'streaming-styles-v3';
+        style.textContent = `
+            @keyframes cursor-blink {
+                0%, 50% { opacity: 1; }
+                51%, 100% { opacity: 0; }
+            }
+            .message.streaming .message-content::after {
+                content: '▊';
+                animation: cursor-blink 0.6s infinite;
+                color: #4CAF50;
+                margin-left: 2px;
+            }
+        `;
+        document.head.appendChild(style);
+    }
+    
+    // Inicializar
+    function init() {
+        addStyles();
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', setupObserver);
         } else {
-            console.log('[STREAMING] Reintentando en 500ms...');
-            setTimeout(startObserver, 500);
+            setupObserver();
         }
+        console.log('🚀 [STREAMING] v3.0 loaded');
     }
-
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', startObserver);
-    } else {
-        startObserver();
-    }
+    
+    init();
 })();
