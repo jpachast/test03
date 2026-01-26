@@ -118,6 +118,71 @@ if (window.processResponseWithFeatures) {
 3. **Actualizar este archivo** cuando se complete una feature
 4. **Probar visualmente** en http://178.156.193.106/chat/29 antes de confirmar
 
+---
+
+## 🚨 REGLAS OBLIGATORIAS DE DEBUGGING (Lección 2026-01-26)
+
+### ⚠️ ANTES de tocar código de streaming/SSE - HACER ESTO PRIMERO:
+
+```bash
+# TEST DE TIMESTAMPS - OBLIGATORIO PRIMERO (30 segundos)
+docker exec openhands-chat bash -c '
+curl -sN http://localhost:12000/api/chat/test-basic 2>&1 | while read line; do
+    echo "$(date +%H:%M:%S.%3N): $line"
+done
+'
+```
+
+**Interpretar resultados:**
+- Timestamps **SEPARADOS** (~500ms) → Problema es RED/FRONTEND
+- Timestamps **JUNTOS** (<50ms) → Problema es BACKEND ← buscar aquí
+
+### 🔴 ANTIPATTERNS CONOCIDOS (NO HACER NUNCA):
+
+| Código | Problema | Solución |
+|--------|----------|----------|
+| `async def generate_events()` + `threading.Thread` | BUFFERING | Usar `def` (sync) |
+| `async def` + `queue.Queue()` | BUFFERING | Usar `def` (sync) |
+| `await asyncio.sleep()` en generator con threads | No funciona | Usar `time.sleep()` |
+
+### ✅ PATRÓN CORRECTO para streaming con threads:
+
+```python
+# CORRECTO - sync generator con threads
+def generate_events():
+    q = queue.Queue()
+    thread = threading.Thread(target=run_agent, args=(q,))
+    thread.start()
+    
+    while True:
+        event = q.get(timeout=0.1)
+        if event is None:
+            break
+        yield f"data: {json.dumps(event)}\n\n"
+        time.sleep(0.01)  # sync sleep, NO await
+```
+
+### 📋 CHECKLIST cuando usuario reporta "eventos llegan juntos":
+
+1. [ ] **NO asumir** que es frontend
+2. [ ] **NO asumir** que es Docker/red  
+3. [ ] **PRIMERO** hacer test de timestamps (comando arriba)
+4. [ ] **VERIFICAR** si `generate_events()` es `async def` o `def`
+5. [ ] **SI ES** `async def` con threads → CAMBIAR a `def`
+
+### 🏗️ Arquitectura de chat.py (RECORDAR):
+
+- `generate_events()` **DEBE SER** `def` (sync), **NO** `async def`
+- Usa `threading.Thread` internamente para ejecutar el agente
+- Usa `queue.Queue()` para comunicación thread → generator
+- **Por eso DEBE ser sync** - async + threads = buffering
+
+### 📅 Historial de bugs SSE:
+
+| Fecha | Bug | Causa | Fix | Tiempo perdido |
+|-------|-----|-------|-----|----------------|
+| 2026-01-26 | Eventos llegan juntos | `async def` + threads | Cambiar a `def` | 2 días |
+
 ## Comandos útiles
 
 ```bash
