@@ -83,13 +83,9 @@ _AGENT_CACHE_TTL = 300  # 5 minutos de vida
 def create_token_callback(q):
     """
     Crea callback para streaming de tokens - Compatible con múltiples formatos
-    
-    Soporta:
-    - LLMStreamChunk (OpenAI format): choices[0].delta.content
-    - ModelResponseStream (litellm): choices[0].delta.content o message.content
-    - String directo
     """
     token_count = [0]
+    tokens_sent = [0]
     
     def token_callback(chunk):
         try:
@@ -125,7 +121,6 @@ def create_token_callback(q):
                     if hasattr(chunk, 'choices') and chunk.choices:
                         delta = getattr(chunk.choices[0], 'delta', None)
                         if delta:
-                            # Intentar diferentes atributos
                             content = getattr(delta, 'content', None) or \
                                      getattr(delta, 'text', None) or \
                                      getattr(delta, 'message', None)
@@ -133,13 +128,13 @@ def create_token_callback(q):
                     pass
             
             if content and isinstance(content, str) and len(content) > 0:
-                if token_count[0] <= 5:
-                    print(f"[TOKEN #{token_count[0]}] {content[:30]}...")
+                tokens_sent[0] += 1
+                # Log TODOS los tokens enviados
+                print(f"[TOKEN->SSE #{tokens_sent[0]}] Enviando: '{content[:20]}...'")
                 q.put({"type": "token", "content": content})
                     
         except Exception as e:
-            if token_count[0] <= 3:
-                print(f"[TOKEN ERROR] {e}")
+            print(f"[TOKEN ERROR #{token_count[0]}] {e}")
     
     return token_callback
 
@@ -839,6 +834,7 @@ async def stream_message(
             try:
                 from core.realtime_stream import stream_response
                 import asyncio
+                import sys
                 
                 # Obtener historial para contexto
                 conv_history = []
@@ -851,6 +847,9 @@ async def stream_message(
                         })
                 
                 full_response = ""
+                token_count = 0
+                print(f"[REALTIME] Starting stream...", flush=True)
+                
                 async for event in stream_response(
                     message=message,
                     model=model,
@@ -858,10 +857,18 @@ async def stream_message(
                     conversation_history=conv_history
                 ):
                     if event["type"] == "token":
+                        token_count += 1
                         full_response += event["content"]
-                        yield f"data: {json.dumps(event)}\n\n"
+                        token_data = json.dumps(event)
+                        # Log cada token enviado
+                        if token_count <= 10 or token_count % 20 == 0:
+                            print(f"[REALTIME TOKEN #{token_count}] {event['content'][:15]}...", flush=True)
+                        yield f"data: {token_data}\n\n"
                     elif event["type"] == "error":
+                        print(f"[REALTIME ERROR] {event['error']}", flush=True)
                         yield f"data: {json.dumps({'type': 'error', 'text': event['error']})}\n\n"
+                
+                print(f"[REALTIME] Stream complete. Tokens sent: {token_count}", flush=True)
                 
                 # Guardar respuesta en BD
                 if conversation_id and full_response:
@@ -872,6 +879,8 @@ async def stream_message(
                 
             except Exception as e:
                 print(f"[STREAM] Realtime streaming failed: {e}, falling back to SDK")
+                import traceback
+                traceback.print_exc()
                 # Si falla, continuar con el flujo normal del SDK
         
         # ============================================================
@@ -1076,7 +1085,6 @@ IMPORTANTE: Usa la información del historial de arriba para responder. Si el us
         
         agent_response = last_agent_response
         if not agent_response:
-            # Si hubo un error, mostrar el error en lugar de "Tarea completada"
             if last_error_message:
                 agent_response = f"❌ {last_error_message}"
             else:
@@ -1085,11 +1093,7 @@ IMPORTANTE: Usa la información del historial de arriba para responder. Si el us
         if conversation_id:
             db.add_message(conversation_id, 'assistant', agent_response)
         
-        # FIX: Enviar respuesta como token si no llegó por streaming
-        # Esto garantiza que el frontend siempre reciba el mensaje
-        if agent_response and "Tarea completada" not in agent_response:
-            yield f"data: {json.dumps({'type': 'token', 'content': agent_response})}\n\n"
-        
+        # Solo enviar evento done (los tokens ya fueron por streaming)
         yield f"data: {json.dumps({'type': 'done', 'message': agent_response})}\n\n"
     
     return StreamingResponse(
