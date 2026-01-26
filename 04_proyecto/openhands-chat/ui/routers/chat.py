@@ -82,59 +82,25 @@ _AGENT_CACHE_TTL = 300  # 5 minutos de vida
 
 def create_token_callback(q):
     """
-    Crea callback para streaming de tokens - Compatible con múltiples formatos
-    """
-    token_count = [0]
-    tokens_sent = [0]
+    Crea callback para streaming de tokens - IDÉNTICO A OPENHANDS
     
-    def token_callback(chunk):
+    Recibe LLMStreamChunk con estructura:
+    - choices[0].delta.content = texto parcial
+    
+    Envía tokens al frontend para mostrar respuesta en tiempo real.
+    """
+    def token_callback(chunk: LLMStreamChunk):
         try:
-            token_count[0] += 1
-            content = None
-            
-            # Formato 1: choices[0].delta.content (OpenAI/Anthropic streaming)
-            if hasattr(chunk, 'choices') and chunk.choices:
-                try:
-                    choice = chunk.choices[0]
-                    if hasattr(choice, 'delta') and choice.delta:
-                        content = getattr(choice.delta, 'content', None)
-                    elif hasattr(choice, 'message') and choice.message:
-                        content = getattr(choice.message, 'content', None)
-                except (IndexError, AttributeError):
-                    pass
-            
-            # Formato 2: content directo
-            if not content and hasattr(chunk, 'content'):
-                content = chunk.content
-            
-            # Formato 3: text directo
-            if not content and hasattr(chunk, 'text'):
-                content = chunk.text
-                
-            # Formato 4: String
-            if not content and isinstance(chunk, str):
-                content = chunk
-            
-            # Formato 5: ModelResponseStream - acceso directo al delta
-            if not content:
-                try:
-                    if hasattr(chunk, 'choices') and chunk.choices:
-                        delta = getattr(chunk.choices[0], 'delta', None)
-                        if delta:
-                            content = getattr(delta, 'content', None) or \
-                                     getattr(delta, 'text', None) or \
-                                     getattr(delta, 'message', None)
-                except:
-                    pass
-            
-            if content and isinstance(content, str) and len(content) > 0:
-                tokens_sent[0] += 1
-                # Log TODOS los tokens enviados
-                print(f"[TOKEN->SSE #{tokens_sent[0]}] Enviando: '{content[:20]}...'")
-                q.put({"type": "token", "content": content})
-                    
+            # Extraer contenido del delta (formato OpenAI streaming)
+            if chunk.choices and len(chunk.choices) > 0:
+                delta = chunk.choices[0].delta
+                if delta:
+                    # delta.content tiene el texto parcial
+                    content = getattr(delta, 'content', None)
+                    if content:
+                        q.put({"type": "token", "content": content})
         except Exception as e:
-            print(f"[TOKEN ERROR #{token_count[0]}] {e}")
+            print(f"[TOKEN ERROR] {e}")
     
     return token_callback
 
@@ -658,67 +624,18 @@ async def send_message(message: str = Form(...), project: str = Form(None)):
         return JSONResponse({"status": "error", "message": str(e)}, status_code=500)
 
 
-def _is_simple_question(message: str) -> bool:
-    """Detecta si es una pregunta simple que no requiere ejecución de comandos"""
-    message_lower = message.lower().strip()
-    
-    # Patrones que indican pregunta simple de conversación
-    simple_patterns = [
-        "hola", "hello", "hi", "hey",
-        "cuéntame", "cuentame", "dime",
-        "qué es", "que es", "qué significa", "que significa",
-        "explica", "explícame", "explicame",
-        "cómo funciona", "como funciona",
-        "por qué", "porque", "por que",
-        "chiste", "joke", "broma",
-        "gracias", "thanks",
-        "cuál es", "cual es",
-        "recomienda", "sugiere", "consejo"
-    ]
-    
-    # Patrones que requieren ejecución (no usar streaming directo)
-    action_patterns = [
-        "ejecuta", "run", "crea", "create", "modifica", "edit",
-        "elimina", "delete", "instala", "install", "git ",
-        "curl ", "python ", "npm ", "pip ", "cd ", "ls ",
-        "mkdir", "mv ", "cp ", "cat ", "grep ",
-        "archivo", "file", "código", "code"
-    ]
-    
-    # Si contiene patrones de acción, no es simple
-    for pattern in action_patterns:
-        if pattern in message_lower:
-            return False
-    
-    # Si contiene patrones simples, es simple
-    for pattern in simple_patterns:
-        if pattern in message_lower:
-            return True
-    
-    # Si es muy corto (< 50 chars) y termina en ? probablemente es simple
-    if len(message) < 50 and message.strip().endswith("?"):
-        return True
-    
-    return False
-
-
 @router.post("/stream")
 async def stream_message(
     message: str = Form(...), 
     project: str = Form(None), 
     images: str = Form(None),
-    external_url: str = Form(None),
-    conversation_id: int = Form(None),
-    use_realtime: bool = Form(False)  # Nuevo: forzar streaming directo
+    external_url: str = Form(None)
 ):
     """Enviar mensaje al agente con streaming SSE"""
     global current_conversation, current_workspace, last_agent_response, last_error_message
     
     last_agent_response = ""
     last_error_message = ""  # Limpiar errores previos
-    
-    # NUEVO: Detectar si es pregunta simple para usar streaming directo
-    is_simple = _is_simple_question(message)
     
     # Obtener modelo configurado
     model = db.get_setting("llm_model", settings.default_model)
@@ -786,28 +703,18 @@ async def stream_message(
             print(f"Error parsing images: {e}")
     
     async def generate_events():
-        nonlocal conversation_id  # Usar el conversation_id del parámetro si existe
         global last_agent_response
         q = queue.Queue()
-        
-        # Usar conversation_id del frontend si viene, sino derivarlo del project
-        conv_id_from_param = conversation_id
+
         conversation_id = None
         repo_info = None
-        print(f"[CHAT] Project received: '{project}', conversation_id from param: {conv_id_from_param}")
-        
-        # Prioridad: usar conversation_id si viene directamente
-        if conv_id_from_param:
-            conversation_id = conv_id_from_param
-            print(f"[CHAT] Using conversation_id from parameter: {conversation_id}")
-        
+        print(f"[CHAT] Project received: '{project}'")
         if project:
             proj = db.get_project_by_name(project)
             print(f"[CHAT] Project found: {proj is not None}, ID: {proj['id'] if proj else 'N/A'}")
             if proj:
-                if not conversation_id:  # Solo buscar si no vino del parámetro
-                    conv = db.get_conversation(proj['id'])
-                    conversation_id = conv['id'] if conv else None
+                conv = db.get_conversation(proj['id'])
+                conversation_id = conv['id'] if conv else None
                 print(f"[CHAT] Conversation ID: {conversation_id}")
                 # Obtener info del repositorio para pasarla al agente
                 repo_info = {
@@ -823,69 +730,6 @@ async def stream_message(
             print(f"[CHAT] User message saved to conversation {conversation_id}")
         else:
             print("[CHAT] WARNING: conversation_id is None, message NOT saved!")
-        
-        # ============================================================
-        # STREAMING DIRECTO para preguntas simples (token por token real)
-        # ============================================================
-        if is_simple or use_realtime:
-            print(f"[STREAM] Using REALTIME streaming for simple question")
-            yield f"data: {json.dumps({'type': 'status', 'icon': '⚡', 'text': 'Streaming directo...'})}\n\n"
-            
-            try:
-                from core.realtime_stream import stream_response
-                import asyncio
-                import sys
-                
-                # Obtener historial para contexto
-                conv_history = []
-                if conversation_id:
-                    messages = db.get_messages(conversation_id)
-                    for msg in messages[-8:]:  # Últimos 8 mensajes
-                        conv_history.append({
-                            "role": msg["role"],
-                            "content": msg["content"][:500]
-                        })
-                
-                full_response = ""
-                token_count = 0
-                print(f"[REALTIME] Starting stream...", flush=True)
-                
-                async for event in stream_response(
-                    message=message,
-                    model=model,
-                    api_key=api_key,
-                    conversation_history=conv_history
-                ):
-                    if event["type"] == "token":
-                        token_count += 1
-                        full_response += event["content"]
-                        token_data = json.dumps(event)
-                        # Log cada token enviado
-                        if token_count <= 10 or token_count % 20 == 0:
-                            print(f"[REALTIME TOKEN #{token_count}] {event['content'][:15]}...", flush=True)
-                        yield f"data: {token_data}\n\n"
-                    elif event["type"] == "error":
-                        print(f"[REALTIME ERROR] {event['error']}", flush=True)
-                        yield f"data: {json.dumps({'type': 'error', 'text': event['error']})}\n\n"
-                
-                print(f"[REALTIME] Stream complete. Tokens sent: {token_count}", flush=True)
-                
-                # Guardar respuesta en BD
-                if conversation_id and full_response:
-                    db.add_message(conversation_id, 'assistant', full_response)
-                
-                yield f"data: {json.dumps({'type': 'done', 'message': full_response})}\n\n"
-                return  # Terminar aquí para streaming directo
-                
-            except Exception as e:
-                print(f"[STREAM] Realtime streaming failed: {e}, falling back to SDK")
-                import traceback
-                traceback.print_exc()
-                # Si falla, continuar con el flujo normal del SDK
-        
-        # ============================================================
-        # FLUJO NORMAL con SDK (para comandos y operaciones complejas)
-        # ============================================================
         
         # OPTIMIZACIÓN UX: Feedback inmediato mientras se prepara el agente
         yield f"data: {json.dumps({'type': 'status', 'icon': '🔄', 'text': 'Conectando...'})}\n\n"
