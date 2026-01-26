@@ -330,21 +330,9 @@
             const result = await response.json();
             
             if (result.changes && result.changes.length > 0) {
-                // Usar Diff Side-by-Side si está disponible y hay diff_text
-                if (window.DiffSideBySide && result.diff_text) {
-                    console.log('[Features] Usando Diff Side-by-Side interactivo');
-                    const diffComponent = window.DiffSideBySide.create(result.diff_text, { showActions: true });
-                    responseElement.appendChild(diffComponent);
-                } else {
-                    const html = formatDiffPreviewResult(result);
-                    appendFeatureResult(responseElement, html);
-                }
+                const html = formatDiffPreviewResult(result);
+                appendFeatureResult(responseElement, html);
                 return result;
-            }
-            
-            // También detectar bloques de diff en la respuesta
-            if (window.DiffSideBySide) {
-                window.DiffSideBySide.detect(responseElement);
             }
             
             return null;

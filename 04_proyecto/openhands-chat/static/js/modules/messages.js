@@ -111,13 +111,6 @@
         
         if (type === 'assistant') {
             div.innerHTML = '🤖 ' + formatMessage(content);
-            
-            // Detectar y renderizar bloques de diff como side-by-side
-            setTimeout(() => {
-                if (window.DiffSideBySide) {
-                    window.DiffSideBySide.detect(div);
-                }
-            }, 100);
         } else if (type === 'user') {
             div.innerHTML = content;
         } else {

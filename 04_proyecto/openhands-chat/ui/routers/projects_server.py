@@ -7,10 +7,9 @@ import os
 import asyncio
 import re
 from fastapi import APIRouter, Request, WebSocket, WebSocketDisconnect
-from fastapi.responses import JSONResponse, HTMLResponse, Response, FileResponse
+from fastapi.responses import JSONResponse, HTMLResponse, Response
 import httpx
 import websockets
-import mimetypes
 
 from config.settings import Settings
 from config.database import Database
@@ -28,54 +27,6 @@ from core.app_server import (
 router = APIRouter(prefix="/api/app-server", tags=["app-server"])
 settings = Settings()
 db = Database()
-
-# Extensiones de archivos estáticos que pueden servirse como fallback
-STATIC_EXTENSIONS = {
-    '.css', '.js', '.html', '.htm', '.json', '.xml', '.txt',
-    '.png', '.jpg', '.jpeg', '.gif', '.ico', '.svg', '.webp',
-    '.woff', '.woff2', '.ttf', '.eot', '.otf',
-    '.mp3', '.mp4', '.webm', '.ogg', '.wav',
-    '.pdf', '.zip', '.map'
-}
-
-def find_static_file(workspace_path: str, filename: str) -> str | None:
-    """
-    Busca un archivo estático en el workspace.
-    Busca en directorios comunes: frontend, static, public, dist, build, src, assets
-    """
-    if not workspace_path or not filename:
-        return None
-    
-    # Directorios donde buscar archivos estáticos
-    search_dirs = [
-        '',  # raíz del workspace
-        'frontend',
-        'static',
-        'public', 
-        'dist',
-        'build',
-        'src',
-        'assets',
-        'css',
-        'js',
-        'styles',
-        'scripts',
-    ]
-    
-    for subdir in search_dirs:
-        file_path = os.path.join(workspace_path, subdir, filename) if subdir else os.path.join(workspace_path, filename)
-        if os.path.isfile(file_path):
-            return file_path
-    
-    # Búsqueda recursiva como último recurso (máximo 3 niveles)
-    for root, dirs, files in os.walk(workspace_path):
-        depth = root.replace(workspace_path, '').count(os.sep)
-        if depth > 3:
-            continue
-        if filename in files:
-            return os.path.join(root, filename)
-    
-    return None
 
 
 @router.get("/status")
@@ -285,29 +236,6 @@ async def proxy_app_server(request: Request, path: str, conversation_id: int = N
             content = response.content
             content_type = response_headers.get("content-type", "")
             
-            # FALLBACK: Si el servidor devuelve 404 para archivo estático, buscarlo en workspace
-            if response.status_code == 404 and path:
-                _, ext = os.path.splitext(path)
-                if ext.lower() in STATIC_EXTENSIONS:
-                    # Obtener workspace de la conversación
-                    conv_data = db.get_conversation(int(conversation_id), by_conv_id=True)
-                    if conv_data:
-                        workspace_path = conv_data.get("workspace_path")
-                        if workspace_path:
-                            # Buscar el archivo en el workspace
-                            filename = os.path.basename(path)
-                            static_file = find_static_file(workspace_path, filename)
-                            if static_file:
-                                mime_type, _ = mimetypes.guess_type(static_file)
-                                return FileResponse(
-                                    static_file,
-                                    media_type=mime_type or "application/octet-stream",
-                                    headers={
-                                        "Cache-Control": "no-cache",
-                                        "Access-Control-Allow-Origin": "*"
-                                    }
-                                )
-            
             # Reescribir rutas en HTML para que pasen por el proxy
             # Esto es similar a cómo Daytona/OpenHands mapea URLs
             if "text/html" in content_type:
@@ -369,58 +297,33 @@ async def proxy_app_server(request: Request, path: str, conversation_id: int = N
                 
                 # 6. Inyectar script para prevenir scroll en parent cuando se clickean enlaces con href="#"
                 # Este script intercepta los clics y previene que el navegador haga scroll hacia el hash
-                scroll_fix_script = f'''
+                scroll_fix_script = '''
 <script>
-(function() {{
-    // PROXY FETCH: Interceptar llamadas fetch para redirigir /api/* al proxy
-    var originalFetch = window.fetch;
-    window.fetch = function(url, options) {{
-        if (typeof url === 'string') {{
-            // Si es una URL relativa que empieza con /api, redirigir al proxy
-            if (url.startsWith('/api/') && !url.includes('app-server')) {{
-                url = '/api/app-server/app-preview' + url + '?conversation_id={conversation_id}';
-            }} else if (url.startsWith('/') && !url.startsWith('//') && !url.includes('app-server')) {{
-                url = '/api/app-server/app-preview' + url + '?conversation_id={conversation_id}';
-            }}
-        }}
-        return originalFetch.call(this, url, options);
-    }};
-    
-    // PROXY XMLHttpRequest también
-    var originalXHROpen = XMLHttpRequest.prototype.open;
-    XMLHttpRequest.prototype.open = function(method, url) {{
-        if (typeof url === 'string') {{
-            if (url.startsWith('/api/') && !url.includes('app-server')) {{
-                url = '/api/app-server/app-preview' + url + '?conversation_id={conversation_id}';
-            }} else if (url.startsWith('/') && !url.startsWith('//') && !url.includes('app-server')) {{
-                url = '/api/app-server/app-preview' + url + '?conversation_id={conversation_id}';
-            }}
-        }}
-        return originalXHROpen.apply(this, [method, url, ...Array.from(arguments).slice(2)]);
-    }};
-    
+(function() {
     // Interceptar clics en enlaces con href="#" para evitar scroll en el padre
-    document.addEventListener('click', function(e) {{
+    document.addEventListener('click', function(e) {
         var target = e.target;
-        while (target && target.tagName !== 'A') {{
+        while (target && target.tagName !== 'A') {
             target = target.parentElement;
-        }}
-        if (target && target.tagName === 'A') {{
+        }
+        if (target && target.tagName === 'A') {
             var href = target.getAttribute('href');
-            if (href === '#' || (href && href.startsWith('#'))) {{
+            if (href === '#' || (href && href.startsWith('#'))) {
                 e.preventDefault();
-                if (href.length > 1) {{
+                // Si tiene un hash específico, hacer scroll interno
+                if (href.length > 1) {
                     var el = document.getElementById(href.substring(1));
-                    if (el) el.scrollIntoView({{behavior: 'smooth'}});
-                }}
-            }}
-        }}
-    }}, true);
-    window.addEventListener('hashchange', function(e) {{
+                    if (el) el.scrollIntoView({behavior: 'smooth'});
+                }
+            }
+        }
+    }, true);
+    // Prevenir cambios de hash que afecten al padre
+    window.addEventListener('hashchange', function(e) {
         e.preventDefault();
         e.stopPropagation();
-    }}, true);
-}})();
+    }, true);
+})();
 </script>
 '''
                 # Insertar el script antes de </body>
