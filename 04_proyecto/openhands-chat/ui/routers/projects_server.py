@@ -369,33 +369,58 @@ async def proxy_app_server(request: Request, path: str, conversation_id: int = N
                 
                 # 6. Inyectar script para prevenir scroll en parent cuando se clickean enlaces con href="#"
                 # Este script intercepta los clics y previene que el navegador haga scroll hacia el hash
-                scroll_fix_script = '''
+                scroll_fix_script = f'''
 <script>
-(function() {
+(function() {{
+    // PROXY FETCH: Interceptar llamadas fetch para redirigir /api/* al proxy
+    var originalFetch = window.fetch;
+    window.fetch = function(url, options) {{
+        if (typeof url === 'string') {{
+            // Si es una URL relativa que empieza con /api, redirigir al proxy
+            if (url.startsWith('/api/') && !url.includes('app-server')) {{
+                url = '/api/app-server/app-preview' + url + '?conversation_id={conversation_id}';
+            }} else if (url.startsWith('/') && !url.startsWith('//') && !url.includes('app-server')) {{
+                url = '/api/app-server/app-preview' + url + '?conversation_id={conversation_id}';
+            }}
+        }}
+        return originalFetch.call(this, url, options);
+    }};
+    
+    // PROXY XMLHttpRequest también
+    var originalXHROpen = XMLHttpRequest.prototype.open;
+    XMLHttpRequest.prototype.open = function(method, url) {{
+        if (typeof url === 'string') {{
+            if (url.startsWith('/api/') && !url.includes('app-server')) {{
+                url = '/api/app-server/app-preview' + url + '?conversation_id={conversation_id}';
+            }} else if (url.startsWith('/') && !url.startsWith('//') && !url.includes('app-server')) {{
+                url = '/api/app-server/app-preview' + url + '?conversation_id={conversation_id}';
+            }}
+        }}
+        return originalXHROpen.apply(this, [method, url, ...Array.from(arguments).slice(2)]);
+    }};
+    
     // Interceptar clics en enlaces con href="#" para evitar scroll en el padre
-    document.addEventListener('click', function(e) {
+    document.addEventListener('click', function(e) {{
         var target = e.target;
-        while (target && target.tagName !== 'A') {
+        while (target && target.tagName !== 'A') {{
             target = target.parentElement;
-        }
-        if (target && target.tagName === 'A') {
+        }}
+        if (target && target.tagName === 'A') {{
             var href = target.getAttribute('href');
-            if (href === '#' || (href && href.startsWith('#'))) {
+            if (href === '#' || (href && href.startsWith('#'))) {{
                 e.preventDefault();
-                // Si tiene un hash específico, hacer scroll interno
-                if (href.length > 1) {
+                if (href.length > 1) {{
                     var el = document.getElementById(href.substring(1));
-                    if (el) el.scrollIntoView({behavior: 'smooth'});
-                }
-            }
-        }
-    }, true);
-    // Prevenir cambios de hash que afecten al padre
-    window.addEventListener('hashchange', function(e) {
+                    if (el) el.scrollIntoView({{behavior: 'smooth'}});
+                }}
+            }}
+        }}
+    }}, true);
+    window.addEventListener('hashchange', function(e) {{
         e.preventDefault();
         e.stopPropagation();
-    }, true);
-})();
+    }}, true);
+}})();
 </script>
 '''
                 # Insertar el script antes de </body>

@@ -225,6 +225,82 @@ This approach ensures:
 - Context stays manageable
 </LARGE_TASK_HANDLING>
 
+<WEB_APP_DEVELOPMENT>
+When creating web applications with frontend and backend, follow these RULES for consistent routing:
+
+### STATIC FILES (CSS, JS, Images):
+1. **Backend must serve static files from ROOT**, not from /static/:
+   ```python
+   # CORRECT - serve at root level
+   @app.get("/styles.css")
+   async def get_styles():
+       return FileResponse("frontend/styles.css", media_type="text/css")
+   
+   @app.get("/script.js") 
+   async def get_script():
+       return FileResponse("frontend/script.js", media_type="application/javascript")
+   
+   # OR mount at root (but AFTER specific routes)
+   app.mount("/", StaticFiles(directory="frontend"), name="static")
+   ```
+
+2. **HTML references must match backend routes**:
+   ```html
+   <!-- If backend serves at /styles.css -->
+   <link rel="stylesheet" href="styles.css">
+   
+   <!-- If backend serves at /static/styles.css -->
+   <link rel="stylesheet" href="/static/styles.css">
+   ```
+
+### API ENDPOINTS:
+1. **Use consistent base path** - if HTML is at root, API should be at /api/:
+   ```python
+   @app.get("/api/tasks")  # API endpoints
+   @app.get("/")           # HTML page
+   ```
+
+2. **Frontend JS must use same paths**:
+   ```javascript
+   const API_BASE = '/api';
+   fetch(`${API_BASE}/tasks`)  // Matches backend /api/tasks
+   ```
+
+### RECOMMENDED STRUCTURE:
+```
+project/
+├── backend/
+│   └── main.py          # FastAPI app
+├── frontend/
+│   ├── index.html       # href="styles.css", src="script.js"
+│   ├── styles.css
+│   └── script.js        # API_BASE = '/api'
+```
+
+```python
+# main.py - CORRECT pattern
+from fastapi import FastAPI
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
+
+app = FastAPI()
+
+# 1. API routes FIRST
+@app.get("/api/items")
+async def get_items(): ...
+
+# 2. Root HTML
+@app.get("/")
+async def root():
+    return FileResponse("../frontend/index.html")
+
+# 3. Static files at root level LAST
+app.mount("/", StaticFiles(directory="../frontend"), name="static")
+```
+
+NEVER create mismatched routes - if HTML uses "styles.css", backend MUST serve it at "/styles.css", not "/static/styles.css".
+</WEB_APP_DEVELOPMENT>
+
 <CONSERVATIVE_CHANGES>
 CRITICAL: Make ONLY the changes the user explicitly requests. Do NOT:
 - Modify multiple files when the user asks about one specific element
