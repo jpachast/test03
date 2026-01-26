@@ -82,50 +82,64 @@ _AGENT_CACHE_TTL = 300  # 5 minutos de vida
 
 def create_token_callback(q):
     """
-    Crea callback para streaming de tokens - IDÉNTICO A OPENHANDS
+    Crea callback para streaming de tokens - Compatible con múltiples formatos
     
-    Recibe LLMStreamChunk con estructura:
-    - choices[0].delta.content = texto parcial
-    
-    Envía tokens al frontend para mostrar respuesta en tiempo real.
+    Soporta:
+    - LLMStreamChunk (OpenAI format): choices[0].delta.content
+    - ModelResponseStream (litellm): choices[0].delta.content o message.content
+    - String directo
     """
-    token_count = [0]  # Mutable para contar tokens
-    print("[TOKEN CALLBACK] ⚡ Callback creado!")
+    token_count = [0]
     
     def token_callback(chunk):
         try:
             token_count[0] += 1
-            print(f"[TOKEN CALLBACK] Invocado #{token_count[0]}, chunk type: {type(chunk).__name__}")
-            
-            # Manejar diferentes formatos de chunk
             content = None
             
-            # Formato 1: LLMStreamChunk con choices
-            if hasattr(chunk, 'choices') and chunk.choices and len(chunk.choices) > 0:
-                delta = chunk.choices[0].delta
-                if delta:
-                    content = getattr(delta, 'content', None)
+            # Formato 1: choices[0].delta.content (OpenAI/Anthropic streaming)
+            if hasattr(chunk, 'choices') and chunk.choices:
+                try:
+                    choice = chunk.choices[0]
+                    if hasattr(choice, 'delta') and choice.delta:
+                        content = getattr(choice.delta, 'content', None)
+                    elif hasattr(choice, 'message') and choice.message:
+                        content = getattr(choice.message, 'content', None)
+                except (IndexError, AttributeError):
+                    pass
             
-            # Formato 2: Chunk directo con content
-            elif hasattr(chunk, 'content'):
+            # Formato 2: content directo
+            if not content and hasattr(chunk, 'content'):
                 content = chunk.content
             
-            # Formato 3: String directo
-            elif isinstance(chunk, str):
+            # Formato 3: text directo
+            if not content and hasattr(chunk, 'text'):
+                content = chunk.text
+                
+            # Formato 4: String
+            if not content and isinstance(chunk, str):
                 content = chunk
             
-            if content:
+            # Formato 5: ModelResponseStream - acceso directo al delta
+            if not content:
+                try:
+                    if hasattr(chunk, 'choices') and chunk.choices:
+                        delta = getattr(chunk.choices[0], 'delta', None)
+                        if delta:
+                            # Intentar diferentes atributos
+                            content = getattr(delta, 'content', None) or \
+                                     getattr(delta, 'text', None) or \
+                                     getattr(delta, 'message', None)
+                except:
+                    pass
+            
+            if content and isinstance(content, str) and len(content) > 0:
                 if token_count[0] <= 5:
-                    print(f"[TOKEN #{token_count[0]}] {content[:50]}...")
+                    print(f"[TOKEN #{token_count[0]}] {content[:30]}...")
                 q.put({"type": "token", "content": content})
-            else:
-                if token_count[0] <= 3:
-                    print(f"[TOKEN #{token_count[0]}] No content, chunk attrs: {dir(chunk)[:5]}")
                     
         except Exception as e:
-            print(f"[TOKEN ERROR] {e}")
-            import traceback
-            traceback.print_exc()
+            if token_count[0] <= 3:
+                print(f"[TOKEN ERROR] {e}")
     
     return token_callback
 
