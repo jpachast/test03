@@ -89,8 +89,15 @@ def create_token_callback(q):
     
     Envía tokens al frontend para mostrar respuesta en tiempo real.
     """
+    call_count = [0]
+    
     def token_callback(chunk: LLMStreamChunk):
+        call_count[0] += 1
         try:
+            # DEBUG: Log cada invocación
+            if call_count[0] <= 5:
+                print(f"[TOKEN CALLBACK #{call_count[0]}] Chunk type: {type(chunk).__name__}", flush=True)
+            
             # Extraer contenido del delta (formato OpenAI streaming)
             if chunk.choices and len(chunk.choices) > 0:
                 delta = chunk.choices[0].delta
@@ -98,9 +105,11 @@ def create_token_callback(q):
                     # delta.content tiene el texto parcial
                     content = getattr(delta, 'content', None)
                     if content:
+                        if call_count[0] <= 10:
+                            print(f"[TOKEN #{call_count[0]}] Enviando: {content[:30]}...", flush=True)
                         q.put({"type": "token", "content": content})
         except Exception as e:
-            print(f"[TOKEN ERROR] {e}")
+            print(f"[TOKEN ERROR] {e}", flush=True)
     
     return token_callback
 
